@@ -37,8 +37,8 @@ var modifyConfigOptions = []string{
 // 设置项，排最后。临时切换与固定切换拆成两项：前者不写盘/不重启，后者才会
 // 写盘并可选重启。
 var modifyRuntimeOptions = []string{
-	"临时切换节点（不写盘，重启后失效）",
-	"切换并固定节点（写入配置，可选重启）",
+	"节点切换",
+	"固定节点",
 	"服务设置（重启 / 状态）",
 	"更新 内核 / UI / geo 数据",
 	"更新 clashdock 自身",

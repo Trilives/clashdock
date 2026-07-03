@@ -122,7 +122,7 @@ internal/firewall     ufw > firewalld > nft > iptables 探测与放行
 internal/proxyenv     ~/.bashrc 代理变量标记块
 internal/i18n         中英文界面文案（默认英文，源码中文原文即翻译表 key）
 internal/flows        流程编排（init / modifyconfig / modifyruntime / tools（nettest+文件位置）/
-                       uninstall / nodeselect（临时切换/切换并固定）/ 定制层字段分组编辑 / 自更新）
+                       uninstall / nodeselect（节点切换/固定节点）/ 定制层字段分组编辑 / 自更新）
 ```
 
 ## 10. 测试策略

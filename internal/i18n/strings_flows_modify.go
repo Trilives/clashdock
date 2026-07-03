@@ -8,8 +8,8 @@ func init() {
 
 		"订阅管理（增 / 删 / 改名 / 切换 / 刷新）": "Subscription management (add / remove / rename / switch / refresh)",
 
-		"临时切换节点（不写盘，重启后失效）":   "Live-switch node (not saved, lost on restart)",
-		"切换并固定节点（写入配置，可选重启）":  "Switch & pin node (saved to config, restart optional)",
+		"节点切换":                "Node switch",
+		"固定节点":                "Pin node",
 		"更新 内核 / UI / geo 数据": "Update core / UI / geo data",
 		"更新 clashdock 自身":     "Update clashdock itself",
 		"服务设置（重启 / 状态）":       "Service settings (restart / status)",

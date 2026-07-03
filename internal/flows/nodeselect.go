@@ -251,7 +251,7 @@ type pickResult struct {
 }
 
 // pickNode 两级菜单（地区/分组 → 节点）交互选择，不做任何写盘/切换——
-// 是「临时切换」与「切换并固定」两个流程共用的选择器。
+// 是「节点切换」与「固定节点」两个流程共用的选择器。
 func pickNode(configPath, group string) (*pickResult, error) {
 	cfg, err := configfile.Read(configPath)
 	if err != nil {
@@ -344,7 +344,7 @@ func NodeSwitchLive(p paths.Paths, configPath, group string) error {
 		return err
 	}
 	if !r.apiOK {
-		return fmt.Errorf("%s", i18n.T("Clash API 不可达，临时切换需要服务正在运行（如需跨重启保留，请改用「切换并固定节点」）"))
+		return fmt.Errorf("%s", i18n.T("Clash API 不可达，临时切换需要服务正在运行（如需跨重启保留，请改用「固定节点」）"))
 	}
 	if err := r.api.Switch(r.groupName, r.node); err != nil {
 		return err

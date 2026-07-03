@@ -80,8 +80,8 @@ clashdock
 └──────────────────────────────────────────┘
 ┌─ Runtime Management ─────────────────────────────────────┐
 │                                                           │
-│  ❯ ① Live-switch node (not saved, lost on restart)       │
-│    ② Switch & pin node (saved to config, restart optional) │
+│  ❯ ① Node switch                                          │
+│    ② Pin node                                             │
 │    ③ Service settings (restart / status)                 │
 │    ④ Update core / UI / geo data                         │
 │    ⑤ Update clashdock itself                             │
@@ -108,7 +108,7 @@ clashdock
 |---|---|
 | 订阅管理 | 多订阅增/删/改名/切换/刷新；可导入本地 `config.yaml`；clash 与 base64（经 subconverter）两种来源 |
 | 定制层 | 拆成「部署设置」与「自定义分流叠加」两个分组，共 25 项：TUN / 局域网代理 / LAN 面板 / 密钥（脱敏展示）/ 下载代理 / GitHub 镜像与 Token / 强制直连端口（默认 22，规避出口封 SSH）等 |
-| 节点切换 | 拆成「临时切换」（仅 Clash API 热切换，不写盘）与「切换并固定」（写入配置，可选重启）两个独立操作；两级菜单（地区→节点）+ 并发实测延迟 |
+| 节点切换 | 运行时管理提供「节点切换」与「固定节点」两个独立操作：前者仅 Clash API 热切换不写盘，后者写入配置并可选重启；均支持两级菜单（地区→节点）+ 并发实测延迟 |
 | 地区聚合组 | 可选生成 SG-Auto / HK-Auto url-test 组，插入主选择组直接选用 |
 | 自定义分流叠加 | 可选 AI / 流媒体 / 直连域名 / 直连端口规则叠加（默认关，直用机场分流） |
 | clashdock 自更新 | 下载最新发行版、校验 SHA-256、原子切换版本、试跑校验，失败自动回滚，只保留当前+上一版本 |

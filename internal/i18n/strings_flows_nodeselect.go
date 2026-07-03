@@ -35,8 +35,8 @@ func init() {
 		"已通过 Clash API 实时切换 %s → %s": "Live-switched via Clash API %s → %s",
 		"重启服务以确保生效？":                 "Restart the service to ensure it takes effect?",
 
-		"Clash API 不可达，临时切换需要服务正在运行（如需跨重启保留，请改用「切换并固定节点」）": "Clash API unreachable; live-switching requires the service to be running (use \"Switch & pin node\" if you need it to survive a restart)",
-		"已临时切换 %s → %s（不写盘，重启/切换订阅后失效）":                    "Live-switched %s → %s (not saved; lost after a restart or subscription switch)",
-		"固定为该分组首选节点？（写入配置，跨重启/切换订阅后仍保留；否则仅本次生效）":           "Pin this as the group's preferred node? (saved to config, survives restarts/subscription switches; otherwise it only applies now)",
+		"Clash API 不可达，临时切换需要服务正在运行（如需跨重启保留，请改用「固定节点」）": "Clash API unreachable; live-switching requires the service to be running (use \"Pin node\" if you need it to survive a restart)",
+		"已临时切换 %s → %s（不写盘，重启/切换订阅后失效）":                 "Live-switched %s → %s (not saved; lost after a restart or subscription switch)",
+		"固定为该分组首选节点？（写入配置，跨重启/切换订阅后仍保留；否则仅本次生效）":        "Pin this as the group's preferred node? (saved to config, survives restarts/subscription switches; otherwise it only applies now)",
 	})
 }
