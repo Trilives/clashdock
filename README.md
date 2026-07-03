@@ -93,7 +93,7 @@ clashdock
 
 | 功能 | 说明 |
 |---|---|
-| 订阅管理 | 多订阅增/删/改名/切换/刷新；clash 与 base64（经 subconverter）两种来源 |
+| 订阅管理 | 多订阅增/删/改名/切换/刷新；可导入本地 `config.yaml`；clash 与 base64（经 subconverter）两种来源 |
 | 定制层 | TUN / 局域网代理 / LAN 面板 / 密钥（脱敏展示）/ 下载代理 / GitHub 镜像与 Token 等 23 项 |
 | 节点切换 | 两级菜单（地区→节点）、Clash API 并发实测延迟、热切换 + 跨重启固定首选 |
 | 地区聚合组 | 可选生成 SG-Auto / HK-Auto url-test 组，插入主选择组直接选用 |

@@ -85,27 +85,16 @@ func Init(p paths.Paths) error {
 			}
 		}
 
-		// 2. 添加首个订阅（链接留空=暂不配置，直接结束初始化）
-		info, err := askNewSubscription()
+		// 2. 添加首个订阅，或直接导入本地 config.yaml。
+		ready, err := initialConfigSource(p, t)
 		if err != nil {
 			return err
 		}
-		if info == nil {
+		if !ready {
 			execx.Info("已跳过订阅与服务注册，结束初始化。设置已保存，" +
-				"稍后可在主菜单「订阅 → 添加订阅」补配并启动服务。")
+				"稍后可在主菜单「订阅 → 添加订阅 / 导入 config.yaml」补配并启动服务。")
 			return nil // 正常返回 → 事务提交，保留步骤 1-2 成果
 		}
-		if err := t.BackupFile(p.ConfigFile); err != nil {
-			return err
-		}
-		if err := t.BackupFile(p.ActiveFile); err != nil {
-			return err
-		}
-		sub, err := subscription.Add(p, info.Name, info.URL, info.SourceType, info.ApplyOverlay, true)
-		if err != nil {
-			return err
-		}
-		t.AddUndo("删除订阅 "+sub.Name, func() error { return subscription.RemoveSub(p, sub.Name) })
 
 		// 3. 注册并启动 systemd 服务。deb 安装已内置内核与基础规则，优先直接使用；
 		// 非 deb / 资源缺失场景才在启动前下载兜底。
@@ -128,7 +117,7 @@ func Init(p paths.Paths) error {
 		}
 
 		// 6. 提示切换 / 固定节点
-		ok, err := tui.Confirm("订阅已配置，是否现在切换 / 固定节点？", false)
+		ok, err := tui.Confirm("配置已就绪，是否现在切换 / 固定节点？", false)
 		if err != nil {
 			return err
 		}
@@ -142,6 +131,44 @@ func Init(p paths.Paths) error {
 		printAccessHint(p)
 		return nil
 	})
+}
+
+func initialConfigSource(p paths.Paths, t *txn.Transaction) (bool, error) {
+	source, err := tui.Select("配置来源", []string{"添加订阅链接", "导入本地 config.yaml"}, tui.SelectOpts{BackLabel: "暂不配置"})
+	if err != nil {
+		return false, nil
+	}
+	if err := t.BackupFile(p.ConfigFile); err != nil {
+		return false, err
+	}
+	if err := t.BackupFile(p.ActiveFile); err != nil {
+		return false, err
+	}
+	if source == 1 {
+		path, err := tui.Ask("config.yaml 文件路径", tui.AskOpts{AllowEmpty: false})
+		if err != nil {
+			return false, err
+		}
+		if err := importConfigFromFile(p, path); err != nil {
+			return false, err
+		}
+		execx.Ok("已导入 config.yaml。")
+		return true, nil
+	}
+
+	info, err := askNewSubscription()
+	if err != nil {
+		return false, err
+	}
+	if info == nil {
+		return false, nil
+	}
+	sub, err := subscription.Add(p, info.Name, info.URL, info.SourceType, info.ApplyOverlay, true)
+	if err != nil {
+		return false, err
+	}
+	t.AddUndo("删除订阅 "+sub.Name, func() error { return subscription.RemoveSub(p, sub.Name) })
+	return true, nil
 }
 
 func startupResourcesReady(p paths.Paths) bool {

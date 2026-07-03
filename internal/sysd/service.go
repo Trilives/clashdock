@@ -9,13 +9,13 @@ package sysd
 
 import (
 	_ "embed"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"text/template"
 
+	"github.com/Trilives/clashdock/internal/configfile"
 	"github.com/Trilives/clashdock/internal/execx"
 	"github.com/Trilives/clashdock/internal/jsonx"
 	"github.com/Trilives/clashdock/internal/paths"
@@ -61,8 +61,8 @@ func stageRuntimeConfig(p paths.Paths, rt runtimePaths) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	var data map[string]any
-	if err := json.Unmarshal(raw, &data); err != nil {
+	data, err := configfile.Parse(raw)
+	if err != nil {
 		return "", fmt.Errorf("解析 state/config.yaml: %w", err)
 	}
 	if v, ok := data["external-ui"]; ok && v != nil && v != "" {

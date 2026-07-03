@@ -6,7 +6,6 @@
 package flows
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -17,6 +16,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/Trilives/clashdock/internal/clashapi"
+	"github.com/Trilives/clashdock/internal/configfile"
 	"github.com/Trilives/clashdock/internal/errs"
 	"github.com/Trilives/clashdock/internal/execx"
 	"github.com/Trilives/clashdock/internal/jsonx"
@@ -242,13 +242,9 @@ func NodeSelect(p paths.Paths, configPath, group string) error {
 	if configPath == "" {
 		configPath = p.ConfigFile
 	}
-	raw, err := os.ReadFile(configPath)
+	cfg, err := configfile.Read(configPath)
 	if err != nil {
-		return fmt.Errorf("找不到配置文件：%s", configPath)
-	}
-	var cfg map[string]any
-	if err := json.Unmarshal(raw, &cfg); err != nil {
-		return fmt.Errorf("解析配置：%w", err)
+		return err
 	}
 	target, err := pickGroup(cfg, group)
 	if err != nil {

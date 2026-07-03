@@ -81,11 +81,16 @@ func Modify(p paths.Paths) error {
 }
 
 func resyncService(p paths.Paths) {
-	if sysd.IsInstalled(sysd.DefaultName) && subscription.GetActive(p) != nil {
+	if sysd.IsInstalled(sysd.DefaultName) && fileExists(p.ConfigFile) {
 		if err := sysd.SyncAndRestart(p, sysd.DefaultName); err != nil {
 			execx.Warn(fmt.Sprintf("服务同步失败：%v", err))
 		}
 	}
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 // --------------------------------------------------------------------------
@@ -112,7 +117,7 @@ func subscriptionsMenu(p paths.Paths) error {
 			fmt.Println("  • " + line)
 		}
 		a, err := tui.Select("订阅操作",
-			[]string{"添加订阅", "切换生效订阅", "刷新订阅", "重命名", "删除订阅"},
+			[]string{"添加订阅", "导入本地 config.yaml", "切换生效订阅", "刷新订阅", "重命名", "删除订阅"},
 			tui.SelectOpts{BackLabel: "返回上层", Initial: act})
 		if err != nil {
 			return nil // 返回上层菜单（改动仍在会话缓冲中）
@@ -120,6 +125,7 @@ func subscriptionsMenu(p paths.Paths) error {
 		act = a
 		ops := []func() error{
 			func() error { return subAdd(p) },
+			func() error { return importConfigFlow(p) },
 			func() error { return subSwitch(p) },
 			func() error { return subRefresh(p) },
 			func() error { return subRename(p) },
@@ -275,7 +281,7 @@ func updateCoreFlow(p paths.Paths) error {
 			execx.Warn("独立面板刷新失败：" + err.Error())
 		}
 	}
-	if subscription.GetActive(p) != nil && sysd.IsInstalled(sysd.DefaultName) {
+	if fileExists(p.ConfigFile) && sysd.IsInstalled(sysd.DefaultName) {
 		return sysd.SyncAndRestart(p, sysd.DefaultName)
 	}
 	return nil
