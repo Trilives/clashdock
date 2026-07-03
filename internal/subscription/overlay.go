@@ -9,12 +9,14 @@
 // 靠启发式定位，新组名遇冲突自动加后缀。地区聚合组构造委托 regiongroups，两者共存不重复建组。
 package subscription
 
+import "github.com/Trilives/clashdock/internal/i18n"
+
 // ApplyOverlay 在已 patch 的运行时配置上叠加自定义分流。返回 (config, info)。
 func ApplyOverlay(config, customize map[string]any) (map[string]any, map[string]any) {
 	main := mainGroupName(config)
 	if main == "" {
 		// 没有可引用的主选择组，放弃叠加（保持订阅原状）
-		return config, map[string]any{"overlay": false, "overlay_reason": "未找到主选择组"}
+		return config, map[string]any{"overlay": false, "overlay_reason": i18n.T("未找到主选择组")}
 	}
 
 	groups := groupsOf(config)

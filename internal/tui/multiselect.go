@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/Trilives/clashdock/internal/errs"
+	"github.com/Trilives/clashdock/internal/i18n"
 )
 
 // MultiSelect 空格勾选、⏎ 确认、esc → ErrCancelled。返回选中下标（升序）。
@@ -23,7 +24,7 @@ func MultiSelect(title string, options []string, defaultOn []int) ([]int, error)
 		title:   title,
 		options: options,
 		chosen:  chosen,
-		footer:  "↑/↓ 移动   空格 勾选   ⏎ 确认   esc 取消",
+		footer:  i18n.T("↑/↓ 移动   空格 勾选   ⏎ 确认   esc 取消"),
 		width:   80,
 	}
 	out, err := tea.NewProgram(m).Run()

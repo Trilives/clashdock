@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/Trilives/clashdock/internal/execx"
+	"github.com/Trilives/clashdock/internal/i18n"
 )
 
 const ProxyPort = 7890
@@ -32,12 +33,12 @@ func Detect() string {
 func Allow(port int) bool {
 	backend := Detect()
 	if backend == "" {
-		execx.Warn(fmt.Sprintf("未探测到防火墙工具，请自行确认放行 %d/tcp,udp（或本机无防火墙）。", port))
+		execx.Warn(fmt.Sprintf(i18n.T("未探测到防火墙工具，请自行确认放行 %d/tcp,udp（或本机无防火墙）。"), port))
 		return false
 	}
-	execx.Info(fmt.Sprintf("经 %s 放行 %d/tcp,udp …", backend, port))
+	execx.Info(fmt.Sprintf(i18n.T("经 %s 放行 %d/tcp,udp …"), backend, port))
 	dispatch(backend, true, port)
-	execx.Ok(fmt.Sprintf("已放行 %d 端口（%s）。", port, backend))
+	execx.Ok(fmt.Sprintf(i18n.T("已放行 %d 端口（%s）。"), port, backend))
 	return true
 }
 
@@ -47,7 +48,7 @@ func Revoke(port int) {
 	if backend == "" {
 		return
 	}
-	execx.Info(fmt.Sprintf("经 %s 撤销放行 %d …", backend, port))
+	execx.Info(fmt.Sprintf(i18n.T("经 %s 撤销放行 %d …"), backend, port))
 	dispatch(backend, false, port)
 }
 
@@ -60,7 +61,7 @@ func dispatch(backend string, add bool, port int) {
 		}
 		for _, proto := range protocols {
 			args := append(append([]string{"ufw"}, action...), fmt.Sprintf("%d/%s", port, proto))
-			execx.RunRoot(args, "更新防火墙", nil)
+			execx.RunRoot(args, i18n.T("更新防火墙"), nil)
 		}
 	case "firewalld":
 		flag := "--add-port"
@@ -68,18 +69,18 @@ func dispatch(backend string, add bool, port int) {
 			flag = "--remove-port"
 		}
 		for _, proto := range protocols {
-			execx.RunRoot([]string{"firewall-cmd", "--permanent", fmt.Sprintf("%s=%d/%s", flag, port, proto)}, "更新防火墙", nil)
+			execx.RunRoot([]string{"firewall-cmd", "--permanent", fmt.Sprintf("%s=%d/%s", flag, port, proto)}, i18n.T("更新防火墙"), nil)
 		}
-		execx.RunRoot([]string{"firewall-cmd", "--reload"}, "更新防火墙", nil)
+		execx.RunRoot([]string{"firewall-cmd", "--reload"}, i18n.T("更新防火墙"), nil)
 	case "nftables":
 		// nftables 无稳定的「删除某条规则」简易命令，这里仅做新增并提示
 		if add {
 			for _, proto := range protocols {
 				execx.RunRoot([]string{"nft", "add", "rule", "inet", "filter", "input",
-					proto, "dport", fmt.Sprint(port), "accept"}, "更新防火墙", nil)
+					proto, "dport", fmt.Sprint(port), "accept"}, i18n.T("更新防火墙"), nil)
 			}
 		} else {
-			execx.Warn("nftables 规则请手动移除：nft -a list chain inet filter input 查看句柄后 delete。")
+			execx.Warn(i18n.T("nftables 规则请手动移除：nft -a list chain inet filter input 查看句柄后 delete。"))
 		}
 	case "iptables":
 		op := "-I" // 插入到 INPUT 顶部
@@ -87,7 +88,7 @@ func dispatch(backend string, add bool, port int) {
 			op = "-D"
 		}
 		for _, proto := range protocols {
-			execx.RunRoot([]string{"iptables", op, "INPUT", "-p", proto, "--dport", fmt.Sprint(port), "-j", "ACCEPT"}, "更新防火墙", nil)
+			execx.RunRoot([]string{"iptables", op, "INPUT", "-p", proto, "--dport", fmt.Sprint(port), "-j", "ACCEPT"}, i18n.T("更新防火墙"), nil)
 		}
 	}
 }

@@ -60,31 +60,38 @@ clashdock
 
 ## 预览
 
+首次运行（或服务尚未注册/已停止但单元仍在）会自动进入初始化，无需从主菜单单独选择；
+主菜单默认英文启动，可在「Language / 语言」里切成中文（部分终端无法正常显示中文字符）。
+
 ```
-┌─ mihomo 部署系统 ────────────────────────┐
+┌─ mihomo deployment system ──────────────┐
 │                                          │
-│  ❯ ① 初始化（首次部署）                  │
-│    ② 更改配置                            │
-│    ③ 暂停服务 ⏸                          │
-│    ④ 网络测试                            │
-│    ⑤ 卸载所有服务                        │
+│  ❯ ① Pause Service ⏸                    │
+│    ② Runtime Management (no restart)    │
+│    ③ Config Changes (restart to apply)  │
+│    ④ Network Test                       │
+│    ⑤ Language / 语言                    │
+│    ⑥ Uninstall All Services             │
 │                                          │
-│  ↑/↓ 选择   ⏎ 确认   esc 退出   ^R 退出  │
+│  ↑/↓ select   ⏎ confirm   esc exit   ^R exit │
 └──────────────────────────────────────────┘
-┌─ 更改配置 ──────────────────────────────────────────────┐
+┌─ Runtime Management (no restart) ───────────────────────┐
 │                                                         │
-│  ❯ ① 订阅管理（增 / 删 / 改名 / 切换 / 刷新）           │
-│    ② 编辑定制层（TUN / 局域网 / 面板 / 自定义分流 …）   │
-│    ③ 切换 / 固定节点 ※即时                              │
-│    ④ 更新 内核 / UI / geo 数据 ※即时                    │
-│    ⑤ 服务设置（重启 / 状态）※即时                       │
-│    ⑥ 独立 Web 面板（根路径直开）※即时                   │
-│    ⑦ 网络自愈设置 ※即时                                 │
-│    ⑧ 每周更新定时器 ※即时                               │
+│  ❯ ① Switch / pin node                                 │
+│    ② Service settings (restart / status)               │
+│    ③ Update core / UI / geo data                       │
+│    ④ Standalone web panel (root path)                  │
+│    ⑤ Network self-healing settings                     │
+│    ⑥ Weekly update timer                               │
 │                                                         │
-│  ↑/↓ 选择   ⏎ 确认   esc 保存并退出   ^R 回退并退出     │
+│  ↑/↓ select   ⏎ confirm   esc save & exit   ^R roll back & exit │
 └─────────────────────────────────────────────────────────┘
 ```
+
+「配置变更（需重启生效）」子菜单包含订阅管理（增/删/改名/切换/刷新，且切换/刷新会自动
+同步并重启服务）与编辑定制层（TUN / 局域网 / 面板 / 自定义分流 …）；「运行时管理」里的
+操作均为即时生效的系统操作。菜单选项按常用程度排列（日常操作在前，卸载这类低频/破坏性
+操作放最后）。
 
 方向键上下移动、⏎ 确认、esc 保存返回、^R 回退返回；每层菜单重入时光标停在上次选中项。
 非 TTY（管道/重定向）下自动回退为编号列表 + 文本输入。
@@ -101,6 +108,7 @@ clashdock
 | systemd 集成 | 主服务 + 独立 Web 面板 + 网络自愈 watchdog + 每周更新定时器，统一暂停/启动 |
 | 网络自愈 | NetworkManager 钩子 + watchdog：断网/漫游后自动恢复，防重启风暴 |
 | 网络测试 | 流媒体/站点/AI 延迟（TTFB）与 OpenAI/Claude 出口 IP 落地探测 |
+| 中英双语 | 默认英文启动（部分终端无法正常显示中文），主菜单「Language / 语言」可切中文，持久化到 `customize.json`；`CLASHDOCK_LANG=en\|zh` 可覆盖 |
 
 ## 数据目录
 
@@ -116,7 +124,8 @@ clashdock/
 ├── cmd/clashdock/          # 入口：子命令分发 + TUI 主菜单
 ├── internal/
 │   ├── tui/                # Bubble Tea 交互组件（select/multiselect/ask/confirm）
-│   ├── flows/              # 初始化 / 更改配置 / 网络测试 / 卸载 / 节点切换 等流程
+│   ├── flows/              # 初始化 / 配置变更 / 运行时管理 / 网络测试 / 卸载 / 节点切换 等流程
+│   ├── i18n/               # 中英文界面文案（默认英文，源码中文原文即翻译表 key）
 │   ├── subscription/       # 订阅：拉取 / 识别 / 最小改写 / 分流叠加 / 地区聚合组
 │   ├── kernel/  fetchx/    # 内核·UI·geo 下载（直连优先→代理兜底）与 deb 种子接管
 │   ├── sysd/               # systemd 四组单元（服务/面板/自愈/定时器，模板内嵌）

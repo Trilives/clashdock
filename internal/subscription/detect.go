@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/Trilives/clashdock/internal/i18n"
 )
 
 // Detect 启发式判断订阅类型：返回 clash | base64 | unknown。
@@ -65,7 +67,7 @@ func looksBase64(text string) bool {
 func WarnIfMismatch(declared string, raw []byte) string {
 	found := Detect(raw)
 	if found != "unknown" && found != declared {
-		return fmt.Sprintf("内容看起来更像「%s」而非你选择的「%s」。", found, declared)
+		return fmt.Sprintf(i18n.T("内容看起来更像「%s」而非你选择的「%s」。"), found, declared)
 	}
 	return ""
 }

@@ -14,6 +14,7 @@ import (
 	"strconv"
 
 	"github.com/Trilives/clashdock/internal/execx"
+	"github.com/Trilives/clashdock/internal/i18n"
 	"github.com/Trilives/clashdock/internal/paths"
 )
 
@@ -57,6 +58,7 @@ var defaultsOrder = []string{
 	"github_token",
 	"download_proxy",
 	"webui_port",
+	"language",
 	// —— 地区自动测速聚合组（各地区独立开关，不依赖 overlay）——
 	"generate_sg_groups",
 	"generate_hk_groups",
@@ -87,6 +89,7 @@ func Defaults() map[string]any {
 		"github_token":              "",
 		"download_proxy":            "",
 		"webui_port":                9091,
+		"language":                  "en",
 		"generate_sg_groups":        false,
 		"generate_hk_groups":        false,
 		"enable_overlay":            false,
@@ -104,13 +107,13 @@ func Load(p paths.Paths) map[string]any {
 	data, err := os.ReadFile(p.CustomizeFile)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			execx.Warn("customize.json 读取失败，使用默认值：" + err.Error())
+			execx.Warn(i18n.T("customize.json 读取失败，使用默认值：") + err.Error())
 		}
 		return merged
 	}
 	var raw map[string]any
 	if err := json.Unmarshal(data, &raw); err != nil {
-		execx.Warn("customize.json 解析失败，使用默认值：" + err.Error())
+		execx.Warn(i18n.T("customize.json 解析失败，使用默认值：") + err.Error())
 		return merged
 	}
 	for k, v := range raw {
@@ -136,7 +139,7 @@ func Save(p paths.Paths, cfg map[string]any) error {
 		}
 		val, err := marshalNoEscape(v, "  ", "  ")
 		if err != nil {
-			return fmt.Errorf("序列化字段 %s: %w", k, err)
+			return fmt.Errorf(i18n.T("序列化字段 %s: %w"), k, err)
 		}
 		if !first {
 			buf.WriteString(",\n")
@@ -241,9 +244,9 @@ var SensitiveFields = map[string]bool{"secret": true, "github_token": true}
 func MaskSecret(v string) string {
 	r := []rune(v)
 	if len(r) > 4 {
-		return "已设置（***" + string(r[len(r)-4:]) + "）"
+		return fmt.Sprintf(i18n.T("已设置（***%s）"), string(r[len(r)-4:]))
 	}
-	return "已设置（***）"
+	return i18n.T("已设置（***）")
 }
 
 // Summary 字段值的单行摘要（列表→条数，布尔→开/关，涉密→脱敏）。
@@ -254,31 +257,31 @@ func Summary(cfg map[string]any, key string) string {
 	}
 	switch x := v.(type) {
 	case nil:
-		return "未设置"
+		return i18n.T("未设置")
 	case bool:
 		if x {
-			return "开"
+			return i18n.T("开")
 		}
-		return "关"
+		return i18n.T("关")
 	case []any:
 		if len(x) == 0 {
-			return "空"
+			return i18n.T("空")
 		}
-		return fmt.Sprintf("%d 条", len(x))
+		return fmt.Sprintf(i18n.T("%d 条"), len(x))
 	case []string:
 		if len(x) == 0 {
-			return "空"
+			return i18n.T("空")
 		}
-		return fmt.Sprintf("%d 条", len(x))
+		return fmt.Sprintf(i18n.T("%d 条"), len(x))
 	case []int:
 		if len(x) == 0 {
-			return "空"
+			return i18n.T("空")
 		}
-		return fmt.Sprintf("%d 条", len(x))
+		return fmt.Sprintf(i18n.T("%d 条"), len(x))
 	}
 	s := toString(v)
 	if s == "" {
-		return "未设置"
+		return i18n.T("未设置")
 	}
 	if SensitiveFields[key] {
 		return MaskSecret(s)
@@ -289,12 +292,12 @@ func Summary(cfg map[string]any, key string) string {
 // FieldLabel 编辑器里的整行标签（名称 + 摘要）。
 func FieldLabel(cfg map[string]any, key string) string {
 	if label, ok := ListFields[key]; ok {
-		return fmt.Sprintf("%s（%s）", label, Summary(cfg, key))
+		return fmt.Sprintf(i18n.T("%s（%s）"), i18n.T(label), Summary(cfg, key))
 	}
 	if label, ok := BoolFields[key]; ok {
-		return fmt.Sprintf("%s：%s", label, Summary(cfg, key))
+		return fmt.Sprintf(i18n.T("%s：%s"), i18n.T(label), Summary(cfg, key))
 	}
-	return fmt.Sprintf("%s：%s", ScalarFields[key], Summary(cfg, key))
+	return fmt.Sprintf(i18n.T("%s：%s"), i18n.T(ScalarFields[key]), Summary(cfg, key))
 }
 
 // --------------------------------------------------------------------------

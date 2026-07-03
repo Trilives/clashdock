@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/Trilives/clashdock/internal/execx"
+	"github.com/Trilives/clashdock/internal/i18n"
 )
 
 const (
@@ -51,19 +52,19 @@ func InstallTimer(onCalendar string) error {
 		onCalendar = DefaultOnCalendar
 	}
 	if !execx.Have("systemctl") {
-		return fmt.Errorf("未找到 systemctl，定时器需要 systemd")
+		return fmt.Errorf("%s", i18n.T("未找到 systemctl，定时器需要 systemd"))
 	}
 	selfExe, err := os.Executable()
 	if err != nil {
 		return err
 	}
-	if err := execx.EnsureSudo("安装每周更新定时器"); err != nil {
+	if err := execx.EnsureSudo(i18n.T("安装每周更新定时器")); err != nil {
 		return err
 	}
-	if err := execx.WriteRoot(timerServiceFile(), timerServiceText(selfExe), "0644", "写定时器服务"); err != nil {
+	if err := execx.WriteRoot(timerServiceFile(), timerServiceText(selfExe), "0644", i18n.T("写定时器服务")); err != nil {
 		return err
 	}
-	if err := execx.WriteRoot(timerFile(), timerText(onCalendar, defaultDelay), "0644", "写定时器"); err != nil {
+	if err := execx.WriteRoot(timerFile(), timerText(onCalendar, defaultDelay), "0644", i18n.T("写定时器")); err != nil {
 		return err
 	}
 	if _, err := execx.RunRoot([]string{"systemctl", "daemon-reload"}, "", nil); err != nil {
@@ -72,13 +73,13 @@ func InstallTimer(onCalendar string) error {
 	if _, err := execx.RunRoot([]string{"systemctl", "enable", "--now", TimerName + ".timer"}, "", nil); err != nil {
 		return err
 	}
-	execx.Ok(fmt.Sprintf("每周更新定时器已安装（%s）。", onCalendar))
+	execx.Ok(fmt.Sprintf(i18n.T("每周更新定时器已安装（%s）。"), onCalendar))
 	return nil
 }
 
 // RemoveTimer 卸载每周更新定时器。
 func RemoveTimer() error {
-	if err := execx.EnsureSudo("卸载每周更新定时器"); err != nil {
+	if err := execx.EnsureSudo(i18n.T("卸载每周更新定时器")); err != nil {
 		return err
 	}
 	quiet := &execx.Opt{Capture: true}
@@ -88,7 +89,7 @@ func RemoveTimer() error {
 	}
 	execx.RunRoot([]string{"rm", "-f", timerFile(), timerServiceFile()}, "", nil)
 	execx.RunRoot([]string{"systemctl", "daemon-reload"}, "", nil)
-	execx.Ok("每周更新定时器已卸载。")
+	execx.Ok(i18n.T("每周更新定时器已卸载。"))
 	return nil
 }
 

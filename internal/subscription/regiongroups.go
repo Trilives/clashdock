@@ -15,7 +15,10 @@ import (
 )
 
 // 主选择组定位关键词（与 node_select 一致）。
-var mainGroupKeywords = []string{"proxy", "节点选择", "节点", "选择", "select", "🚀", "手动"}
+var mainGroupKeywords = []string{
+	"proxy", "节点选择", "节点", "选择", "select", "🚀", "手动",
+	"代理", "代理选择", "手动选择", "选择节点",
+}
 
 var builtinNames = map[string]bool{
 	"DIRECT": true, "REJECT": true, "REJECT-DROP": true,

@@ -6,8 +6,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Trilives/clashdock/internal/i18n"
 	"github.com/Trilives/clashdock/internal/paths"
 )
+
+// TestMain 强制中文模式：本包测试断言的是源码里的中文原文，与界面默认语言无关。
+func TestMain(m *testing.M) {
+	i18n.SetLang(i18n.ZH)
+	os.Exit(m.Run())
+}
 
 func TestImportConfigFromFileCopiesConfigAndClearsActiveSubscription(t *testing.T) {
 	root := t.TempDir()

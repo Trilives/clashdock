@@ -7,6 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/Trilives/clashdock/internal/errs"
+	"github.com/Trilives/clashdock/internal/i18n"
 )
 
 // SelectOpts Select 的选项。SaveLabel 缺省与 BackLabel 相同——多数菜单里两个键
@@ -21,7 +22,7 @@ type SelectOpts struct {
 // Select 返回选中项下标；esc → ErrSaveExit，^R → ErrCancelled。
 func Select(title string, options []string, opts SelectOpts) (int, error) {
 	if opts.BackLabel == "" {
-		opts.BackLabel = "返回"
+		opts.BackLabel = i18n.T("返回")
 	}
 	if opts.SaveLabel == "" {
 		opts.SaveLabel = opts.BackLabel
@@ -40,7 +41,7 @@ func Select(title string, options []string, opts SelectOpts) (int, error) {
 		title:   title,
 		options: options,
 		idx:     idx,
-		footer:  fmt.Sprintf("↑/↓ 选择   ⏎ 确认   esc %s   ^R %s", opts.SaveLabel, opts.BackLabel),
+		footer:  fmt.Sprintf(i18n.T("↑/↓ 选择   ⏎ 确认   esc %s   ^R %s"), opts.SaveLabel, opts.BackLabel),
 		width:   80,
 		height:  24,
 	}
@@ -113,10 +114,10 @@ func buildSelect(title string, options []string, idx int, footer string, termCol
 
 	upHint, downHint := "", ""
 	if top > 0 {
-		upHint = truncate(fmt.Sprintf("  ▲ 上方还有 %d 项", top), maxW)
+		upHint = truncate(fmt.Sprintf(i18n.T("  ▲ 上方还有 %d 项"), top), maxW)
 	}
 	if end < n {
-		downHint = truncate(fmt.Sprintf("  ▼ 下方还有 %d 项", n-end), maxW)
+		downHint = truncate(fmt.Sprintf(i18n.T("  ▼ 下方还有 %d 项"), n-end), maxW)
 	}
 	label := truncate(fmt.Sprintf("─ %s ", title), maxW)
 	footerText := truncate("  "+footer, maxW)

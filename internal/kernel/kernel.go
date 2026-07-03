@@ -21,6 +21,7 @@ import (
 	"github.com/Trilives/clashdock/internal/config"
 	"github.com/Trilives/clashdock/internal/execx"
 	"github.com/Trilives/clashdock/internal/fetchx"
+	"github.com/Trilives/clashdock/internal/i18n"
 	"github.com/Trilives/clashdock/internal/paths"
 )
 
@@ -208,15 +209,15 @@ func cacheValid(path string) bool {
 func downloadTo(f *fetchx.Fetcher, rawURL, out string, force bool) error {
 	part := out + ".part"
 	if !force && cacheValid(out) {
-		execx.Info("使用缓存: " + filepath.Base(out))
+		execx.Info(i18n.T("使用缓存: ") + filepath.Base(out))
 		return nil
 	}
 	if _, err := os.Stat(out); err == nil {
-		execx.Info("丢弃无效缓存: " + filepath.Base(out))
+		execx.Info(i18n.T("丢弃无效缓存: ") + filepath.Base(out))
 		os.Remove(out)
 		os.Remove(part)
 	}
-	execx.Info("下载: " + rawURL)
+	execx.Info(i18n.T("下载: ") + rawURL)
 	if err := f.FetchFile(rawURL, part); err != nil {
 		return err
 	}
@@ -230,13 +231,13 @@ func downloadTo(f *fetchx.Fetcher, rawURL, out string, force bool) error {
 		}
 		if !cacheValid(tmp) {
 			os.Remove(tmp)
-			return fmt.Errorf("下载文件完整性校验失败: %s", filepath.Base(out))
+			return fmt.Errorf(i18n.T("下载文件完整性校验失败: %s"), filepath.Base(out))
 		}
 		return os.Rename(tmp, out)
 	}
 	if st, err := os.Stat(part); err != nil || st.Size() == 0 {
 		os.Remove(part)
-		return fmt.Errorf("下载文件为空: %s", filepath.Base(out))
+		return fmt.Errorf(i18n.T("下载文件为空: %s"), filepath.Base(out))
 	}
 	return os.Rename(part, out)
 }
@@ -250,7 +251,7 @@ func UpdateCore(p paths.Paths, f *fetchx.Fetcher, s Settings, compatible, force 
 	if err := p.EnsureStateDirs(); err != nil {
 		return "", err
 	}
-	execx.Info("查找最新 mihomo 版本…")
+	execx.Info(i18n.T("查找最新 mihomo 版本…"))
 	rel, err := latestRelease(f, MihomoRepo)
 	if err != nil {
 		return "", err
@@ -258,7 +259,7 @@ func UpdateCore(p paths.Paths, f *fetchx.Fetcher, s Settings, compatible, force 
 	version := strings.TrimSpace(rel.TagName)
 	u := pickMihomoAsset(assetURLs(rel), archName(), version, compatible)
 	if u == "" {
-		return "", fmt.Errorf("未找到架构 %s 的 Linux mihomo 资源", archName())
+		return "", fmt.Errorf(i18n.T("未找到架构 %s 的 Linux mihomo 资源"), archName())
 	}
 
 	archive := filepath.Join(p.Downloads, filepath.Base(u))
@@ -293,7 +294,7 @@ func UpdateCore(p paths.Paths, f *fetchx.Fetcher, s Settings, compatible, force 
 	if err := os.WriteFile(p.MihomoVersion, []byte(version+"\n"), 0o644); err != nil {
 		return "", err
 	}
-	execx.Ok("内核已部署: " + version)
+	execx.Ok(i18n.T("内核已部署: ") + version)
 	return version, nil
 }
 
@@ -315,7 +316,7 @@ func UpdateGeodata(p paths.Paths, f *fetchx.Fetcher, s Settings, force bool) err
 			return err
 		}
 	}
-	execx.Ok("geo 数据已更新")
+	execx.Ok(i18n.T("geo 数据已更新"))
 	return nil
 }
 
@@ -324,7 +325,7 @@ func UpdateUI(p paths.Paths, f *fetchx.Fetcher, s Settings, force bool) error {
 	if err := p.EnsureStateDirs(); err != nil {
 		return err
 	}
-	execx.Info("查找最新 Web UI 版本…")
+	execx.Info(i18n.T("查找最新 Web UI 版本…"))
 	rel, err := latestRelease(f, UIRepo)
 	if err != nil {
 		return err
@@ -335,7 +336,7 @@ func UpdateUI(p paths.Paths, f *fetchx.Fetcher, s Settings, force bool) error {
 		u = pickAsset(urls, `(\.zip|\.tar\.gz|\.tgz)$`)
 	}
 	if u == "" {
-		return fmt.Errorf("未从 %s releases 找到 UI 资源", UIRepo)
+		return fmt.Errorf(i18n.T("未从 %s releases 找到 UI 资源"), UIRepo)
 	}
 	archive := filepath.Join(p.Downloads, filepath.Base(u))
 	if err := downloadTo(f, Mirror(u, s.GithubMirror), archive, force); err != nil {
@@ -352,7 +353,7 @@ func UpdateUI(p paths.Paths, f *fetchx.Fetcher, s Settings, force bool) error {
 	}
 	uiRoot := findUIRoot(td)
 	if uiRoot == "" {
-		return fmt.Errorf("未能定位 UI 根目录: %s", filepath.Base(archive))
+		return fmt.Errorf(i18n.T("未能定位 UI 根目录: %s"), filepath.Base(archive))
 	}
 	if err := os.RemoveAll(p.UI); err != nil {
 		return err
@@ -360,7 +361,7 @@ func UpdateUI(p paths.Paths, f *fetchx.Fetcher, s Settings, force bool) error {
 	if err := copyTreeDir(uiRoot, p.UI); err != nil {
 		return err
 	}
-	execx.Ok("Web UI 已部署")
+	execx.Ok(i18n.T("Web UI 已部署"))
 	return nil
 }
 
@@ -449,14 +450,14 @@ func extract(archive, outDir string) error {
 		}
 		return nil
 	}
-	return fmt.Errorf("不支持的压缩格式: %s", name)
+	return fmt.Errorf(i18n.T("不支持的压缩格式: %s"), name)
 }
 
 // safeJoin 防 zip-slip：解包目标必须落在 outDir 内。
 func safeJoin(outDir, name string) (string, error) {
 	target := filepath.Join(outDir, name)
 	if !strings.HasPrefix(target, filepath.Clean(outDir)+string(os.PathSeparator)) {
-		return "", fmt.Errorf("非法压缩条目路径: %s", name)
+		return "", fmt.Errorf(i18n.T("非法压缩条目路径: %s"), name)
 	}
 	return target, nil
 }
@@ -490,7 +491,7 @@ func isDir(p string) bool {
 func NewFetcher(p paths.Paths) (*fetchx.Fetcher, Settings) {
 	s := LoadSettings(p)
 	if s.DownloadProxy != "" {
-		execx.Info("下载代理（直连不可用时回退）: " + s.DownloadProxy)
+		execx.Info(i18n.T("下载代理（直连不可用时回退）: ") + s.DownloadProxy)
 	}
 	return fetchx.New(s.DownloadProxy, s.GithubToken), s
 }
@@ -557,7 +558,7 @@ func SeedFromSystem(p paths.Paths) ([]string, error) {
 		seeded = append(seeded, dest)
 	}
 	if len(seeded) > 0 {
-		execx.Info(fmt.Sprintf("已从系统包接管 %d 个种子文件（离线可用；后续可在线更新）。", len(seeded)))
+		execx.Info(fmt.Sprintf(i18n.T("已从系统包接管 %d 个种子文件（离线可用；后续可在线更新）。"), len(seeded)))
 	}
 	return seeded, nil
 }

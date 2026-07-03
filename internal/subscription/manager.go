@@ -21,6 +21,7 @@ import (
 
 	"github.com/Trilives/clashdock/internal/config"
 	"github.com/Trilives/clashdock/internal/execx"
+	"github.com/Trilives/clashdock/internal/i18n"
 	"github.com/Trilives/clashdock/internal/jsonx"
 	"github.com/Trilives/clashdock/internal/paths"
 	"github.com/Trilives/clashdock/internal/sysd"
@@ -121,7 +122,7 @@ func GetActive(p paths.Paths) *Subscription {
 func Add(p paths.Paths, name, subURL, sourceType string, applyOverlay, setActive bool) (*Subscription, error) {
 	name = Slug(name)
 	if _, err := os.Stat(metaFile(p, name)); err == nil {
-		return nil, fmt.Errorf("订阅「%s」已存在，请改名或先删除", name)
+		return nil, fmt.Errorf(i18n.T("订阅「%s」已存在，请改名或先删除"), name)
 	}
 	sub := &Subscription{
 		Name: name, URL: subURL, SourceType: sourceType, ApplyOverlay: applyOverlay,
@@ -142,7 +143,7 @@ func Add(p paths.Paths, name, subURL, sourceType string, applyOverlay, setActive
 func Refresh(p paths.Paths, name string) (*Subscription, error) {
 	sub := Get(p, name)
 	if sub == nil {
-		return nil, fmt.Errorf("订阅不存在: %s", name)
+		return nil, fmt.Errorf(i18n.T("订阅不存在: %s"), name)
 	}
 	sub.UpdatedAt = now()
 	if err := build(p, sub); err != nil {
@@ -161,15 +162,15 @@ func Refresh(p paths.Paths, name string) (*Subscription, error) {
 func Rebuild(p paths.Paths, name string) (*Subscription, error) {
 	sub := Get(p, name)
 	if sub == nil {
-		return nil, fmt.Errorf("订阅不存在: %s", name)
+		return nil, fmt.Errorf(i18n.T("订阅不存在: %s"), name)
 	}
 	raw, err := os.ReadFile(rawFile(p, sub))
 	if err != nil {
-		execx.Warn("本地缺少订阅原文，改为联网刷新。")
+		execx.Warn(i18n.T("本地缺少订阅原文，改为联网刷新。"))
 		return Refresh(p, name)
 	}
 	sub.UpdatedAt = now()
-	execx.Info(fmt.Sprintf("用本地原文重新生成「%s」（不重新拉取）…", sub.Name))
+	execx.Info(fmt.Sprintf(i18n.T("用本地原文重新生成「%s」（不重新拉取）…"), sub.Name))
 	if err := convertAndWrite(p, sub, raw, config.Load(p)); err != nil {
 		return nil, err
 	}
@@ -185,7 +186,7 @@ func Rebuild(p paths.Paths, name string) (*Subscription, error) {
 func build(p paths.Paths, sub *Subscription) error {
 	cfg := config.Load(p)
 	proxy := config.Str(cfg, "download_proxy")
-	execx.Info(fmt.Sprintf("拉取订阅「%s」…", sub.Name))
+	execx.Info(fmt.Sprintf(i18n.T("拉取订阅「%s」…"), sub.Name))
 	raw, err := Fetch(sub.URL, sub.SourceType, proxy)
 	if err != nil {
 		return err
@@ -208,7 +209,7 @@ func convertAndWrite(p paths.Paths, sub *Subscription, raw []byte, cfg map[strin
 
 	var clash map[string]any
 	if sub.SourceType == "base64" {
-		execx.Info("经 subconverter 将 base64 转为 Clash…")
+		execx.Info(i18n.T("经 subconverter 将 base64 转为 Clash…"))
 		var err error
 		clash, err = ToClashDict(text, cfg)
 		if err != nil {
@@ -217,23 +218,23 @@ func convertAndWrite(p paths.Paths, sub *Subscription, raw []byte, cfg map[strin
 	} else {
 		var data any
 		if err := yaml.Unmarshal([]byte(text), &data); err != nil {
-			return &PatchError{"订阅 YAML 解析失败或根不是映射。"}
+			return &PatchError{i18n.T("订阅 YAML 解析失败或根不是映射。")}
 		}
 		m, ok := data.(map[string]any)
 		if !ok {
-			return &PatchError{"订阅 YAML 解析失败或根不是映射。"}
+			return &PatchError{i18n.T("订阅 YAML 解析失败或根不是映射。")}
 		}
 		clash = m
 	}
 
-	execx.Info("生成 mihomo 配置（直用订阅 + 最小改写）…")
+	execx.Info(i18n.T("生成 mihomo 配置（直用订阅 + 最小改写）…"))
 	cfgOut, info, err := Build(clash, cfg, p.UI)
 	if err != nil {
 		return err
 	}
 
 	if sub.ApplyOverlay {
-		execx.Info("叠加自定义分流（overlay）…")
+		execx.Info(i18n.T("叠加自定义分流（overlay）…"))
 		var ovInfo map[string]any
 		cfgOut, ovInfo = ApplyOverlay(cfgOut, cfg)
 		for k, v := range ovInfo {
@@ -249,9 +250,9 @@ func convertAndWrite(p paths.Paths, sub *Subscription, raw []byte, cfg map[strin
 			info[k] = v
 		}
 		if names := strListOf(rgInfo["region_groups"]); len(names) > 0 {
-			execx.Info("已生成地区自动测速聚合组：" + strings.Join(names, ", "))
+			execx.Info(i18n.T("已生成地区自动测速聚合组：") + strings.Join(names, ", "))
 		} else {
-			execx.Warn("启用了地区聚合组，但未匹配到对应地区节点（检查关键词与开关）。")
+			execx.Warn(i18n.T("启用了地区聚合组，但未匹配到对应地区节点（检查关键词与开关）。"))
 		}
 	}
 
@@ -274,7 +275,7 @@ func convertAndWrite(p paths.Paths, sub *Subscription, raw []byte, cfg map[strin
 	if err := os.WriteFile(metaFile(p, sub.Name), metaJSON, 0o644); err != nil {
 		return err
 	}
-	execx.Ok(fmt.Sprintf("订阅「%s」就绪：%v 节点 / %v 策略组 / %v 规则",
+	execx.Ok(fmt.Sprintf(i18n.T("订阅「%s」就绪：%v 节点 / %v 策略组 / %v 规则"),
 		sub.Name, info["proxies"], info["proxy_groups"], info["rules"]))
 	return nil
 }
@@ -286,12 +287,12 @@ func convertAndWrite(p paths.Paths, sub *Subscription, raw []byte, cfg map[strin
 // Switch 切换生效订阅。
 func Switch(p paths.Paths, name string) error {
 	if _, err := os.Stat(metaFile(p, name)); err != nil {
-		return fmt.Errorf("订阅不存在: %s", name)
+		return fmt.Errorf(i18n.T("订阅不存在: %s"), name)
 	}
 	if err := applyActive(p, name); err != nil {
 		return err
 	}
-	execx.Ok("已切换生效订阅: " + name)
+	execx.Ok(i18n.T("已切换生效订阅: ") + name)
 	return nil
 }
 
@@ -313,7 +314,7 @@ func applyActive(p paths.Paths, name string) error {
 		if err := sysd.SyncAndRestart(p, sysd.DefaultName); err != nil {
 			var ce *execx.CommandError
 			if errors.As(err, &ce) || err != nil {
-				execx.Warn(fmt.Sprintf("配置已切换，但同步到服务失败：%v", err))
+				execx.Warn(fmt.Sprintf(i18n.T("配置已切换，但同步到服务失败：%v"), err))
 			}
 		}
 	}
@@ -324,16 +325,16 @@ func applyActive(p paths.Paths, name string) error {
 func RemoveSub(p paths.Paths, name string) error {
 	d := p.SubscriptionDir(name)
 	if _, err := os.Stat(d); err != nil {
-		return fmt.Errorf("订阅不存在: %s", name)
+		return fmt.Errorf(i18n.T("订阅不存在: %s"), name)
 	}
 	active := GetActive(p)
 	wasActive := active != nil && active.Name == name
 	os.RemoveAll(d)
 	if wasActive {
 		os.Remove(p.ActiveFile)
-		execx.Warn("已删除当前生效订阅；请切换到其它订阅或重新添加。")
+		execx.Warn(i18n.T("已删除当前生效订阅；请切换到其它订阅或重新添加。"))
 	}
-	execx.Ok("已删除订阅: " + name)
+	execx.Ok(i18n.T("已删除订阅: ") + name)
 	return nil
 }
 
@@ -341,10 +342,10 @@ func RemoveSub(p paths.Paths, name string) error {
 func Rename(p paths.Paths, oldName, newName string) error {
 	newName = Slug(newName)
 	if _, err := os.Stat(metaFile(p, oldName)); err != nil {
-		return fmt.Errorf("订阅不存在: %s", oldName)
+		return fmt.Errorf(i18n.T("订阅不存在: %s"), oldName)
 	}
 	if _, err := os.Stat(metaFile(p, newName)); err == nil {
-		return fmt.Errorf("目标名已存在: %s", newName)
+		return fmt.Errorf(i18n.T("目标名已存在: %s"), newName)
 	}
 	if err := os.Rename(p.SubscriptionDir(oldName), p.SubscriptionDir(newName)); err != nil {
 		return err
@@ -362,6 +363,6 @@ func Rename(p paths.Paths, oldName, newName string) error {
 			os.WriteFile(p.ActiveFile, []byte(newName+"\n"), 0o644)
 		}
 	}
-	execx.Ok(fmt.Sprintf("已改名: %s → %s", oldName, newName))
+	execx.Ok(fmt.Sprintf(i18n.T("已改名: %s → %s"), oldName, newName))
 	return nil
 }

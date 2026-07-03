@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/Trilives/clashdock/internal/execx"
+	"github.com/Trilives/clashdock/internal/i18n"
 )
 
 const (
@@ -93,7 +94,7 @@ func Write() (string, error) {
 	if !existed {
 		chownToSudoUser(path)
 	}
-	execx.Ok(fmt.Sprintf("已写入代理环境变量到 %s（新开终端生效；当前终端可 `source %s`）。", path, path))
+	execx.Ok(fmt.Sprintf(i18n.T("已写入代理环境变量到 %s（新开终端生效；当前终端可 `source %s`）。"), path, path))
 	return path, nil
 }
 
@@ -112,7 +113,7 @@ func Remove() error {
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		return err
 	}
-	execx.Ok(fmt.Sprintf("已从 %s 移除代理环境变量。", path))
+	execx.Ok(fmt.Sprintf(i18n.T("已从 %s 移除代理环境变量。"), path))
 	return nil
 }
 

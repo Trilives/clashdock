@@ -10,6 +10,7 @@ import (
 	"github.com/Trilives/clashdock/internal/config"
 	"github.com/Trilives/clashdock/internal/execx"
 	"github.com/Trilives/clashdock/internal/firewall"
+	"github.com/Trilives/clashdock/internal/i18n"
 	"github.com/Trilives/clashdock/internal/paths"
 	"github.com/Trilives/clashdock/internal/sysd"
 	"github.com/Trilives/clashdock/internal/tui"
@@ -25,13 +26,13 @@ func webuiSetupInteractive(p paths.Paths, defaultPort int, lan bool) (int, error
 	if port == 0 {
 		port = sysd.DefaultWebUIPort
 	}
-	raw, err := tui.Ask("独立面板端口", tui.AskOpts{Default: strconv.Itoa(port)})
+	raw, err := tui.Ask(i18n.T("独立面板端口"), tui.AskOpts{Default: strconv.Itoa(port)})
 	if err != nil {
 		return 0, err
 	}
 	port, perr := strconv.Atoi(raw)
 	if perr != nil {
-		execx.Warn("端口需为整数，已取消。")
+		execx.Warn(i18n.T("端口需为整数，已取消。"))
 		return 0, nil
 	}
 	if err := sysd.InstallWebUI(p, sysd.WebUIOptions{Port: port, Lan: lan}); err != nil {
@@ -42,7 +43,7 @@ func webuiSetupInteractive(p paths.Paths, defaultPort int, lan bool) (int, error
 		return port, err
 	}
 	if lan {
-		ok, err := tui.Confirm(fmt.Sprintf("更新防火墙放行 %d 端口？", port), true)
+		ok, err := tui.Confirm(fmt.Sprintf(i18n.T("更新防火墙放行 %d 端口？"), port), true)
 		if err == nil && ok {
 			firewall.Allow(port)
 		}
@@ -52,13 +53,13 @@ func webuiSetupInteractive(p paths.Paths, defaultPort int, lan bool) (int, error
 
 func webuiMenuFlow(p paths.Paths) error {
 	installed := sysd.WebUIInstalled()
-	status := "未安装"
-	opts := []string{"安装独立面板（根路径直接打开）"}
+	status := i18n.T("未安装")
+	opts := []string{i18n.T("安装独立面板（根路径直接打开）")}
 	if installed {
-		status = "已安装"
-		opts = []string{"重新配置 / 换端口", "卸载独立面板"}
+		status = i18n.T("已安装")
+		opts = []string{i18n.T("重新配置 / 换端口"), i18n.T("卸载独立面板")}
 	}
-	idx, err := tui.Select(fmt.Sprintf("独立 Web 面板（当前：%s）", status), opts, tui.SelectOpts{})
+	idx, err := tui.Select(fmt.Sprintf(i18n.T("独立 Web 面板（当前：%s）"), status), opts, tui.SelectOpts{})
 	if err != nil {
 		return nil // 取消返回上层
 	}
@@ -72,13 +73,13 @@ func webuiMenuFlow(p paths.Paths) error {
 
 func resilienceMenuFlow() error {
 	installed := sysd.ResilienceInstalled()
-	status := "未安装"
-	opts := []string{"安装网络自愈"}
+	status := i18n.T("未安装")
+	opts := []string{i18n.T("安装网络自愈")}
 	if installed {
-		status = "已安装"
-		opts = []string{"调整探测间隔", "卸载网络自愈"}
+		status = i18n.T("已安装")
+		opts = []string{i18n.T("调整探测间隔"), i18n.T("卸载网络自愈")}
 	}
-	idx, err := tui.Select(fmt.Sprintf("网络自愈设置（当前：%s）", status), opts, tui.SelectOpts{})
+	idx, err := tui.Select(fmt.Sprintf(i18n.T("网络自愈设置（当前：%s）"), status), opts, tui.SelectOpts{})
 	if err != nil {
 		return nil
 	}
@@ -86,7 +87,7 @@ func resilienceMenuFlow() error {
 	case !installed:
 		return sysd.InstallResilience(sysd.ResilienceOptions{})
 	case idx == 0:
-		interval, err := tui.Ask("探测间隔（如 2min / 90s）", tui.AskOpts{Default: "2min"})
+		interval, err := tui.Ask(i18n.T("探测间隔（如 2min / 90s）"), tui.AskOpts{Default: "2min"})
 		if err != nil {
 			return nil
 		}
@@ -98,13 +99,13 @@ func resilienceMenuFlow() error {
 
 func timerMenuFlow() error {
 	installed := sysd.TimerInstalled()
-	status := "未安装"
-	opts := []string{"安装每周更新定时器"}
+	status := i18n.T("未安装")
+	opts := []string{i18n.T("安装每周更新定时器")}
 	if installed {
-		status = "已安装"
-		opts = []string{"改时间表", "卸载定时器"}
+		status = i18n.T("已安装")
+		opts = []string{i18n.T("改时间表"), i18n.T("卸载定时器")}
 	}
-	idx, err := tui.Select(fmt.Sprintf("每周更新定时器（当前：%s）", status), opts, tui.SelectOpts{})
+	idx, err := tui.Select(fmt.Sprintf(i18n.T("每周更新定时器（当前：%s）"), status), opts, tui.SelectOpts{})
 	if err != nil {
 		return nil
 	}
@@ -112,7 +113,7 @@ func timerMenuFlow() error {
 	case !installed:
 		return sysd.InstallTimer("")
 	case idx == 0:
-		cal, err := tui.Ask("OnCalendar 表达式", tui.AskOpts{Default: sysd.DefaultOnCalendar})
+		cal, err := tui.Ask(i18n.T("OnCalendar 表达式"), tui.AskOpts{Default: sysd.DefaultOnCalendar})
 		if err != nil {
 			return nil
 		}
@@ -125,24 +126,24 @@ func timerMenuFlow() error {
 // ServiceToggleFlow 主菜单『暂停 / 启动服务』统一入口。
 func ServiceToggleFlow(p paths.Paths) error {
 	if !sysd.IsInstalled(sysd.DefaultName) {
-		execx.Warn("服务尚未安装，请先执行『初始化（首次部署）』。")
+		execx.Warn(i18n.T("服务尚未安装，请先执行『初始化（首次部署）』。"))
 		return nil
 	}
 	active := sysd.IsActive(sysd.DefaultName)
-	execx.Header("暂停 / 启动服务")
-	state := "已停止"
+	execx.Header(i18n.T("暂停 / 启动服务"))
+	state := i18n.T("已停止")
 	if active {
-		state = "运行中"
+		state = i18n.T("运行中")
 	}
-	fmt.Printf("  主服务 %s.service：%s\n", sysd.DefaultName, state)
+	fmt.Printf(i18n.T("  主服务 %s.service：%s\n"), sysd.DefaultName, state)
 	for _, unit := range sysd.CompanionUnits() {
-		fmt.Printf("  伴生单元 %s：状态见 systemctl\n", unit)
+		fmt.Printf(i18n.T("  伴生单元 %s：状态见 systemctl\n"), unit)
 	}
-	action := "启动"
+	action := i18n.T("启动")
 	if active {
-		action = "暂停"
+		action = i18n.T("暂停")
 	}
-	ok, err := tui.Confirm(fmt.Sprintf("确认%s全部服务？", action), true)
+	ok, err := tui.Confirm(fmt.Sprintf(i18n.T("确认%s全部服务？"), action), true)
 	if err != nil || !ok {
 		return nil
 	}
@@ -153,7 +154,7 @@ func ServiceToggleFlow(p paths.Paths) error {
 }
 
 func serviceSettings(p paths.Paths) error {
-	act, err := tui.Select("服务设置", []string{"查看状态", "重启服务", "同步当前配置并重启"}, tui.SelectOpts{})
+	act, err := tui.Select(i18n.T("服务设置"), []string{i18n.T("查看状态"), i18n.T("重启服务"), i18n.T("同步当前配置并重启")}, tui.SelectOpts{})
 	if err != nil {
 		return nil
 	}
@@ -161,7 +162,7 @@ func serviceSettings(p paths.Paths) error {
 	case 0:
 		sysd.Status(sysd.DefaultName)
 	case 1:
-		execx.RunRoot([]string{"systemctl", "restart", "mihomo.service"}, "重启服务", nil)
+		execx.RunRoot([]string{"systemctl", "restart", "mihomo.service"}, i18n.T("重启服务"), nil)
 	default:
 		return sysd.SyncAndRestart(p, sysd.DefaultName)
 	}
@@ -185,15 +186,15 @@ func printAccessHint(p paths.Paths) {
 		if lanPanel {
 			disp = host
 		}
-		execx.Info(fmt.Sprintf("Web 面板（根路径直开）: http://%s:%d/", disp, port))
+		execx.Info(fmt.Sprintf(i18n.T("Web 面板（根路径直开）: http://%s:%d/"), disp, port))
 	}
 	if _, err := os.Stat(filepath.Join(p.UI, "index.html")); err == nil {
-		execx.Info(fmt.Sprintf("Web UI（mihomo 内置路径）: http://%s:9090/ui/", host))
+		execx.Info(fmt.Sprintf(i18n.T("Web UI（mihomo 内置路径）: http://%s:9090/ui/"), host))
 	}
 	if host == "127.0.0.1" {
-		execx.Info("远程查看建议用 SSH 端口转发： ssh -N -L 9090:127.0.0.1:9090 user@server")
+		execx.Info(i18n.T("远程查看建议用 SSH 端口转发： ssh -N -L 9090:127.0.0.1:9090 user@server"))
 	}
 	if config.Bool(cfg, "lan_proxy") {
-		execx.Info("局域网代理已开启：其他主机可设置 http/socks 代理为 本机IP:7890")
+		execx.Info(i18n.T("局域网代理已开启：其他主机可设置 http/socks 代理为 本机IP:7890"))
 	}
 }

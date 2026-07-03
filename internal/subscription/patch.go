@@ -18,6 +18,8 @@ import (
 	"fmt"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/Trilives/clashdock/internal/i18n"
 )
 
 const (
@@ -96,10 +98,10 @@ func toAnyList(ss []string) []any {
 // uiDir 为面板静态资源目录（external-ui 指向它）。业务字段引用原样保留。
 func Apply(clash map[string]any, customize map[string]any, uiDir string) (map[string]any, error) {
 	if clash == nil {
-		return nil, &PatchError{"订阅根必须是映射（YAML mapping）。"}
+		return nil, &PatchError{i18n.T("订阅根必须是映射（YAML mapping）。")}
 	}
 	if proxies, ok := clash["proxies"].([]any); !ok || len(proxies) == 0 {
-		return nil, &PatchError{"订阅缺少 proxies 列表或为空，无法作为 mihomo 配置。"}
+		return nil, &PatchError{i18n.T("订阅缺少 proxies 列表或为空，无法作为 mihomo 配置。")}
 	}
 
 	cfg := make(map[string]any, len(clash)+8) // 浅拷贝，业务字段引用保留
@@ -136,7 +138,7 @@ func Apply(clash map[string]any, customize map[string]any, uiDir string) (map[st
 	case secret != "":
 		cfg["secret"] = secret
 	case lanPanel:
-		return nil, &PatchError{"已开启 LAN 面板（lan_panel）但未设置 secret，拒绝在无密钥下放开控制器。"}
+		return nil, &PatchError{i18n.T("已开启 LAN 面板（lan_panel）但未设置 secret，拒绝在无密钥下放开控制器。")}
 	default:
 		delete(cfg, "secret")
 	}
@@ -203,11 +205,11 @@ func Build(clash, customize map[string]any, uiDir string) (map[string]any, map[s
 func FromClashYAML(text string, customize map[string]any, uiDir string) (map[string]any, map[string]any, error) {
 	var data any
 	if err := yaml.Unmarshal([]byte(text), &data); err != nil {
-		return nil, nil, fmt.Errorf("解析订阅 YAML: %w", err)
+		return nil, nil, fmt.Errorf(i18n.T("解析订阅 YAML: %w"), err)
 	}
 	m, ok := data.(map[string]any)
 	if !ok {
-		return nil, nil, &PatchError{"订阅 YAML 根必须是映射。"}
+		return nil, nil, &PatchError{i18n.T("订阅 YAML 根必须是映射。")}
 	}
 	return Build(m, customize, uiDir)
 }

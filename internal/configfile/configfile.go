@@ -6,6 +6,8 @@ import (
 	"os"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/Trilives/clashdock/internal/i18n"
 )
 
 func Parse(raw []byte) (map[string]any, error) {
@@ -14,7 +16,7 @@ func Parse(raw []byte) (map[string]any, error) {
 		return nil, err
 	}
 	if cfg == nil {
-		return nil, fmt.Errorf("配置根节点不是映射")
+		return nil, fmt.Errorf("%s", i18n.T("配置根节点不是映射"))
 	}
 	return cfg, nil
 }
@@ -26,7 +28,7 @@ func Read(path string) (map[string]any, error) {
 	}
 	cfg, err := Parse(raw)
 	if err != nil {
-		return nil, fmt.Errorf("解析配置 %s: %w", path, err)
+		return nil, fmt.Errorf(i18n.T("解析配置 %s: %w"), path, err)
 	}
 	return cfg, nil
 }

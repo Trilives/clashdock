@@ -14,6 +14,7 @@ import (
 
 	"github.com/Trilives/clashdock/internal/config"
 	"github.com/Trilives/clashdock/internal/execx"
+	"github.com/Trilives/clashdock/internal/i18n"
 	"github.com/Trilives/clashdock/internal/kernel"
 	"github.com/Trilives/clashdock/internal/paths"
 	"github.com/Trilives/clashdock/internal/tui"
@@ -58,15 +59,19 @@ type newSub struct {
 // askNewSubscription 交互收集新订阅信息；订阅链接留空 → (nil, nil) 表示「暂不配置」。
 func askNewSubscription() (*newSub, error) {
 	defaultName := time.Now().Format("sub-20060102-150405")
-	name, err := tui.Ask("订阅名称，留空=时间戳", tui.AskOpts{Default: defaultName})
+	name, err := tui.Ask(i18n.T("订阅名称，留空=时间戳"), tui.AskOpts{Default: defaultName})
 	if err != nil {
 		return nil, err
 	}
-	idx, err := tui.Select("选择订阅来源类型", sourceOptions, tui.SelectOpts{})
+	translatedSources := make([]string, len(sourceOptions))
+	for i, o := range sourceOptions {
+		translatedSources[i] = i18n.T(o)
+	}
+	idx, err := tui.Select(i18n.T("选择订阅来源类型"), translatedSources, tui.SelectOpts{})
 	if err != nil {
 		return nil, err
 	}
-	subURL, err := tui.Ask("订阅链接，留空=暂不配置", tui.AskOpts{AllowEmpty: true})
+	subURL, err := tui.Ask(i18n.T("订阅链接，留空=暂不配置"), tui.AskOpts{AllowEmpty: true})
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +79,7 @@ func askNewSubscription() (*newSub, error) {
 		return nil, nil
 	}
 	// 默认直用机场自带分流；叠加自定义分流为可选高级项
-	overlay, err := tui.Confirm("是否叠加自定义分流（AI / 流媒体 / 地区组）？默认否＝直接沿用机场订阅自带的策略组与规则（推荐）。", false)
+	overlay, err := tui.Confirm(i18n.T("是否叠加自定义分流（AI / 流媒体 / 地区组）？默认否＝直接沿用机场订阅自带的策略组与规则（推荐）。"), false)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +98,7 @@ func EnsureStateRoot(p paths.Paths) error {
 	}
 	uid, gid := fmt.Sprint(os.Getuid()), fmt.Sprint(os.Getgid())
 	_, err := execx.RunRoot([]string{"install", "-d", "-m", "0755", "-o", uid, "-g", gid, p.State},
-		"创建数据目录 "+p.State, nil)
+		i18n.T("创建数据目录 ")+p.State, nil)
 	return err
 }
 
@@ -103,8 +108,8 @@ func ensureGithubToken(p paths.Paths) {
 	if kernel.LoadSettings(p).GithubToken != "" || !tui.UseTUI() {
 		return
 	}
-	execx.Warn("未配置 GitHub Token，匿名 API 限额较低（60 次/小时），高频操作易被限流。")
-	ok, err := tui.Confirm("现在添加 GitHub Token？", false)
+	execx.Warn(i18n.T("未配置 GitHub Token，匿名 API 限额较低（60 次/小时），高频操作易被限流。"))
+	ok, err := tui.Confirm(i18n.T("现在添加 GitHub Token？"), false)
 	if err != nil || !ok {
 		return
 	}
@@ -115,8 +120,8 @@ func ensureGithubToken(p paths.Paths) {
 	cfg := config.Load(p)
 	cfg["github_token"] = token
 	if err := config.Save(p, cfg); err != nil {
-		execx.Warn("Token 保存失败：" + err.Error())
+		execx.Warn(i18n.T("Token 保存失败：") + err.Error())
 		return
 	}
-	execx.Ok("GitHub Token 已保存到 customize.json。")
+	execx.Ok(i18n.T("GitHub Token 已保存到 customize.json。"))
 }

@@ -10,6 +10,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/Trilives/clashdock/internal/errs"
+	"github.com/Trilives/clashdock/internal/i18n"
 )
 
 // 无 TTY 或 NO_COLOR 时自动降级为无色。
@@ -22,10 +23,10 @@ func tint(code, text string) string {
 	return "\033[" + code + "m" + text + "\033[0m"
 }
 
-func Info(msg string)  { fmt.Println(tint("36", "[信息] ") + msg) }
-func Ok(msg string)    { fmt.Println(tint("32", "[完成] ") + msg) }
-func Warn(msg string)  { fmt.Println(tint("33", "[注意] ") + msg) }
-func Error(msg string) { fmt.Fprintln(os.Stderr, tint("31", "[错误] ")+msg) }
+func Info(msg string)  { fmt.Println(tint("36", i18n.T("[信息] ")) + msg) }
+func Ok(msg string)    { fmt.Println(tint("32", i18n.T("[完成] ")) + msg) }
+func Warn(msg string)  { fmt.Println(tint("33", i18n.T("[注意] ")) + msg) }
+func Error(msg string) { fmt.Fprintln(os.Stderr, tint("31", i18n.T("[错误] "))+msg) }
 
 func Header(title string) {
 	n := len([]rune(title))
@@ -45,7 +46,7 @@ type CommandError struct {
 }
 
 func (e *CommandError) Error() string {
-	return fmt.Sprintf("命令失败(%d): %s", e.Code, strings.Join(e.Cmd, " "))
+	return fmt.Sprintf(i18n.T("命令失败(%d): %s"), e.Code, strings.Join(e.Cmd, " "))
 }
 
 // Opt 子进程选项；nil / 零值即默认（继承 stdio、当前目录、当前环境）。
@@ -89,7 +90,7 @@ func Run(cmd []string, opt *Opt) (Result, error) {
 			res.Code = ee.ExitCode()
 			return res, &CommandError{Cmd: cmd, Code: res.Code, Output: res.Stdout + res.Stderr}
 		}
-		return res, fmt.Errorf("启动命令 %s: %w", cmd[0], err)
+		return res, fmt.Errorf(i18n.T("启动命令 %s: %w"), cmd[0], err)
 	}
 	return res, nil
 }
@@ -111,10 +112,10 @@ func EnsureSudo(reason string) error {
 		return nil
 	}
 	if !Have("sudo") {
-		return fmt.Errorf("需要管理员权限，但未找到 sudo，请改用 root 运行")
+		return fmt.Errorf("%s", i18n.T("需要管理员权限，但未找到 sudo，请改用 root 运行"))
 	}
-	Info(reason + "需要管理员权限。")
-	Info("提示：也可以直接用 sudo 启动，避免中途输入密码。")
+	Info(reason + i18n.T("需要管理员权限。"))
+	Info(i18n.T("提示：也可以直接用 sudo 启动，避免中途输入密码。"))
 	c := exec.Command("sudo", "-v")
 	c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
 	if err := c.Run(); err != nil {
@@ -130,7 +131,7 @@ func RunRoot(cmd []string, reason string, opt *Opt) (Result, error) {
 		return Run(cmd, opt)
 	}
 	if reason == "" {
-		reason = "该操作"
+		reason = i18n.T("该操作")
 	}
 	if err := EnsureSudo(reason); err != nil {
 		return Result{}, err

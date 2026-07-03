@@ -8,6 +8,7 @@ import (
 
 	"github.com/Trilives/clashdock/internal/errs"
 	"github.com/Trilives/clashdock/internal/execx"
+	"github.com/Trilives/clashdock/internal/i18n"
 )
 
 // 非 TTY（管道/重定向/测试）回退：编号列表 + 文本输入。
@@ -18,9 +19,9 @@ func selectPlain(title string, options []string, opts SelectOpts) (int, error) {
 	for i, opt := range options {
 		fmt.Printf("  %d) %s\n", i+1, opt)
 	}
-	fmt.Printf("  回车) %s    r) %s\n", opts.SaveLabel, opts.BackLabel)
+	fmt.Printf(i18n.T("  回车) %s    r) %s\n"), opts.SaveLabel, opts.BackLabel)
 	for {
-		raw, err := readPlainLine("请选择: ")
+		raw, err := readPlainLine(i18n.T("请选择: "))
 		if err != nil {
 			return 0, err
 		}
@@ -34,7 +35,7 @@ func selectPlain(title string, options []string, opts SelectOpts) (int, error) {
 		if n, err := strconv.Atoi(raw); err == nil && n >= 1 && n <= len(options) {
 			return n - 1, nil
 		}
-		execx.Warn("无效选择，请重输。")
+		execx.Warn(i18n.T("无效选择，请重输。"))
 	}
 }
 
@@ -52,8 +53,8 @@ func multiSelectPlain(title string, options []string, defaultOn []int) ([]int, e
 			}
 			fmt.Printf("  [%s] %d) %s\n", mark, i+1, opt)
 		}
-		fmt.Println("  输入编号(逗号分隔)切换勾选，回车确认，q 取消")
-		raw, err := readPlainLine("操作: ")
+		fmt.Println(i18n.T("  输入编号(逗号分隔)切换勾选，回车确认，q 取消"))
+		raw, err := readPlainLine(i18n.T("操作: "))
 		if err != nil {
 			return nil, err
 		}

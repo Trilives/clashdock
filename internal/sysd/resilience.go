@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 
 	"github.com/Trilives/clashdock/internal/execx"
+	"github.com/Trilives/clashdock/internal/i18n"
 	"github.com/Trilives/clashdock/internal/paths"
 )
 
@@ -109,9 +110,9 @@ func (o *ResilienceOptions) defaults() {
 func InstallResilience(opts ResilienceOptions) error {
 	opts.defaults()
 	if !execx.Have("systemctl") {
-		return fmt.Errorf("未找到 systemctl，自愈需要 systemd")
+		return fmt.Errorf("%s", i18n.T("未找到 systemctl，自愈需要 systemd"))
 	}
-	if err := execx.EnsureSudo("安装网络自愈"); err != nil {
+	if err := execx.EnsureSudo(i18n.T("安装网络自愈")); err != nil {
 		return err
 	}
 	if _, err := execx.RunRoot([]string{"mkdir", "-p", paths.EtcDir}, "", nil); err != nil {
@@ -119,22 +120,22 @@ func InstallResilience(opts ResilienceOptions) error {
 	}
 
 	if st, err := os.Stat(dispatcherDir); err == nil && st.IsDir() {
-		if err := execx.WriteRoot(dispatcherFile(opts.Name), dispatcherText(opts.Name, opts.TunDev, opts.Debounce), "0755", "安装 NM 钩子"); err != nil {
+		if err := execx.WriteRoot(dispatcherFile(opts.Name), dispatcherText(opts.Name, opts.TunDev, opts.Debounce), "0755", i18n.T("安装 NM 钩子")); err != nil {
 			return err
 		}
-		execx.Ok("已装 NetworkManager 钩子：" + dispatcherFile(opts.Name))
+		execx.Ok(i18n.T("已装 NetworkManager 钩子：") + dispatcherFile(opts.Name))
 	} else {
-		execx.Warn(dispatcherDir + " 不存在，跳过 NM 钩子（watchdog 仍兜底）。")
+		execx.Warn(dispatcherDir + i18n.T(" 不存在，跳过 NM 钩子（watchdog 仍兜底）。"))
 	}
 
 	exe, err := os.Executable()
 	if err != nil {
-		return fmt.Errorf("定位 clashdock 可执行文件: %w", err)
+		return fmt.Errorf(i18n.T("定位 clashdock 可执行文件: %w"), err)
 	}
-	if err := execx.WriteRoot(wdService(), wdServiceText(opts.Name, opts.TunDev, exe), "0644", "写 watchdog 单元"); err != nil {
+	if err := execx.WriteRoot(wdService(), wdServiceText(opts.Name, opts.TunDev, exe), "0644", i18n.T("写 watchdog 单元")); err != nil {
 		return err
 	}
-	if err := execx.WriteRoot(wdTimer(), wdTimerText(opts.Interval), "0644", "写 watchdog 定时器"); err != nil {
+	if err := execx.WriteRoot(wdTimer(), wdTimerText(opts.Interval), "0644", i18n.T("写 watchdog 定时器")); err != nil {
 		return err
 	}
 	if _, err := execx.RunRoot([]string{"systemctl", "daemon-reload"}, "", nil); err != nil {
@@ -143,7 +144,7 @@ func InstallResilience(opts ResilienceOptions) error {
 	if _, err := execx.RunRoot([]string{"systemctl", "enable", "--now", WatchdogName + ".timer"}, "", nil); err != nil {
 		return err
 	}
-	execx.Ok(fmt.Sprintf("网络自愈已安装（探测间隔 %s）。", opts.Interval))
+	execx.Ok(fmt.Sprintf(i18n.T("网络自愈已安装（探测间隔 %s）。"), opts.Interval))
 	return nil
 }
 
@@ -152,7 +153,7 @@ func RemoveResilience(name string) error {
 	if name == "" {
 		name = DefaultName
 	}
-	if err := execx.EnsureSudo("卸载网络自愈"); err != nil {
+	if err := execx.EnsureSudo(i18n.T("卸载网络自愈")); err != nil {
 		return err
 	}
 	execx.RunRoot([]string{"rm", "-f", dispatcherFile(name)}, "", nil)
@@ -164,7 +165,7 @@ func RemoveResilience(name string) error {
 	}
 	execx.RunRoot([]string{"rm", "-f", wdTimer(), wdService()}, "", nil)
 	execx.RunRoot([]string{"systemctl", "daemon-reload"}, "", nil)
-	execx.Ok("网络自愈已卸载。")
+	execx.Ok(i18n.T("网络自愈已卸载。"))
 	return nil
 }
 

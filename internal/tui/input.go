@@ -9,6 +9,7 @@ import (
 
 	"github.com/Trilives/clashdock/internal/errs"
 	"github.com/Trilives/clashdock/internal/execx"
+	"github.com/Trilives/clashdock/internal/i18n"
 )
 
 // AskOpts Ask 的选项。DisplayDefault 仅用于替换提示行里展示的默认值（如脱敏），
@@ -42,7 +43,7 @@ func Ask(prompt string, opts AskOpts) (string, error) {
 			if opts.AllowEmpty {
 				return "", nil
 			}
-			execx.Warn("不能为空。")
+			execx.Warn(i18n.T("不能为空。"))
 			continue
 		}
 		return raw, nil

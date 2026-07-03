@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Trilives/clashdock/internal/execx"
+	"github.com/Trilives/clashdock/internal/i18n"
 )
 
 const ProbeURL = "https://www.google.com/generate_204"
@@ -58,7 +59,7 @@ func (f *Fetcher) DirectReachable() bool {
 		}
 		f.directOK = &ok
 		if ok {
-			execx.Info("直连可达，跳过代理。")
+			execx.Info(i18n.T("直连可达，跳过代理。"))
 		}
 	}
 	return *f.directOK
@@ -83,7 +84,7 @@ func (f *Fetcher) do(fn func(c *http.Client) error) error {
 		}
 		last = err
 		if i < len(chs)-1 {
-			execx.Warn(fmt.Sprintf("  %s 通道失败（%v），改直连重试…", ch, err))
+			execx.Warn(fmt.Sprintf(i18n.T("  %s 通道失败（%v），改直连重试…"), ch, err))
 		}
 	}
 	return last

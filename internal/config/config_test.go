@@ -5,8 +5,16 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Trilives/clashdock/internal/i18n"
 	"github.com/Trilives/clashdock/internal/paths"
 )
+
+// TestMain 强制中文模式：本文件断言的是源码里的中文原文（i18n.T 的 key），
+// 与界面默认语言（英文）无关，属于对底层逻辑/文案本身的验证。
+func TestMain(m *testing.M) {
+	i18n.SetLang(i18n.ZH)
+	os.Exit(m.Run())
+}
 
 func testPaths(t *testing.T) paths.Paths {
 	t.Setenv("CLASHDOCK_HOME", t.TempDir())
@@ -131,8 +139,10 @@ func TestSummary(t *testing.T) {
 }
 
 func TestFieldMetadataConsistency(t *testing.T) {
-	if len(FieldOrder) != len(defaultsOrder) {
-		t.Fatalf("FieldOrder(%d) 与 defaultsOrder(%d) 数量不一致", len(FieldOrder), len(defaultsOrder))
+	// language 不进入通用定制层编辑器（有独立的主菜单语言开关），故不计入此一致性检查。
+	wantLen := len(defaultsOrder) - 1
+	if len(FieldOrder) != wantLen {
+		t.Fatalf("FieldOrder(%d) 与 defaultsOrder(%d，除 language 外)数量不一致", len(FieldOrder), wantLen)
 	}
 	defaults := Defaults()
 	for _, k := range FieldOrder {

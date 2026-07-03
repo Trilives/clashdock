@@ -19,6 +19,7 @@ import (
 	"github.com/Trilives/clashdock/internal/configfile"
 	"github.com/Trilives/clashdock/internal/errs"
 	"github.com/Trilives/clashdock/internal/execx"
+	"github.com/Trilives/clashdock/internal/i18n"
 	"github.com/Trilives/clashdock/internal/jsonx"
 	"github.com/Trilives/clashdock/internal/paths"
 	"github.com/Trilives/clashdock/internal/subscription"
@@ -36,7 +37,10 @@ var builtinNodes = map[string]bool{
 	"PASS": true, "COMPATIBLE": true, "GLOBAL": true,
 }
 
-var mainGroupKeywords = []string{"proxy", "节点选择", "节点", "选择", "select", "🚀", "手动"}
+var mainGroupKeywords = []string{
+	"proxy", "节点选择", "节点", "选择", "select", "🚀", "手动",
+	"代理", "代理选择", "手动选择", "选择节点",
+}
 
 var infoKeywords = []string{"Traffic:", "Expire:", "剩余流量", "过期时间", "剩余", "套餐", "官网", "订阅", "重置"}
 
@@ -79,7 +83,7 @@ func pickGroup(cfg map[string]any, forced string) (map[string]any, error) {
 		}
 	}
 	if len(selects) == 0 {
-		return nil, fmt.Errorf("配置里没有 select 策略组，无法切换节点")
+		return nil, fmt.Errorf("%s", i18n.T("配置里没有 select 策略组，无法切换节点"))
 	}
 	if forced != "" {
 		for _, g := range selects {
@@ -87,7 +91,7 @@ func pickGroup(cfg map[string]any, forced string) (map[string]any, error) {
 				return g, nil
 			}
 		}
-		return nil, fmt.Errorf("指定分组 '%s' 不存在", forced)
+		return nil, fmt.Errorf(i18n.T("指定分组 '%s' 不存在"), forced)
 	}
 	for _, g := range selects {
 		low := strings.ToLower(fmt.Sprint(g["name"]))
@@ -165,7 +169,7 @@ func measure(api *clashapi.Client, names []string) map[string]int {
 	}
 	tty := term.IsTerminal(int(os.Stdout.Fd()))
 	if !tty {
-		execx.Info(fmt.Sprintf("测速中（%d 个节点）…", len(names)))
+		execx.Info(fmt.Sprintf(i18n.T("测速中（%d 个节点）…"), len(names)))
 	}
 	results := make(map[string]int, len(names))
 	var mu sync.Mutex
@@ -185,7 +189,7 @@ func measure(api *clashapi.Client, names []string) map[string]int {
 			}
 			done++
 			if tty {
-				fmt.Printf("\r\033[K  测速中… %d/%d", done, len(names))
+				fmt.Printf(i18n.T("\r\033[K  测速中… %d/%d"), done, len(names))
 			}
 			mu.Unlock()
 		}(name)
@@ -194,7 +198,7 @@ func measure(api *clashapi.Client, names []string) map[string]int {
 	if tty {
 		fmt.Print("\r\033[K")
 	}
-	execx.Ok(fmt.Sprintf("测速完成：%d/%d 可用", len(results), len(names)))
+	execx.Ok(fmt.Sprintf(i18n.T("测速完成：%d/%d 可用"), len(results), len(names)))
 	return results
 }
 
@@ -202,7 +206,7 @@ func fmtDelay(results map[string]int, name string) string {
 	if ms, ok := results[name]; ok {
 		return fmt.Sprintf("%dms", ms)
 	}
-	return "超时"
+	return i18n.T("超时")
 }
 
 // persistFirst 把选中节点提为目标组首成员，双写生效配置与订阅配置（跨重启兜底）。
@@ -253,16 +257,16 @@ func NodeSelect(p paths.Paths, configPath, group string) error {
 	groupName := fmt.Sprint(target["name"])
 	buckets, subgroups := collectMembers(cfg, target)
 	if len(buckets) == 0 && len(subgroups) == 0 {
-		return fmt.Errorf("分组 '%s' 下没有可选项", groupName)
+		return fmt.Errorf(i18n.T("分组 '%s' 下没有可选项"), groupName)
 	}
 
 	// 节点切换走 Clash API 热切换，直接连 API 实时测速/切换
 	api := clashapi.FromConfig(cfg)
 	apiOK := api != nil && api.Reachable()
 	if apiOK {
-		execx.Info("已连上 Clash API，列表将实时测速。")
+		execx.Info(i18n.T("已连上 Clash API，列表将实时测速。"))
 	} else {
-		execx.Info("Clash API 不可达，跳过测速。")
+		execx.Info(i18n.T("Clash API 不可达，跳过测速。"))
 	}
 
 	type menuEntry struct {
@@ -272,14 +276,14 @@ func NodeSelect(p paths.Paths, configPath, group string) error {
 	var firstMenu []menuEntry
 	for _, r := range regions {
 		if len(buckets[r.key]) > 0 {
-			firstMenu = append(firstMenu, menuEntry{r.label, buckets[r.key]})
+			firstMenu = append(firstMenu, menuEntry{i18n.T(r.label), buckets[r.key]})
 		}
 	}
 	if len(buckets[otherKey]) > 0 {
-		firstMenu = append(firstMenu, menuEntry{otherLabel, buckets[otherKey]})
+		firstMenu = append(firstMenu, menuEntry{i18n.T(otherLabel), buckets[otherKey]})
 	}
 	if len(subgroups) > 0 {
-		firstMenu = append(firstMenu, menuEntry{"🧭 子组（自动测速 / 故障转移）", subgroups})
+		firstMenu = append(firstMenu, menuEntry{i18n.T("🧭 子组（自动测速 / 故障转移）"), subgroups})
 	}
 
 	// esc 在第二步只退回第一步；^R 才穿透放弃本次切换
@@ -288,9 +292,9 @@ func NodeSelect(p paths.Paths, configPath, group string) error {
 	for {
 		labels := make([]string, len(firstMenu))
 		for i, e := range firstMenu {
-			labels[i] = fmt.Sprintf("%s（%d）", e.label, len(e.items))
+			labels[i] = fmt.Sprintf(i18n.T("%s（%d）"), e.label, len(e.items))
 		}
-		i, err := tui.Select("选择地区 / 分组", labels, tui.SelectOpts{BackLabel: "退出切换节点", Initial: idx})
+		i, err := tui.Select(i18n.T("选择地区 / 分组"), labels, tui.SelectOpts{BackLabel: i18n.T("退出切换节点"), Initial: idx})
 		if err != nil {
 			return err
 		}
@@ -309,7 +313,7 @@ func NodeSelect(p paths.Paths, configPath, group string) error {
 				nodeLabels[j] = name
 			}
 		}
-		nidx, err := tui.Select(entry.label, nodeLabels, tui.SelectOpts{SaveLabel: "返回地区/分组", BackLabel: "放弃并退出"})
+		nidx, err := tui.Select(entry.label, nodeLabels, tui.SelectOpts{SaveLabel: i18n.T("返回地区/分组"), BackLabel: i18n.T("放弃并退出")})
 		if err != nil {
 			if errors.Is(err, errs.ErrSaveExit) {
 				continue // 返回地区/分组选择，重新选
@@ -331,18 +335,18 @@ func NodeSelect(p paths.Paths, configPath, group string) error {
 	if err := persistFirst(cfg, groupName, selected, targets); err != nil {
 		return err
 	}
-	execx.Ok(fmt.Sprintf("已固定 %s 首选 = %s", groupName, selected))
+	execx.Ok(fmt.Sprintf(i18n.T("已固定 %s 首选 = %s"), groupName, selected))
 
 	if apiOK {
 		if err := api.Switch(groupName, selected); err != nil {
-			execx.Warn(fmt.Sprintf("Clash API 实时切换失败：%v", err))
+			execx.Warn(fmt.Sprintf(i18n.T("Clash API 实时切换失败：%v"), err))
 		} else {
-			execx.Ok(fmt.Sprintf("已通过 Clash API 实时切换 %s → %s", groupName, selected))
+			execx.Ok(fmt.Sprintf(i18n.T("已通过 Clash API 实时切换 %s → %s"), groupName, selected))
 		}
 	}
 
 	if sysd.IsInstalled(sysd.DefaultName) {
-		ok, err := tui.Confirm("重启服务以确保生效？", false)
+		ok, err := tui.Confirm(i18n.T("重启服务以确保生效？"), false)
 		if err == nil && ok {
 			return sysd.SyncAndRestart(p, sysd.DefaultName)
 		}

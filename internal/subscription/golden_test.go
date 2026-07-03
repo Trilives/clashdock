@@ -5,7 +5,15 @@ import (
 	"os"
 	"reflect"
 	"testing"
+
+	"github.com/Trilives/clashdock/internal/i18n"
 )
+
+// TestMain 强制中文模式：golden.json 冻结的是中文原文输出，与界面默认语言无关。
+func TestMain(m *testing.M) {
+	i18n.SetLang(i18n.ZH)
+	os.Exit(m.Run())
+}
 
 // golden.json 是重写前实现冻结下来的兼容性基线。
 // 本测试保证 Go 重写与旧输出语义等价（JSON 归一化后 DeepEqual）。

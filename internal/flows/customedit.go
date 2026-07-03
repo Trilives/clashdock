@@ -13,6 +13,7 @@ import (
 	"github.com/Trilives/clashdock/internal/errs"
 	"github.com/Trilives/clashdock/internal/execx"
 	"github.com/Trilives/clashdock/internal/firewall"
+	"github.com/Trilives/clashdock/internal/i18n"
 	"github.com/Trilives/clashdock/internal/paths"
 	"github.com/Trilives/clashdock/internal/tui"
 )
@@ -32,25 +33,25 @@ func EditCustomize(p paths.Paths) (bool, error) {
 	changed := false
 	idx := 0
 	for {
-		i, err := tui.Select("编辑定制层", editLabels(cfg),
-			tui.SelectOpts{BackLabel: "放弃修改并退出", SaveLabel: "保存并退出", Initial: idx})
+		i, err := tui.Select(i18n.T("编辑定制层"), editLabels(cfg),
+			tui.SelectOpts{BackLabel: i18n.T("放弃修改并退出"), SaveLabel: i18n.T("保存并退出"), Initial: idx})
 		if err != nil {
 			if errors.Is(err, errs.ErrSaveExit) {
 				if !changed {
-					execx.Info("未做修改。")
+					execx.Info(i18n.T("未做修改。"))
 					return false, nil
 				}
 				if serr := config.Save(p, cfg); serr != nil {
 					return false, serr
 				}
-				execx.Ok("定制层已保存。")
+				execx.Ok(i18n.T("定制层已保存。"))
 				if ferr := syncLanProxyFirewall(original, cfg); ferr != nil {
 					return true, ferr
 				}
 				return true, nil
 			}
 			if changed {
-				execx.Warn("已放弃本次修改（未写盘）。")
+				execx.Warn(i18n.T("已放弃本次修改（未写盘）。"))
 			}
 			return false, nil
 		}
@@ -81,9 +82,9 @@ func syncLanProxyFirewall(original, cfg map[string]any) error {
 	if before == after {
 		return nil
 	}
-	prompt := "已开启局域网代理，更新防火墙放行 7890 端口？"
+	prompt := i18n.T("已开启局域网代理，更新防火墙放行 7890 端口？")
 	if !after {
-		prompt = "已关闭局域网代理，撤销防火墙放行 7890 端口？"
+		prompt = i18n.T("已关闭局域网代理，撤销防火墙放行 7890 端口？")
 	}
 	ok, err := tui.Confirm(prompt, true)
 	if err != nil || !ok {
@@ -107,9 +108,9 @@ func editList(cfg map[string]any, key, label string) bool {
 		if len(items) > 0 {
 			summary = "：" + strings.Join(items, ", ")
 		}
-		execx.Info(fmt.Sprintf("%s：当前 %d 条%s", label, len(items), summary))
-		a, err := tui.Select("编辑 · "+label,
-			[]string{"添加一条", "删除一条", "批量粘贴替换（逗号/空格分隔）", "恢复默认", "清空"},
+		execx.Info(fmt.Sprintf(i18n.T("%s：当前 %d 条%s"), i18n.T(label), len(items), summary))
+		a, err := tui.Select(i18n.T("编辑 · ")+i18n.T(label),
+			[]string{i18n.T("添加一条"), i18n.T("删除一条"), i18n.T("批量粘贴替换（逗号/空格分隔）"), i18n.T("恢复默认"), i18n.T("清空")},
 			tui.SelectOpts{Initial: act})
 		if err != nil {
 			return changed
@@ -119,7 +120,7 @@ func editList(cfg map[string]any, key, label string) bool {
 		ok := true
 		switch a {
 		case 0:
-			val, err := tui.Ask("新增值", tui.AskOpts{AllowEmpty: false})
+			val, err := tui.Ask(i18n.T("新增值"), tui.AskOpts{AllowEmpty: false})
 			if err != nil || (isInt && !isIntStr(val)) {
 				ok = false
 				break
@@ -129,14 +130,14 @@ func editList(cfg map[string]any, key, label string) bool {
 			if len(items) == 0 {
 				continue
 			}
-			di, err := tui.Select("删除哪一条", items, tui.SelectOpts{})
+			di, err := tui.Select(i18n.T("删除哪一条"), items, tui.SelectOpts{})
 			if err != nil {
 				ok = false
 				break
 			}
 			items = append(items[:di], items[di+1:]...)
 		case 2:
-			raw, err := tui.Ask("粘贴（逗号或空格分隔）", tui.AskOpts{AllowEmpty: true})
+			raw, err := tui.Ask(i18n.T("粘贴（逗号或空格分隔）"), tui.AskOpts{AllowEmpty: true})
 			if err != nil {
 				ok = false
 				break
@@ -159,7 +160,7 @@ func editList(cfg map[string]any, key, label string) bool {
 			items = []string{}
 		}
 		if !ok {
-			execx.Warn("输入无效，已跳过。")
+			execx.Warn(i18n.T("输入无效，已跳过。"))
 			continue
 		}
 		if isInt {
@@ -187,14 +188,14 @@ func editScalar(cfg map[string]any, key, label string) bool {
 	if config.SensitiveFields[key] && cur != "" {
 		display = config.MaskSecret(cur)
 	}
-	val, err := tui.Ask(label+"（留空清除）", tui.AskOpts{Default: cur, DisplayDefault: display, AllowEmpty: true})
+	val, err := tui.Ask(i18n.T(label)+i18n.T("（留空清除）"), tui.AskOpts{Default: cur, DisplayDefault: display, AllowEmpty: true})
 	if err != nil {
 		return false
 	}
 	if key == "bootstrap_dns_port" || key == "webui_port" {
 		n, err := strconv.Atoi(val)
 		if err != nil {
-			execx.Warn("端口需为整数，未修改。")
+			execx.Warn(i18n.T("端口需为整数，未修改。"))
 			return false
 		}
 		cfg[key] = n

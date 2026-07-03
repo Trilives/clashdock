@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/Trilives/clashdock/internal/i18n"
 )
 
 // clash 用 mihomo UA，促使机场返回 Clash.Meta 专属字段（如 hysteria2/vless reality）
@@ -66,5 +68,5 @@ func Fetch(rawURL, sourceType, proxy string) ([]byte, error) {
 		}
 		return data, nil
 	}
-	return nil, fmt.Errorf("拉取订阅失败: %w", lastErr)
+	return nil, fmt.Errorf(i18n.T("拉取订阅失败: %w"), lastErr)
 }

@@ -21,6 +21,7 @@ import (
 
 	"github.com/Trilives/clashdock/internal/errs"
 	"github.com/Trilives/clashdock/internal/execx"
+	"github.com/Trilives/clashdock/internal/i18n"
 )
 
 type undo struct {
@@ -51,11 +52,11 @@ func Run(name string, fn func(*Transaction) error) error {
 		return nil
 	}
 	if errors.Is(err, errs.ErrCancelled) {
-		execx.Warn(fmt.Sprintf("已取消「%s」。", name))
+		execx.Warn(fmt.Sprintf(i18n.T("已取消「%s」。"), name))
 		t.Rollback()
 		return nil
 	}
-	execx.Error(fmt.Sprintf("「%s」出错：%v", name, err))
+	execx.Error(fmt.Sprintf(i18n.T("「%s」出错：%v"), name, err))
 	t.Rollback()
 	return err
 }
@@ -75,7 +76,7 @@ func (t *Transaction) BackupFile(path string) error {
 			return rerr
 		}
 		mode := st.Mode()
-		t.AddUndo("还原文件 "+path, func() error {
+		t.AddUndo(i18n.T("还原文件 ")+path, func() error {
 			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 				return err
 			}
@@ -84,7 +85,7 @@ func (t *Transaction) BackupFile(path string) error {
 		return nil
 	}
 	if os.IsNotExist(err) {
-		t.AddUndo("删除新建文件 "+path, func() error {
+		t.AddUndo(i18n.T("删除新建文件 ")+path, func() error {
 			rmErr := os.Remove(path)
 			if rmErr != nil && os.IsNotExist(rmErr) {
 				return nil
@@ -121,7 +122,7 @@ func (t *Transaction) Snapshot(path string) error {
 		}
 	}
 
-	t.AddUndo("还原 "+path, func() error {
+	t.AddUndo(i18n.T("还原 ")+path, func() error {
 		if cur, err := os.Lstat(path); err == nil {
 			if cur.IsDir() {
 				os.RemoveAll(path)
@@ -148,7 +149,7 @@ func (t *Transaction) TrackPath(path string) {
 	if _, err := os.Lstat(path); err == nil {
 		return // 已存在则不归我们删除，避免误删
 	}
-	t.AddUndo("删除新建路径 "+path, func() error {
+	t.AddUndo(i18n.T("删除新建路径 ")+path, func() error {
 		st, err := os.Lstat(path)
 		if err != nil {
 			return nil
@@ -172,23 +173,23 @@ func (t *Transaction) Rollback() {
 		t.runCleanups()
 		return
 	}
-	execx.Warn(fmt.Sprintf("正在回退「%s」已应用的改动…", t.name))
+	execx.Warn(fmt.Sprintf(i18n.T("正在回退「%s」已应用的改动…"), t.name))
 	failed := 0
 	for i := len(t.undos) - 1; i >= 0; i-- {
 		u := t.undos[i]
 		if err := u.fn(); err != nil {
 			failed++
-			execx.Error(fmt.Sprintf("  回退失败: %s (%v)", u.desc, err))
+			execx.Error(fmt.Sprintf(i18n.T("  回退失败: %s (%v)"), u.desc, err))
 		} else {
-			execx.Info("  已回退: " + u.desc)
+			execx.Info(i18n.T("  已回退: ") + u.desc)
 		}
 	}
 	t.undos = nil
 	t.runCleanups()
 	if failed > 0 {
-		execx.Error(fmt.Sprintf("回退完成，但有 %d 项失败，请手动检查。", failed))
+		execx.Error(fmt.Sprintf(i18n.T("回退完成，但有 %d 项失败，请手动检查。"), failed))
 	} else {
-		execx.Ok("已回退到操作前状态。")
+		execx.Ok(i18n.T("已回退到操作前状态。"))
 	}
 }
 

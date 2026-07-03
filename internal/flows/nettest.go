@@ -20,6 +20,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/Trilives/clashdock/internal/execx"
+	"github.com/Trilives/clashdock/internal/i18n"
 	"github.com/Trilives/clashdock/internal/tui"
 )
 
@@ -136,7 +137,7 @@ func cfTrace(client *http.Client, rawURL string) map[string]string {
 func runPool(n int, worker func(i int), label string) {
 	tty := term.IsTerminal(int(os.Stdout.Fd()))
 	if !tty {
-		execx.Info(fmt.Sprintf("%s（%d 项）…", label, n))
+		execx.Info(fmt.Sprintf(i18n.T("%s（%d 项）…"), label, n))
 	}
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -165,31 +166,31 @@ func runPool(n int, worker func(i int), label string) {
 
 func fmtMs(r latResult) string {
 	if !r.ok {
-		return "超时"
+		return i18n.T("超时")
 	}
 	return fmt.Sprintf("%dms", r.ms)
 }
 
 // Nettest 网络测试全流程。
 func Nettest() error {
-	execx.Header("网络测试")
+	execx.Header(i18n.T("网络测试"))
 	viaProxy := proxyUp()
 	proxyURL := fmt.Sprintf("http://%s:%d", nettestProxyHost, nettestProxyPort)
 	if viaProxy {
-		execx.Info(fmt.Sprintf("经本地代理 %s 测试（走 mihomo 出口）。", proxyURL))
+		execx.Info(fmt.Sprintf(i18n.T("经本地代理 %s 测试（走 mihomo 出口）。"), proxyURL))
 	} else {
-		execx.Warn(fmt.Sprintf("本地代理 %s 未监听，改用直连测试（结果不代表代理体验）。", proxyURL))
+		execx.Warn(fmt.Sprintf(i18n.T("本地代理 %s 未监听，改用直连测试（结果不代表代理体验）。"), proxyURL))
 	}
 	client := nettestClient(viaProxy)
 
 	// 1. 延迟
 	lat := make([]latResult, len(latencyTargets))
-	runPool(len(latencyTargets), func(i int) { lat[i] = latency(client, latencyTargets[i].url) }, "延迟测试")
+	runPool(len(latencyTargets), func(i int) { lat[i] = latency(client, latencyTargets[i].url) }, i18n.T("延迟测试"))
 	fmt.Println()
 	lastCat := ""
 	for i, t := range latencyTargets {
 		if t.cat != lastCat {
-			execx.Info(fmt.Sprintf("【%s】", t.cat))
+			execx.Info(fmt.Sprintf(i18n.T("【%s】"), i18n.T(t.cat)))
 			lastCat = t.cat
 		}
 		mark := "✗"
@@ -201,13 +202,13 @@ func Nettest() error {
 
 	// 2. 出口 IP（OpenAI / Claude / Cloudflare）
 	fmt.Println()
-	execx.Info("【出口 IP / 落地】")
+	execx.Info(fmt.Sprintf(i18n.T("【%s】"), i18n.T("出口 IP / 落地")))
 	traces := make([]map[string]string, len(traceTargets))
-	runPool(len(traceTargets), func(i int) { traces[i] = cfTrace(client, traceTargets[i].url) }, "出口探测")
+	runPool(len(traceTargets), func(i int) { traces[i] = cfTrace(client, traceTargets[i].url) }, i18n.T("出口探测"))
 	for i, t := range traceTargets {
 		f := traces[i]
 		if f == nil || f["ip"] == "" {
-			fmt.Printf("  ✗ %-12s 探测失败\n", t.name)
+			fmt.Printf(i18n.T("  ✗ %-12s 探测失败\n"), t.name)
 			continue
 		}
 		loc := f["loc"]
@@ -218,11 +219,11 @@ func Nettest() error {
 		if f["colo"] != "" {
 			extra = fmt.Sprintf("  [%s]", f["colo"])
 		}
-		fmt.Printf("  ✓ %-12s %-22s 落地 %s%s\n", t.name, f["ip"], loc, extra)
+		fmt.Printf(i18n.T("  ✓ %-12s %-22s 落地 %s%s\n"), t.name, f["ip"], loc, extra)
 	}
 
 	fmt.Println()
-	execx.Ok("网络测试完成。")
-	tui.Pause("回车返回主菜单… ")
+	execx.Ok(i18n.T("网络测试完成。"))
+	tui.Pause(i18n.T("回车返回主菜单… "))
 	return nil
 }

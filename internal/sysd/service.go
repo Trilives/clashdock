@@ -17,6 +17,7 @@ import (
 
 	"github.com/Trilives/clashdock/internal/configfile"
 	"github.com/Trilives/clashdock/internal/execx"
+	"github.com/Trilives/clashdock/internal/i18n"
 	"github.com/Trilives/clashdock/internal/jsonx"
 	"github.com/Trilives/clashdock/internal/paths"
 )
@@ -63,7 +64,7 @@ func stageRuntimeConfig(p paths.Paths, rt runtimePaths) (string, error) {
 	}
 	data, err := configfile.Parse(raw)
 	if err != nil {
-		return "", fmt.Errorf("解析 state/config.yaml: %w", err)
+		return "", fmt.Errorf(i18n.T("解析 state/config.yaml: %w"), err)
 	}
 	if v, ok := data["external-ui"]; ok && v != nil && v != "" {
 		data["external-ui"] = rt.UI
@@ -90,19 +91,19 @@ func stageRuntimeConfig(p paths.Paths, rt runtimePaths) (string, error) {
 
 func preflight(p paths.Paths) error {
 	if _, err := os.Stat(p.MihomoBin); err != nil {
-		return fmt.Errorf("未找到 mihomo 内核，请先执行『下载内核/UI/geo 数据』")
+		return fmt.Errorf("%s", i18n.T("未找到 mihomo 内核，请先执行『下载内核/UI/geo 数据』"))
 	}
 	if _, err := os.Stat(p.ConfigFile); err != nil {
-		return fmt.Errorf("未找到生效配置 config.yaml，请先添加订阅")
+		return fmt.Errorf("%s", i18n.T("未找到生效配置 config.yaml，请先添加订阅"))
 	}
 	_, metadbErr := os.Stat(p.GeoipMetadb)
 	_, mmdbErr := os.Stat(p.CountryMmdb)
 	_, geositeErr := os.Stat(p.GeositeDat)
 	if geositeErr != nil || (metadbErr != nil && mmdbErr != nil) {
-		return fmt.Errorf("未找到 geo 数据（geosite.dat 且 geoip.metadb/country.mmdb 之一），请先执行『下载内核/UI/geo 数据』")
+		return fmt.Errorf("%s", i18n.T("未找到 geo 数据（geosite.dat 且 geoip.metadb/country.mmdb 之一），请先执行『下载内核/UI/geo 数据』"))
 	}
 	if !execx.Have("systemctl") {
-		return fmt.Errorf("未找到 systemctl，注册服务需要 systemd")
+		return fmt.Errorf("%s", i18n.T("未找到 systemctl，注册服务需要 systemd"))
 	}
 	return nil
 }
@@ -116,7 +117,7 @@ func Install(p paths.Paths, name string, start bool) error {
 		return err
 	}
 	rt := rtPaths(name)
-	if err := execx.EnsureSudo("注册系统服务"); err != nil {
+	if err := execx.EnsureSudo(i18n.T("注册系统服务")); err != nil {
 		return err
 	}
 
@@ -142,7 +143,7 @@ func Install(p paths.Paths, name string, start bool) error {
 	}
 	steps = append(steps, []string{"install", "-m", "0644", p.GeositeDat, rt.Geosite})
 	for _, cmd := range steps {
-		if _, err := execx.RunRoot(cmd, "部署运行时", nil); err != nil {
+		if _, err := execx.RunRoot(cmd, i18n.T("部署运行时"), nil); err != nil {
 			return err
 		}
 	}
@@ -153,13 +154,13 @@ func Install(p paths.Paths, name string, start bool) error {
 			return err
 		}
 	} else {
-		execx.Warn("未找到 Web UI，面板将不可用；可稍后执行更新补齐。")
+		execx.Warn(i18n.T("未找到 Web UI，面板将不可用；可稍后执行更新补齐。"))
 	}
 	// 配置 + 运行时校验
 	if _, err := execx.RunRoot([]string{"install", "-m", "0644", staged, rt.Config}, "", nil); err != nil {
 		return err
 	}
-	if _, err := execx.RunRoot([]string{rt.Bin, "-t", "-d", rt.Dir, "-f", rt.Config}, "校验配置", nil); err != nil {
+	if _, err := execx.RunRoot([]string{rt.Bin, "-t", "-d", rt.Dir, "-f", rt.Config}, i18n.T("校验配置"), nil); err != nil {
 		return err
 	}
 
@@ -174,7 +175,7 @@ func Install(p paths.Paths, name string, start bool) error {
 	if err != nil {
 		return err
 	}
-	if err := execx.WriteRoot(rt.Unit, unitText, "0644", "写服务单元"); err != nil {
+	if err := execx.WriteRoot(rt.Unit, unitText, "0644", i18n.T("写服务单元")); err != nil {
 		return err
 	}
 	if _, err := execx.RunRoot([]string{"systemctl", "daemon-reload"}, "", nil); err != nil {
@@ -187,9 +188,9 @@ func Install(p paths.Paths, name string, start bool) error {
 		if _, err := execx.RunRoot([]string{"systemctl", "restart", name + ".service"}, "", nil); err != nil {
 			return err
 		}
-		execx.Ok("服务已启动: " + name + ".service")
+		execx.Ok(i18n.T("服务已启动: ") + name + ".service")
 	} else {
-		execx.Ok("服务已设为开机自启（未启动）: " + name + ".service")
+		execx.Ok(i18n.T("服务已设为开机自启（未启动）: ") + name + ".service")
 	}
 	return nil
 }
@@ -210,14 +211,14 @@ func SyncAndRestart(p paths.Paths, name string) error {
 		name = DefaultName
 	}
 	if !IsInstalled(name) {
-		execx.Warn("服务 " + name + " 未安装，跳过同步。")
+		execx.Warn(i18n.T("服务 ") + name + i18n.T(" 未安装，跳过同步。"))
 		return nil
 	}
 	if err := preflight(p); err != nil {
 		return err
 	}
 	rt := rtPaths(name)
-	if err := execx.EnsureSudo("更新服务配置"); err != nil {
+	if err := execx.EnsureSudo(i18n.T("更新服务配置")); err != nil {
 		return err
 	}
 	staged, err := stageRuntimeConfig(p, rt)
@@ -228,13 +229,13 @@ func SyncAndRestart(p paths.Paths, name string) error {
 	if _, err := execx.RunRoot([]string{"install", "-m", "0644", staged, rt.Config}, "", nil); err != nil {
 		return err
 	}
-	if _, err := execx.RunRoot([]string{rt.Bin, "-t", "-d", rt.Dir, "-f", rt.Config}, "校验配置", nil); err != nil {
+	if _, err := execx.RunRoot([]string{rt.Bin, "-t", "-d", rt.Dir, "-f", rt.Config}, i18n.T("校验配置"), nil); err != nil {
 		return err
 	}
 	if _, err := execx.RunRoot([]string{"systemctl", "restart", name + ".service"}, "", nil); err != nil {
 		return err
 	}
-	execx.Ok("已同步配置并重启: " + name + ".service")
+	execx.Ok(i18n.T("已同步配置并重启: ") + name + ".service")
 	return nil
 }
 
@@ -243,7 +244,7 @@ func Remove(p paths.Paths, name string, purgeRuntime bool) error {
 	if name == "" {
 		name = DefaultName
 	}
-	if err := execx.EnsureSudo("删除系统服务"); err != nil {
+	if err := execx.EnsureSudo(i18n.T("删除系统服务")); err != nil {
 		return err
 	}
 	removeUnit(name, false)
@@ -257,7 +258,7 @@ func Remove(p paths.Paths, name string, purgeRuntime bool) error {
 			execx.RunRoot([]string{"rm", "-rf", paths.EtcDir}, "", nil)
 		}
 	}
-	execx.Ok("服务已删除: " + name + ".service")
+	execx.Ok(i18n.T("服务已删除: ") + name + ".service")
 	return nil
 }
 
@@ -319,11 +320,11 @@ func Pause(name string) error {
 		name = DefaultName
 	}
 	if !IsInstalled(name) {
-		execx.Warn("服务 " + name + " 未安装，无需暂停。")
+		execx.Warn(i18n.T("服务 ") + name + i18n.T(" 未安装，无需暂停。"))
 		return nil
 	}
 	companions := CompanionUnits()
-	if err := execx.EnsureSudo("暂停服务"); err != nil {
+	if err := execx.EnsureSudo(i18n.T("暂停服务")); err != nil {
 		return err
 	}
 	// 先停伴生 watchdog，否则刚停掉主服务它又会拉起来
@@ -333,10 +334,10 @@ func Pause(name string) error {
 	execx.RunRoot([]string{"systemctl", "stop", name + ".service"}, "", nil)
 	suffix := ""
 	if len(companions) > 0 {
-		suffix = fmt.Sprintf(" + %d 个伴生单元", len(companions))
+		suffix = fmt.Sprintf(i18n.T(" + %d 个伴生单元"), len(companions))
 	}
-	execx.Ok("已暂停：" + name + ".service" + suffix)
-	execx.Info("提示：暂停为运行时停止，重启系统后会自动恢复运行。")
+	execx.Ok(i18n.T("已暂停：") + name + ".service" + suffix)
+	execx.Info(i18n.T("提示：暂停为运行时停止，重启系统后会自动恢复运行。"))
 	return nil
 }
 
@@ -346,11 +347,11 @@ func Resume(name string) error {
 		name = DefaultName
 	}
 	if !IsInstalled(name) {
-		execx.Warn("服务 " + name + " 未安装，请先执行『初始化』。")
+		execx.Warn(i18n.T("服务 ") + name + i18n.T(" 未安装，请先执行『初始化』。"))
 		return nil
 	}
 	companions := CompanionUnits()
-	if err := execx.EnsureSudo("启动服务"); err != nil {
+	if err := execx.EnsureSudo(i18n.T("启动服务")); err != nil {
 		return err
 	}
 	execx.RunRoot([]string{"systemctl", "start", name + ".service"}, "", nil)
@@ -359,8 +360,8 @@ func Resume(name string) error {
 	}
 	suffix := ""
 	if len(companions) > 0 {
-		suffix = fmt.Sprintf(" + %d 个伴生单元", len(companions))
+		suffix = fmt.Sprintf(i18n.T(" + %d 个伴生单元"), len(companions))
 	}
-	execx.Ok("已启动：" + name + ".service" + suffix)
+	execx.Ok(i18n.T("已启动：") + name + ".service" + suffix)
 	return nil
 }

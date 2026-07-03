@@ -17,6 +17,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/Trilives/clashdock/internal/execx"
+	"github.com/Trilives/clashdock/internal/i18n"
 )
 
 func b64decode(text string) ([]byte, error) {
@@ -47,21 +48,21 @@ func ToClashDict(rawText string, cfg map[string]any) (map[string]any, error) {
 					}
 				}
 			}
-			err = fmt.Errorf("subconverter 返回内容无法解析为 Clash")
+			err = fmt.Errorf("%s", i18n.T("subconverter 返回内容无法解析为 Clash"))
 		}
 		if err != nil {
 			if !localFallback {
-				return nil, fmt.Errorf("subconverter 解析失败：%w。可更换后端，或开启应急本地解析 base64_local_fallback", err)
+				return nil, fmt.Errorf(i18n.T("subconverter 解析失败：%w。可更换后端，或开启应急本地解析 base64_local_fallback"), err)
 			}
-			execx.Warn(fmt.Sprintf("subconverter 失败，改用应急本地解析：%v", err))
+			execx.Warn(fmt.Sprintf(i18n.T("subconverter 失败，改用应急本地解析：%v"), err))
 		}
 	} else if !localFallback {
-		return nil, fmt.Errorf("未配置 subconverter 后端，且未开启应急本地解析（base64_local_fallback）")
+		return nil, fmt.Errorf("%s", i18n.T("未配置 subconverter 后端，且未开启应急本地解析（base64_local_fallback）"))
 	}
 
 	proxies := LocalParseToClash(rawText)
 	if len(proxies) == 0 {
-		return nil, fmt.Errorf("本地解析未得到任何节点")
+		return nil, fmt.Errorf("%s", i18n.T("本地解析未得到任何节点"))
 	}
 	return minimalClash(proxies), nil
 }
@@ -96,7 +97,7 @@ func toClashViaSubconverter(rawText, backend, proxy string) (string, error) {
 	}
 	text := string(data)
 	if !strings.Contains(text, "proxies:") {
-		return "", fmt.Errorf("subconverter 返回内容不含 proxies，可能后端不可用或订阅无效")
+		return "", fmt.Errorf("%s", i18n.T("subconverter 返回内容不含 proxies，可能后端不可用或订阅无效"))
 	}
 	return text, nil
 }

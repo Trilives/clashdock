@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 
 	"github.com/Trilives/clashdock/internal/execx"
+	"github.com/Trilives/clashdock/internal/i18n"
 	"github.com/Trilives/clashdock/internal/paths"
 )
 
@@ -80,10 +81,10 @@ type WebUIOptions struct {
 // InstallWebUI 安装/重装独立面板服务并启动。需先下载 Web UI。
 func InstallWebUI(p paths.Paths, opts WebUIOptions) error {
 	if !execx.Have("systemctl") {
-		return fmt.Errorf("未找到 systemctl，独立面板服务需要 systemd")
+		return fmt.Errorf("%s", i18n.T("未找到 systemctl，独立面板服务需要 systemd"))
 	}
 	if _, err := os.Stat(filepath.Join(p.UI, "index.html")); err != nil {
-		return fmt.Errorf("未找到 Web UI，请先执行『下载内核 / UI / geo 数据』")
+		return fmt.Errorf("%s", i18n.T("未找到 Web UI，请先执行『下载内核 / UI / geo 数据』"))
 	}
 	if opts.Port == 0 {
 		opts.Port = DefaultWebUIPort
@@ -101,7 +102,7 @@ func InstallWebUI(p paths.Paths, opts WebUIOptions) error {
 		return err
 	}
 
-	if err := execx.EnsureSudo("安装独立 Web 面板服务"); err != nil {
+	if err := execx.EnsureSudo(i18n.T("安装独立 Web 面板服务")); err != nil {
 		return err
 	}
 	if err := ConfigureBackend(p, backend); err != nil {
@@ -114,7 +115,7 @@ func InstallWebUI(p paths.Paths, opts WebUIOptions) error {
 	if _, err := execx.RunRoot([]string{"cp", "-a", p.UI, webuiRuntimeDir()}, "", nil); err != nil {
 		return err
 	}
-	if err := execx.WriteRoot(webuiUnit(), webuiUnitText(opts.Port, host, webuiRuntimeDir(), selfExe), "0644", "写面板单元"); err != nil {
+	if err := execx.WriteRoot(webuiUnit(), webuiUnitText(opts.Port, host, webuiRuntimeDir(), selfExe), "0644", i18n.T("写面板单元")); err != nil {
 		return err
 	}
 	if _, err := execx.RunRoot([]string{"systemctl", "daemon-reload"}, "", nil); err != nil {
@@ -127,16 +128,16 @@ func InstallWebUI(p paths.Paths, opts WebUIOptions) error {
 	if opts.Lan {
 		disp = host
 	}
-	execx.Ok(fmt.Sprintf("独立 Web 面板已启动：http://%s:%d/", disp, opts.Port))
+	execx.Ok(fmt.Sprintf(i18n.T("独立 Web 面板已启动：http://%s:%d/"), disp, opts.Port))
 	if opts.Lan && backend == "" {
-		execx.Info(fmt.Sprintf("首次打开请在面板里填后端地址 http://<服务器IP>:%d（如设了 secret 一并填）。", controllerPort))
+		execx.Info(fmt.Sprintf(i18n.T("首次打开请在面板里填后端地址 http://<服务器IP>:%d（如设了 secret 一并填）。"), controllerPort))
 	}
 	return nil
 }
 
 // RemoveWebUI 卸载独立面板服务并清理暂存。
 func RemoveWebUI() error {
-	if err := execx.EnsureSudo("卸载独立 Web 面板服务"); err != nil {
+	if err := execx.EnsureSudo(i18n.T("卸载独立 Web 面板服务")); err != nil {
 		return err
 	}
 	quiet := &execx.Opt{Capture: true}
@@ -145,7 +146,7 @@ func RemoveWebUI() error {
 	execx.RunRoot([]string{"rm", "-f", webuiUnit()}, "", nil)
 	execx.RunRoot([]string{"rm", "-rf", webuiRuntimeDir()}, "", nil)
 	execx.RunRoot([]string{"systemctl", "daemon-reload"}, "", nil)
-	execx.Ok("独立 Web 面板已卸载。")
+	execx.Ok(i18n.T("独立 Web 面板已卸载。"))
 	return nil
 }
 
