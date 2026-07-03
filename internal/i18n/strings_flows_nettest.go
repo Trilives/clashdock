@@ -6,7 +6,8 @@ func init() {
 
 		"超时": "Timeout",
 
-		"网络测试 / 诊断":                      "Network Test / Diagnostics",
+		"工具":   "Tools",
+		"网络测试": "Network Test",
 		"经本地代理 %s 测试（走 mihomo 出口）。":      "Testing via local proxy %s (through mihomo egress).",
 		"本地代理 %s 未监听，改用直连测试（结果不代表代理体验）。": "Local proxy %s is not listening; falling back to direct connection (results don't reflect the proxied experience).",
 

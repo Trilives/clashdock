@@ -297,13 +297,19 @@ func updateCoreFlow(p paths.Paths) error {
 	if err != nil || !ok {
 		return err
 	}
+	// 是否下载 Web UI 显式询问，而不是只在已下载过时才刷新——否则初始化时跳过了
+	// UI 下载的用户，后面永远没有入口能补下载（独立 Web 面板安装又要求 UI 已存在）。
 	_, hasUIErr := os.Stat(filepath.Join(p.UI, "index.html"))
 	hasUI := hasUIErr == nil
-	ensureGithubToken(p)
-	if _, err := kernel.DownloadAll(p, kernel.Options{Force: true, WithUI: hasUI}); err != nil {
+	wantUI, err := tui.Confirm(i18n.T("同时下载 / 更新 Web UI 面板？"), hasUI)
+	if err != nil {
 		return err
 	}
-	if hasUI {
+	ensureGithubToken(p)
+	if _, err := kernel.DownloadAll(p, kernel.Options{Force: true, WithUI: wantUI}); err != nil {
+		return err
+	}
+	if wantUI {
 		cfg := config.Load(p)
 		if err := sysd.RefreshWebUI(p, config.Int(cfg, "webui_port"), config.Bool(cfg, "lan_panel")); err != nil {
 			execx.Warn(i18n.T("独立面板刷新失败：") + err.Error())

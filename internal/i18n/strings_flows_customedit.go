@@ -4,6 +4,10 @@ func init() {
 	register(map[string]string{
 		"编辑定制层":   "Edit Customization Layer",
 		"放弃修改并退出": "Discard changes and exit",
+		"返回上层":    "Back",
+
+		"部署设置（TUN / 面板 / 下载）":     "Deployment Settings (TUN / Panel / Downloads)",
+		"自定义分流叠加（AI / 流媒体 / 地区组）": "Custom Routing Overlay (AI / Streaming / Region Groups)",
 
 		"未做修改。":         "No changes made.",
 		"定制层已保存。":       "Customization layer saved.",

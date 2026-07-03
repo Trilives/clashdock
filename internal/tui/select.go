@@ -129,7 +129,7 @@ func buildSelect(title string, options []string, idx int, footer string, termCol
 		if i == idx {
 			mark = "❯"
 		}
-		t := truncate(fmt.Sprintf("  %s %s %s ", mark, num(i), options[i]), maxW)
+		t := truncate(fmt.Sprintf("  %s %s %s ", mark, numFor(n, i), options[i]), maxW)
 		rowsText[i] = t
 		widths = append(widths, dispWidth(t))
 	}

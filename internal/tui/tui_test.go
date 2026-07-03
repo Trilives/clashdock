@@ -90,15 +90,15 @@ func TestBuildSelectScrollHints(t *testing.T) {
 	}
 }
 
-func TestNum(t *testing.T) {
-	if num(0) != "①" || num(19) != "⑳" {
-		t.Error("圈号映射不符")
+func TestNumFor(t *testing.T) {
+	// 总数在圈号范围内：整份统一用带圈数字。
+	if numFor(20, 0) != "①" || numFor(20, 19) != "⑳" {
+		t.Error("总数≤20 时应整份使用带圈数字")
 	}
-	if num(20) != "㉑" || num(34) != "㉟" || num(35) != "㊱" || num(49) != "㊿" {
-		t.Error("扩展圈号范围（21-50）映射不符")
-	}
-	if num(50) != "51" {
-		t.Error("超出圈号范围应回退数字")
+	// 总数超出圈号范围：整份统一退化为普通数字（含前 20 项也不例外），
+	// 避免同一菜单内前面带圈、后面变数字的不统一观感。
+	if numFor(25, 0) != "1" || numFor(25, 19) != "20" || numFor(25, 24) != "25" {
+		t.Error("总数超过 20 时应整份统一使用普通数字，不应部分带圈")
 	}
 }
 

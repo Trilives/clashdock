@@ -34,15 +34,16 @@ const (
 	ansiCyan  = "\033[36m"
 )
 
-// num 序号：带圈数字覆盖 1-50（①-⑳、㉑-㉟、㊱-㊿ 三段 Unicode 区间），超出后退化为普通数字。
-func num(i int) string {
-	switch {
-	case i < 20:
-		return string(rune(0x2460 + i))
-	case i < 35:
-		return string(rune(0x3251 + i - 20))
-	case i < 50:
-		return string(rune(0x32B1 + i - 35))
+var circled = []rune("①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳")
+
+// numFor 序号：整份菜单统一风格——总项数在带圈数字范围内（①-⑳，最常见、
+// 各终端字体支持最好）就全用带圈数字，否则整份改用普通数字。按"菜单总长度"
+// 一次性决定，而不是每项各自判断，避免同一菜单里前面带圈、后面变回阿拉伯
+// 数字这种不统一的观感（也避免使用生僻的扩展带圈数字区间在部分终端字体下
+// 缺字形）。
+func numFor(total, i int) string {
+	if total <= len(circled) {
+		return string(circled[i])
 	}
 	return strconv.Itoa(i + 1)
 }

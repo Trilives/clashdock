@@ -188,18 +188,43 @@ func fileLocations(p paths.Paths) []struct{ label, path string } {
 	}
 }
 
-func printFileLocations(p paths.Paths) {
-	execx.Info(fmt.Sprintf(i18n.T("【%s】"), i18n.T("主要文件位置")))
+// FileLocationsTool 显示主要文件/目录位置一览（「工具」菜单的一项）。
+func FileLocationsTool(p paths.Paths) error {
+	execx.Header(i18n.T("主要文件位置"))
 	for _, r := range fileLocations(p) {
 		fmt.Printf("  %-12s %s\n", r.label+":", r.path)
 	}
 	fmt.Println()
+	tui.Pause(i18n.T("回车返回主菜单… "))
+	return nil
 }
 
-// Nettest 网络测试 / 诊断全流程：延迟测试 + 出口 IP + 主要文件位置一览。
-func Nettest(p paths.Paths) error {
-	execx.Header(i18n.T("网络测试 / 诊断"))
-	printFileLocations(p)
+// ToolsMenu 「工具」菜单：网络测试 / 主要文件位置，未来可继续添加其它排障工具。
+func ToolsMenu(p paths.Paths) error {
+	idx := 0
+	for {
+		options := []string{i18n.T("网络测试"), i18n.T("主要文件位置")}
+		i, err := tui.Select(i18n.T("工具"), options, tui.SelectOpts{BackLabel: i18n.T("返回上层"), Initial: idx})
+		if err != nil {
+			return nil
+		}
+		idx = i
+		var terr error
+		switch i {
+		case 0:
+			terr = Nettest()
+		case 1:
+			terr = FileLocationsTool(p)
+		}
+		if terr != nil {
+			execx.Error(terr.Error())
+		}
+	}
+}
+
+// Nettest 网络测试全流程：延迟测试 + 出口 IP。
+func Nettest() error {
+	execx.Header(i18n.T("网络测试"))
 	viaProxy := proxyUp()
 	proxyURL := fmt.Sprintf("http://%s:%d", nettestProxyHost, nettestProxyPort)
 	if viaProxy {

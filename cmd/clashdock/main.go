@@ -49,7 +49,7 @@ func main() {
 	case "modify":
 		exitFlow(flows.ModifyConfig(p))
 	case "nettest":
-		exitFlow(flows.Nettest(p))
+		exitFlow(flows.Nettest())
 	case "uninstall":
 		exitFlow(flows.Uninstall(p))
 	case "update":
@@ -138,7 +138,7 @@ func interactive(p paths.Paths) int {
 		options := []string{
 			i18n.T("运行时管理（无需重启）"),
 			i18n.T("配置变更（需重启生效）"),
-			i18n.T("网络测试 / 诊断"),
+			i18n.T("工具"),
 			switchLabel(),
 			i18n.T("语言 / Language"),
 			i18n.T("卸载所有服务"),
@@ -156,7 +156,7 @@ func interactive(p paths.Paths) int {
 		case 1:
 			aerr = flows.ModifyConfig(p)
 		case 2:
-			aerr = flows.Nettest(p)
+			aerr = flows.ToolsMenu(p)
 		case 3:
 			aerr = flows.ServiceToggleFlow(p)
 		case 4:

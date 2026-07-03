@@ -222,8 +222,8 @@ var ScalarFields = map[string]string{
 	"download_proxy":       "下载代理",
 }
 
-// FieldOrder 编辑器展示顺序：常用部署项在前，叠加分流项在后。
-var FieldOrder = []string{
+// DeploymentFields 部署字段编辑分组（始终生效：TUN / 网络 / 面板 / 下载设置）。
+var DeploymentFields = []string{
 	"enable_tun",
 	"tun_stack",
 	"lan_proxy",
@@ -240,6 +240,10 @@ var FieldOrder = []string{
 	"tun_exclude_uids",
 	"base64_local_fallback",
 	"enable_log",
+}
+
+// OverlayFields 自定义分流叠加字段编辑分组（仅 enable_overlay 时生效）。
+var OverlayFields = []string{
 	"generate_sg_groups",
 	"generate_hk_groups",
 	"prefer_keywords",
@@ -250,6 +254,11 @@ var FieldOrder = []string{
 	"direct_domain_suffixes",
 	"direct_ports",
 }
+
+// FieldOrder 全部字段顺序（两个编辑分组拼接而成），供一致性测试/文档等
+// 需要遍历"全部已知字段"的场景使用；交互式编辑器请用 DeploymentFields /
+// OverlayFields 分组展示，避免单个菜单塞下所有字段。
+var FieldOrder = append(append([]string{}, DeploymentFields...), OverlayFields...)
 
 // SensitiveFields 涉密字段：菜单展示与编辑提示里都不出现明文。
 var SensitiveFields = map[string]bool{"secret": true, "github_token": true}
