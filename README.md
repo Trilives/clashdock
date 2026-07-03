@@ -126,7 +126,8 @@ clashdock/
 └── .goreleaser.yaml        # tar.gz + .deb（amd64/arm64）发布流水线
 ```
 
-架构与设计细节见 [ARCHITECTURE.md](ARCHITECTURE.md)。
+架构与设计细节见 [ARCHITECTURE.md](ARCHITECTURE.md)；后续改动需遵守
+[docs/MODULARITY.md](docs/MODULARITY.md)，避免单个文件持续膨胀。
 
 ## 许可
 

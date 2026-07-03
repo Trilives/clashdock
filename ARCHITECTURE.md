@@ -96,3 +96,9 @@ internal/flows        流程编排（init / modify / nettest / uninstall / nodes
   Go 测试要求语义等价（JSON 归一化后 DeepEqual）
 - txn / config / paths / tui 渲染 / b64 解析为常规单元测试（`go test ./...`）
 - TUI 交互用 tmux `send-keys` / `capture-pane` 逐屏对拍验证
+
+## 10. 模块化约束
+
+新增或修改代码时遵守 [docs/MODULARITY.md](docs/MODULARITY.md)：普通 Go 文件目标
+200-400 行，流程文件目标 150-300 行；超过软上限时优先同包拆分，避免把交互流程、
+系统操作、下载逻辑和数据转换继续堆到单个文件中。

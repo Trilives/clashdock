@@ -3,6 +3,9 @@
 package flows
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/Trilives/clashdock/internal/config"
 	"github.com/Trilives/clashdock/internal/execx"
 	"github.com/Trilives/clashdock/internal/firewall"
@@ -28,7 +31,7 @@ func Init(p paths.Paths) error {
 		// 1. 局域网下载代理 / TUN / 局域网代理
 		cfg := config.Load(p)
 		proxy, err := tui.Ask(
-			"下载代理 IP:端口（出海慢时走它，如 192.168.1.10:7890），留空=保留当前/无则直连",
+			"订阅/资源下载代理 IP:端口（出海慢时走它，如 192.168.1.10:7890），留空=保留当前/无则直连",
 			tui.AskOpts{Default: stripScheme(config.Str(cfg, "download_proxy")), AllowEmpty: true})
 		if err != nil {
 			return err
@@ -82,30 +85,15 @@ func Init(p paths.Paths) error {
 			}
 		}
 
-		// 2. 下载内核 + geo 数据（Web UI 可选）
-		wantUI, err := tui.Confirm("下载 Web 管理面板（浏览器查看 / 切换节点）？", true)
-		if err != nil {
-			return err
-		}
-		suffix := ""
-		if wantUI {
-			suffix = "/ Web UI"
-		}
-		execx.Info("下载 内核 / geo 数据" + suffix + "（出海慢时会用上面的代理）…")
-		ensureGithubToken(p)
-		if _, err := kernel.DownloadAll(p, kernel.Options{WithUI: wantUI}); err != nil {
-			return err
-		}
-
-		// 3. 添加首个订阅（链接留空=暂不配置，直接结束初始化）
+		// 2. 添加首个订阅（链接留空=暂不配置，直接结束初始化）
 		info, err := askNewSubscription()
 		if err != nil {
 			return err
 		}
 		if info == nil {
-			execx.Info("已跳过订阅与服务注册，结束初始化。内核/规则已下载、设置已保存，" +
+			execx.Info("已跳过订阅与服务注册，结束初始化。设置已保存，" +
 				"稍后可在主菜单「订阅 → 添加订阅」补配并启动服务。")
-			return nil // 正常返回 → 事务提交，保留步骤 1-3 成果
+			return nil // 正常返回 → 事务提交，保留步骤 1-2 成果
 		}
 		if err := t.BackupFile(p.ConfigFile); err != nil {
 			return err
@@ -119,29 +107,27 @@ func Init(p paths.Paths) error {
 		}
 		t.AddUndo("删除订阅 "+sub.Name, func() error { return subscription.RemoveSub(p, sub.Name) })
 
-		// 4. 注册 systemd 服务
+		// 3. 注册并启动 systemd 服务。deb 安装已内置内核与基础规则，优先直接使用；
+		// 非 deb / 资源缺失场景才在启动前下载兜底。
+		if err := ensureStartupResources(p); err != nil {
+			return err
+		}
 		t.AddUndo("卸载服务 mihomo", func() error { return sysd.Remove(p, sysd.DefaultName, true) })
-		start, err := tui.Confirm("现在就启动服务？（否=仅设开机自启）", true)
-		if err != nil {
-			return err
-		}
-		if err := sysd.Install(p, sysd.DefaultName, start); err != nil {
+		if err := sysd.Install(p, sysd.DefaultName, true); err != nil {
 			return err
 		}
 
-		// 5. 可选：独立 Web 面板（根路径直接打开）
-		if wantUI {
-			if err := maybeSetupWebui(p, t); err != nil {
-				return err
-			}
+		// 4. 服务先跑起来；再询问是否在线下载/更新内核、geo 与可选 Web UI。
+		if err := optionalPostStartUpdate(p, t); err != nil {
+			return err
 		}
 
-		// 6. 可选增强：网络自愈 / 每周更新
+		// 5. 可选增强：网络自愈 / 每周更新
 		if err := optionalExtras(t); err != nil {
 			return err
 		}
 
-		// 7. 提示切换 / 固定节点
+		// 6. 提示切换 / 固定节点
 		ok, err := tui.Confirm("订阅已配置，是否现在切换 / 固定节点？", false)
 		if err != nil {
 			return err
@@ -156,6 +142,70 @@ func Init(p paths.Paths) error {
 		printAccessHint(p)
 		return nil
 	})
+}
+
+func startupResourcesReady(p paths.Paths) bool {
+	if _, err := os.Stat(p.MihomoBin); err != nil {
+		return false
+	}
+	if _, err := os.Stat(p.GeositeDat); err != nil {
+		return false
+	}
+	if _, err := os.Stat(p.GeoipMetadb); err == nil {
+		return true
+	}
+	if _, err := os.Stat(p.CountryMmdb); err == nil {
+		return true
+	}
+	return false
+}
+
+func ensureStartupResources(p paths.Paths) error {
+	if startupResourcesReady(p) {
+		execx.Info("使用本地内核与基础规则启动服务（系统包种子或既有资源）。")
+		return nil
+	}
+	execx.Warn("未找到本地内核或基础规则；非 .deb 安装/种子缺失时需要先下载才能启动服务。")
+	ok, err := tui.Confirm("现在下载内核和基础规则以便启动服务？", true)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("缺少 mihomo 内核或基础规则，无法注册并启动服务")
+	}
+	ensureGithubToken(p)
+	if _, err := kernel.DownloadAll(p, kernel.Options{WithUI: false}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func optionalPostStartUpdate(p paths.Paths, t *txn.Transaction) error {
+	ok, err := tui.Confirm("服务已启动。现在下载/更新内核、geo 数据和可选 Web 管理面板？", false)
+	if err != nil || !ok {
+		return err
+	}
+	wantUI, err := tui.Confirm("同时下载 Web 管理面板（浏览器查看 / 切换节点）？", true)
+	if err != nil {
+		return err
+	}
+	suffix := ""
+	if wantUI {
+		suffix = " / Web UI"
+	}
+	execx.Info("下载/更新 内核 / geo 数据" + suffix + "（出海慢时会用上面的代理）…")
+	ensureGithubToken(p)
+	if _, err := kernel.DownloadAll(p, kernel.Options{Force: true, WithUI: wantUI}); err != nil {
+		return err
+	}
+	execx.Info("已更新资源，重新部署运行时并重启服务…")
+	if err := sysd.Install(p, sysd.DefaultName, true); err != nil {
+		return err
+	}
+	if wantUI {
+		return maybeSetupWebui(p, t)
+	}
+	return nil
 }
 
 // maybeSetupWebui 可选：为面板启用『根路径直接打开』（独立静态服务）。
