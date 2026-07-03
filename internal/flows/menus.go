@@ -1,75 +1,18 @@
-// 各系统组件的小型交互菜单（对应 webui/resilience/timer/service 各自的 menu_flow / toggle_flow）。
+// 各系统组件的小型交互菜单（对应 resilience/timer/service 各自的 menu_flow / toggle_flow）。
 package flows
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	"github.com/Trilives/clashdock/internal/config"
 	"github.com/Trilives/clashdock/internal/execx"
-	"github.com/Trilives/clashdock/internal/firewall"
 	"github.com/Trilives/clashdock/internal/i18n"
 	"github.com/Trilives/clashdock/internal/paths"
 	"github.com/Trilives/clashdock/internal/sysd"
 	"github.com/Trilives/clashdock/internal/tui"
 )
-
-// webuiSetupInteractive 交互式安装/重配独立面板。返回最终端口（取消 / 无效为 0）。
-func webuiSetupInteractive(p paths.Paths, defaultPort int, lan bool) (int, error) {
-	cfg := config.Load(p)
-	port := defaultPort
-	if port == 0 {
-		port = config.Int(cfg, "webui_port")
-	}
-	if port == 0 {
-		port = sysd.DefaultWebUIPort
-	}
-	raw, err := tui.Ask(i18n.T("独立面板端口"), tui.AskOpts{Default: strconv.Itoa(port)})
-	if err != nil {
-		return 0, err
-	}
-	port, perr := strconv.Atoi(raw)
-	if perr != nil {
-		execx.Warn(i18n.T("端口需为整数，已取消。"))
-		return 0, nil
-	}
-	if err := sysd.InstallWebUI(p, sysd.WebUIOptions{Port: port, Lan: lan}); err != nil {
-		return 0, err
-	}
-	cfg["webui_port"] = port
-	if err := config.Save(p, cfg); err != nil {
-		return port, err
-	}
-	if lan {
-		ok, err := tui.Confirm(fmt.Sprintf(i18n.T("更新防火墙放行 %d 端口？"), port), true)
-		if err == nil && ok {
-			firewall.Allow(port)
-		}
-	}
-	return port, nil
-}
-
-func webuiMenuFlow(p paths.Paths) error {
-	installed := sysd.WebUIInstalled()
-	status := i18n.T("未安装")
-	opts := []string{i18n.T("安装独立面板（根路径直接打开）")}
-	if installed {
-		status = i18n.T("已安装")
-		opts = []string{i18n.T("重新配置 / 换端口"), i18n.T("卸载独立面板")}
-	}
-	idx, err := tui.Select(fmt.Sprintf(i18n.T("独立 Web 面板（当前：%s）"), status), opts, tui.SelectOpts{})
-	if err != nil {
-		return nil // 取消返回上层
-	}
-	if installed && idx == 1 {
-		return sysd.RemoveWebUI()
-	}
-	lan := config.Bool(config.Load(p), "lan_panel")
-	_, err = webuiSetupInteractive(p, 0, lan)
-	return err
-}
 
 func resilienceMenuFlow() error {
 	installed := sysd.ResilienceInstalled()
@@ -176,17 +119,6 @@ func printAccessHint(p paths.Paths) {
 	host := "127.0.0.1"
 	if lanPanel {
 		host = "0.0.0.0"
-	}
-	if sysd.WebUIInstalled() {
-		port := config.Int(cfg, "webui_port")
-		if port == 0 {
-			port = sysd.DefaultWebUIPort
-		}
-		disp := "127.0.0.1"
-		if lanPanel {
-			disp = host
-		}
-		execx.Info(fmt.Sprintf(i18n.T("Web 面板（根路径直开）: http://%s:%d/"), disp, port))
 	}
 	if _, err := os.Stat(filepath.Join(p.UI, "index.html")); err == nil {
 		execx.Info(fmt.Sprintf(i18n.T("Web UI（mihomo 内置路径）: http://%s:9090/ui/"), host))

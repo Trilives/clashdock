@@ -1,6 +1,8 @@
-// Package sysd systemd 单元管理（对应 service.py + webui.py + resilience.py + timer.py）：
-// 在 /etc/mihomo 暂存自包含运行时并注册主服务，以及三类伴生单元
-// （独立 Web 面板 / 网络自愈 watchdog / 每周更新定时器）。
+// Package sysd systemd 单元管理（对应 service.py + resilience.py + timer.py）：
+// 在 /etc/mihomo 暂存自包含运行时并注册主服务，以及两类伴生单元
+// （网络自愈 watchdog / 每周更新定时器）。mihomo 自带的 Web UI 只走内置
+// 控制器路径（http://host:9090/ui/），不再提供独立根路径面板服务
+// （多占一个端口，转发/放行更麻烦，收益有限）。
 //
 // 把内核、配置、geo 数据、UI 暂存到 /etc/mihomo（mihomo 的工作目录 -d），并把配置内的
 // external-ui 改写为该目录下的绝对路径，使服务与状态目录（可能在 /home）解耦。
@@ -304,9 +306,6 @@ func CompanionUnits() []string {
 	var units []string
 	if ResilienceInstalled() {
 		units = append(units, WatchdogName+".timer")
-	}
-	if WebUIInstalled() {
-		units = append(units, WebUIName+".service")
 	}
 	if TimerInstalled() {
 		units = append(units, TimerName+".timer")

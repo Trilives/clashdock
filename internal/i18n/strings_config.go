@@ -40,7 +40,6 @@ func init() {
 		// ScalarFields
 		"TUN 协议栈（gvisor/system/mixed）": "TUN stack (gvisor/system/mixed)",
 		"面板密钥 secret":                  "Panel secret",
-		"独立 Web 面板端口（根路径直开）":           "Standalone web panel port (root path)",
 		"引导 DNS 服务器":                   "Bootstrap DNS server",
 		"引导 DNS 端口":                    "Bootstrap DNS port",
 		"subconverter 后端":              "subconverter backend",

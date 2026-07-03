@@ -1,9 +1,12 @@
 // 更改配置全流程，拆成两个独立主菜单入口（对应 flows/modify.py）：
 //
-// ModifyConfig「配置变更（需重启生效）」——订阅增删改 / 切换 / 刷新 / 定制层，
-// 改动缓冲在事务里，esc「保存并退出」才提交，^R 回退本次会话全部改动。
-// ModifyRuntime「运行时管理（无需重启）」——节点实时切换 / 内核更新 / 服务重启 /
-// Web 面板 / 网络自愈 / 更新定时器，均为即时生效的系统操作。
+// ModifyConfig「配置变更」——订阅增删改 / 切换 / 刷新、部署设置、自定义分流
+// 叠加，改动缓冲在事务里，esc「保存并退出」才提交，^R 回退本次会话全部改动，
+// 需要重启服务才能生效。定制层字段分组（部署设置 / 自定义分流叠加）直接是
+// 本菜单下的平级项，不再经过多余的「编辑定制层」中间层。
+// ModifyRuntime「运行时管理」——节点实时切换 / 内核更新 / 服务重启 / 网络自愈 /
+// 更新定时器，均为即时生效的系统操作（各自按需处理重启，无需你事后再单独
+// 重启一次）。
 package flows
 
 import (
@@ -26,42 +29,46 @@ import (
 
 var modifyConfigOptions = []string{
 	"订阅管理（增 / 删 / 改名 / 切换 / 刷新）",
-	"编辑定制层（TUN / 局域网 / 面板 / 自定义分流 …）",
+	"部署设置（TUN / 面板 / 下载）",
+	"自定义分流叠加（AI / 流媒体 / 地区组）",
 }
 
-// 顺序按常用程度排列：切节点/查看服务状态是日常操作，独立面板/自愈/定时器
-// 属一次性设置项，排最后。临时切换与固定切换拆成两项：前者不写盘/不重启，
-// 后者才会写盘并可选重启。
+// 顺序按常用程度排列：切节点/查看服务状态是日常操作，自愈/定时器属一次性
+// 设置项，排最后。临时切换与固定切换拆成两项：前者不写盘/不重启，后者才会
+// 写盘并可选重启。
 var modifyRuntimeOptions = []string{
 	"临时切换节点（不写盘，重启后失效）",
 	"切换并固定节点（写入配置，可选重启）",
 	"服务设置（重启 / 状态）",
 	"更新 内核 / UI / geo 数据",
 	"更新 clashdock 自身",
-	"独立 Web 面板（根路径直开）",
 	"网络自愈设置",
 	"每周更新定时器",
 }
 
-// ModifyConfig 配置变更会话（需重启生效）：订阅管理 + 定制层编辑。
+// ModifyConfig 配置变更会话（需重启生效）：订阅管理 + 定制层字段分组编辑。
 // 改动缓冲在事务里，esc 保存并退出才提交，^R 回退并退出则整体撤销。
 func ModifyConfig(p paths.Paths) error {
-	return modifySession(p, "配置变更（需重启生效）", modifyConfigOptions, []func() error{
+	return modifySession(p, "配置变更", modifyConfigOptions, []func() error{
 		func() error { return subscriptionsMenu(p) },
-		func() error { return editCustomizeFlow(p) },
+		func() error {
+			return editFieldGroupFlow(p, "部署设置（TUN / 面板 / 下载）", config.DeploymentFields)
+		},
+		func() error {
+			return editFieldGroupFlow(p, "自定义分流叠加（AI / 流媒体 / 地区组）", config.OverlayFields)
+		},
 	})
 }
 
-// ModifyRuntime 运行时管理会话（无需重启）：节点切换 / 内核更新 / clashdock 自
-// 更新 / 服务设置 / Web 面板 / 网络自愈 / 更新定时器，均为即时生效的系统操作。
+// ModifyRuntime 运行时管理会话（即时生效）：节点切换 / 内核更新 / clashdock 自
+// 更新 / 服务设置 / 网络自愈 / 更新定时器，均为即时生效的系统操作。
 func ModifyRuntime(p paths.Paths, currentVersion string) error {
-	return modifySession(p, "运行时管理（无需重启）", modifyRuntimeOptions, []func() error{
+	return modifySession(p, "运行时管理", modifyRuntimeOptions, []func() error{
 		func() error { return NodeSwitchLive(p, p.ConfigFile, "") },
 		func() error { return NodeSelect(p, p.ConfigFile, "") },
 		func() error { return serviceSettings(p) },
 		func() error { return updateCoreFlow(p) },
 		func() error { return SelfUpdateFlow(p, currentVersion) },
-		func() error { return webuiMenuFlow(p) },
 		func() error { return resilienceMenuFlow() },
 		func() error { return timerMenuFlow() },
 	})
@@ -273,8 +280,8 @@ func subRemove(p paths.Paths) error {
 // 其它
 // --------------------------------------------------------------------------
 
-func editCustomizeFlow(p paths.Paths) error {
-	changed, err := EditCustomize(p)
+func editFieldGroupFlow(p paths.Paths, title string, fields []string) error {
+	changed, err := EditFieldGroup(p, title, fields)
 	if err != nil {
 		return err
 	}
@@ -298,22 +305,17 @@ func updateCoreFlow(p paths.Paths) error {
 		return err
 	}
 	// 是否下载 Web UI 显式询问，而不是只在已下载过时才刷新——否则初始化时跳过了
-	// UI 下载的用户，后面永远没有入口能补下载（独立 Web 面板安装又要求 UI 已存在）。
+	// UI 下载的用户，后面永远没有入口能补下载。mihomo 内置控制器会直接从
+	// state/ui 提供服务（http://host:9090/ui/），下载后无需额外部署步骤。
 	_, hasUIErr := os.Stat(filepath.Join(p.UI, "index.html"))
 	hasUI := hasUIErr == nil
-	wantUI, err := tui.Confirm(i18n.T("同时下载 / 更新 Web UI 面板？"), hasUI)
+	wantUI, err := tui.Confirm(i18n.T("同时下载 / 更新 Web UI？"), hasUI)
 	if err != nil {
 		return err
 	}
 	ensureGithubToken(p)
 	if _, err := kernel.DownloadAll(p, kernel.Options{Force: true, WithUI: wantUI}); err != nil {
 		return err
-	}
-	if wantUI {
-		cfg := config.Load(p)
-		if err := sysd.RefreshWebUI(p, config.Int(cfg, "webui_port"), config.Bool(cfg, "lan_panel")); err != nil {
-			execx.Warn(i18n.T("独立面板刷新失败：") + err.Error())
-		}
 	}
 	if fileExists(p.ConfigFile) && sysd.IsInstalled(sysd.DefaultName) {
 		return sysd.SyncAndRestart(p, sysd.DefaultName)

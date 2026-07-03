@@ -63,7 +63,6 @@ var defaultsOrder = []string{
 	"github_mirror",
 	"github_token",
 	"download_proxy",
-	"webui_port",
 	"language",
 	"enable_log",
 	// —— 地区自动测速聚合组（各地区独立开关，不依赖 overlay）——
@@ -96,7 +95,6 @@ func Defaults() map[string]any {
 		"github_mirror":             "",
 		"github_token":              "",
 		"download_proxy":            "",
-		"webui_port":                9091,
 		"language":                  "en",
 		"enable_log":                false,
 		"generate_sg_groups":        false,
@@ -213,7 +211,6 @@ var BoolFields = map[string]string{
 var ScalarFields = map[string]string{
 	"tun_stack":            "TUN 协议栈（gvisor/system/mixed）",
 	"secret":               "面板密钥 secret",
-	"webui_port":           "独立 Web 面板端口（根路径直开）",
 	"bootstrap_dns_server": "引导 DNS 服务器",
 	"bootstrap_dns_port":   "引导 DNS 端口",
 	"subconverter_backend": "subconverter 后端",
@@ -229,7 +226,6 @@ var DeploymentFields = []string{
 	"lan_proxy",
 	"lan_panel",
 	"secret",
-	"webui_port",
 	"download_proxy",
 	"github_mirror",
 	"github_token",

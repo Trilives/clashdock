@@ -13,10 +13,10 @@
 // 链接——此后再更新只需要原子重写 current 指向，不用碰 /usr/bin 下的文件。
 //
 // 更新流程：下载发行包 → 校验 SHA-256 → 解压到独立版本目录 → 试跑新二进制确认
-// 能正常执行 → 停止会常驻 exec 本二进制的服务（目前只有独立 Web 面板；mihomo
-// 内核是完全独立的另一个二进制，不受影响）→ 原子切换 current 符号链接 → 重启
-// 该服务并再次试跑确认成功；若启动校验失败，回退 current 指向并重启服务。
-// 仅保留 current 指向的版本与紧邻的上一个版本，其余版本目录清理掉。
+// 能正常执行 → 原子切换 current 符号链接 → 再次试跑确认成功；若启动校验失败，
+// 回退 current 指向。mihomo 内核是完全独立的另一个二进制，不受影响，本流程
+// 不涉及任何 systemd 单元的停止/启动。仅保留 current 指向的版本与紧邻的上一
+// 个版本，其余版本目录清理掉。
 package selfupdate
 
 import (
@@ -166,20 +166,15 @@ func Update(p paths.Paths, currentVersion string) (string, bool, error) {
 	}
 	prevTarget, _ := os.Readlink(currentLink(p))
 
-	stopWebUI()
 	if err := swapCurrentLink(p, newBin); err != nil {
-		startWebUI()
 		return "", false, err
 	}
-	startWebUI()
 
 	if err := probeBinary(realExe); err != nil {
 		execx.Warn(fmt.Sprintf(i18n.T("新版本启动校验失败，回退到旧版本：%v"), err))
-		stopWebUI()
 		if prevTarget != "" {
 			swapCurrentLink(p, prevTarget) //nolint:errcheck // 回退已在出错路径，尽力而为
 		}
-		startWebUI()
 		return "", false, fmt.Errorf(i18n.T("已回退到原版本：%w"), err)
 	}
 
@@ -274,17 +269,6 @@ func probeBinary(path string) error {
 	}
 	return nil
 }
-
-// stopWebUI/startWebUI 独立 Web 面板会常驻 exec 本二进制（webui-serve），
-// 切换 current 前后短暂停/启，使其真正加载到新版本代码。mihomo 内核服务是
-// 完全独立的另一个二进制，不受影响，无需处理。watchdog/定时器只是周期性
-// 短暂 exec 一次，下次触发自然用上新版本，无需重启。
-func stopWebUI()  { execx.RunRoot([]string{"systemctl", "stop", webUIUnit}, "", quietOpt) }
-func startWebUI() { execx.RunRoot([]string{"systemctl", "start", webUIUnit}, "", quietOpt) }
-
-const webUIUnit = "mihomo-webui.service"
-
-var quietOpt = &execx.Opt{Capture: true}
 
 // pruneOldVersions 只保留 current 指向的版本与紧邻上一个版本，其余版本目录删除。
 func pruneOldVersions(p paths.Paths, keepVersion string) {

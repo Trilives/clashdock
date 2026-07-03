@@ -34,15 +34,11 @@ func init() {
 		"现在下载内核和基础规则以便启动服务？":                       "Download the core and basic rules now to start the service?",
 		"缺少 mihomo 内核或基础规则，无法注册并启动服务":              "Missing mihomo core or basic rules; cannot register and start the service",
 
-		"服务已启动。现在下载/更新内核、geo 数据和可选 Web 管理面板？": "Service started. Download/update the core, geo data, and optionally the web management panel now?",
-		"同时下载 Web 管理面板（浏览器查看 / 切换节点）？":        "Also download the web management panel (view / switch nodes in the browser)?",
-		"下载/更新 内核 / geo 数据":                   "Downloading/updating core / geo data",
-		"（出海慢时会用上面的代理）…":                      " (will use the proxy above if overseas access is slow)…",
-		"已更新资源，重新部署运行时并重启服务…":                 "Resources updated; redeploying the runtime and restarting the service…",
-
-		"为面板启用『根路径直接打开』？（独立端口，浏览器开根地址即用，免去 /ui 后缀）": "Enable 'open at root path' for the panel? (standalone port, works at the root address in a browser, no /ui suffix needed)",
-		"卸载独立 Web 面板": "Uninstall standalone web panel",
-		"撤销防火墙放行面板端口": "Revoke firewall rule for the panel port",
+		"服务已启动。现在下载/更新内核、geo 数据和可选 Web 管理面板？":                "Service started. Download/update the core, geo data, and optionally the web management panel now?",
+		"同时下载 Web UI（浏览器访问 http://host:9090/ui/ 查看 / 切换节点）？": "Also download the Web UI (browse http://host:9090/ui/ to view / switch nodes)?",
+		"下载/更新 内核 / geo 数据":                                  "Downloading/updating core / geo data",
+		"（出海慢时会用上面的代理）…":                                     " (will use the proxy above if overseas access is slow)…",
+		"已更新资源，重新部署运行时并重启服务…":                                "Resources updated; redeploying the runtime and restarting the service…",
 
 		"安装网络切换自愈？":    "Install network self-healing?",
 		"卸载网络自愈":       "Uninstall network self-healing",

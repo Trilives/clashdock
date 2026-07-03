@@ -1,16 +1,14 @@
-// 定制层交互式编辑（对应 customize.py 的 edit 部分）：缓冲式——
-// 「保存并退出」才写盘，^R 放弃全部本次修改。
+// 定制层字段分组交互式编辑（对应 customize.py 的 edit 部分），直接挂在
+// 「配置变更」主菜单下，退出即保存本组已做的修改（外层会话负责整体回退）。
 package flows
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/Trilives/clashdock/internal/config"
-	"github.com/Trilives/clashdock/internal/errs"
 	"github.com/Trilives/clashdock/internal/execx"
 	"github.com/Trilives/clashdock/internal/firewall"
 	"github.com/Trilives/clashdock/internal/i18n"
@@ -18,66 +16,15 @@ import (
 	"github.com/Trilives/clashdock/internal/tui"
 )
 
-// fieldGroups 编辑定制层按用途拆成的子分组：字段一多堆在同一屏既难找，又会让
-// 序号超出带圈数字范围、同一菜单里出现"前面带圈、后面变阿拉伯数字"的不统一
-// 观感（见 tui.numFor）。每个分组各自远小于带圈数字上限，天然保持统一。
-func fieldGroups() []struct {
-	title  string
-	fields []string
-} {
-	return []struct {
-		title  string
-		fields []string
-	}{
-		{"部署设置（TUN / 面板 / 下载）", config.DeploymentFields},
-		{"自定义分流叠加（AI / 流媒体 / 地区组）", config.OverlayFields},
-	}
-}
-
-// EditCustomize 交互式编辑 customize.json（缓冲式）：先选分组，再编辑分组内
-// 字段；esc 在分组选择这一层才会真正保存并退出，^R 放弃全部本次修改（含跨
-// 分组的改动）。分组内 esc/^R 都只是返回上一层分组选择，不提交也不放弃。
-func EditCustomize(p paths.Paths) (bool, error) {
+// EditFieldGroup 交互式编辑 customize.json 里的一个字段分组（部署设置 /
+// 自定义分流叠加，见 config.DeploymentFields / config.OverlayFields）。直接
+// 挂在「配置变更」主菜单下（与订阅管理平级），不再经过多余的「编辑定制层」
+// 中间层——外层配置变更会话已对 customize.json 做了文件快照，^R 会整体回退，
+// 这里退出（esc/^R 皆可）就保存本组内已做的修改即可，不需要再单独缓冲一层。
+// 返回是否实际保存了改动。
+func EditFieldGroup(p paths.Paths, title string, fields []string) (bool, error) {
 	original := config.Load(p)
 	cfg := deepCopyMap(original)
-	changed := false
-	groups := fieldGroups()
-	idx := 0
-	for {
-		labels := make([]string, len(groups))
-		for i, g := range groups {
-			labels[i] = i18n.T(g.title)
-		}
-		i, err := tui.Select(i18n.T("编辑定制层"), labels,
-			tui.SelectOpts{BackLabel: i18n.T("放弃修改并退出"), SaveLabel: i18n.T("保存并退出"), Initial: idx})
-		if err != nil {
-			if errors.Is(err, errs.ErrSaveExit) {
-				if !changed {
-					execx.Info(i18n.T("未做修改。"))
-					return false, nil
-				}
-				if serr := config.Save(p, cfg); serr != nil {
-					return false, serr
-				}
-				execx.Ok(i18n.T("定制层已保存。"))
-				if ferr := syncLanProxyFirewall(original, cfg); ferr != nil {
-					return true, ferr
-				}
-				syncLogging(p, cfg)
-				return true, nil
-			}
-			if changed {
-				execx.Warn(i18n.T("已放弃本次修改（未写盘）。"))
-			}
-			return false, nil
-		}
-		idx = i
-		changed = editFieldGroup(cfg, i18n.T(groups[i].title), groups[i].fields) || changed
-	}
-}
-
-// editFieldGroup 单个分组内的字段编辑循环；esc/^R 都只是返回分组选择菜单。
-func editFieldGroup(cfg map[string]any, title string, fields []string) bool {
 	changed := false
 	idx := 0
 	for {
@@ -85,9 +32,9 @@ func editFieldGroup(cfg map[string]any, title string, fields []string) bool {
 		for i, k := range fields {
 			labels[i] = config.FieldLabel(cfg, k)
 		}
-		i, err := tui.Select(title, labels, tui.SelectOpts{BackLabel: i18n.T("返回上层"), Initial: idx})
+		i, err := tui.Select(i18n.T(title), labels, tui.SelectOpts{BackLabel: i18n.T("返回上层"), Initial: idx})
 		if err != nil {
-			return changed
+			break
 		}
 		idx = i
 		key := fields[i]
@@ -101,6 +48,18 @@ func editFieldGroup(cfg map[string]any, title string, fields []string) bool {
 			changed = editScalar(cfg, key, config.ScalarFields[key]) || changed
 		}
 	}
+	if !changed {
+		return false, nil
+	}
+	if err := config.Save(p, cfg); err != nil {
+		return false, err
+	}
+	execx.Ok(i18n.T("定制层已保存。"))
+	if ferr := syncLanProxyFirewall(original, cfg); ferr != nil {
+		return true, ferr
+	}
+	syncLogging(p, cfg)
+	return true, nil
 }
 
 func deepCopyMap(m map[string]any) map[string]any {
@@ -237,7 +196,7 @@ func editScalar(cfg map[string]any, key, label string) bool {
 	if err != nil {
 		return false
 	}
-	if key == "bootstrap_dns_port" || key == "webui_port" {
+	if key == "bootstrap_dns_port" {
 		n, err := strconv.Atoi(val)
 		if err != nil {
 			execx.Warn(i18n.T("端口需为整数，未修改。"))

@@ -3,9 +3,7 @@ package main
 
 import (
 	"errors"
-	"flag"
 	"fmt"
-	"net/http"
 	"os"
 
 	"github.com/Trilives/clashdock/internal/config"
@@ -58,8 +56,6 @@ func main() {
 		exitFlow(sysd.Pause(sysd.DefaultName))
 	case "resume":
 		exitFlow(sysd.Resume(sysd.DefaultName))
-	case "webui-serve":
-		os.Exit(serveUI(args[1:]))
 	case "healthcheck":
 		os.Exit(sysd.RunHealthcheck(args[1:]))
 	default:
@@ -136,8 +132,8 @@ func interactive(p paths.Paths) int {
 		// 顺序按常用程度排列：运行时管理/配置变更/网络测试等日常操作在前，
 		// 暂停/启动服务其次，卸载这类低频/破坏性操作放最后。
 		options := []string{
-			i18n.T("运行时管理（无需重启）"),
-			i18n.T("配置变更（需重启生效）"),
+			i18n.T("运行时管理"),
+			i18n.T("配置变更"),
 			i18n.T("工具"),
 			switchLabel(),
 			i18n.T("语言 / Language"),
@@ -170,45 +166,18 @@ func interactive(p paths.Paths) int {
 	}
 }
 
-// runUpdate 非交互全量更新（每周定时器的执行目标）：
-// 内核+geo+UI 强制更新 → 独立面板重新暂存 → 服务同步重启。
+// runUpdate 非交互全量更新（每周定时器的执行目标）：内核+geo+UI 强制更新 →
+// 服务同步重启。
 func runUpdate(p paths.Paths) int {
 	if _, err := kernel.DownloadAll(p, kernel.Options{Force: true, WithUI: true}); err != nil {
 		execx.Error(err.Error())
 		return 1
-	}
-	cfg := config.Load(p)
-	if err := sysd.RefreshWebUI(p, config.Int(cfg, "webui_port"), config.Bool(cfg, "lan_panel")); err != nil {
-		execx.Warn(i18n.T("独立面板刷新失败：") + err.Error())
 	}
 	if sysd.IsInstalled(sysd.DefaultName) {
 		if err := sysd.SyncAndRestart(p, sysd.DefaultName); err != nil {
 			execx.Error(err.Error())
 			return 1
 		}
-	}
-	return 0
-}
-
-// serveUI 极简静态文件服务（mihomo-webui.service 的执行目标，
-// 取代 Python 版的 python3 -m http.server）。
-func serveUI(args []string) int {
-	fs := flag.NewFlagSet("webui-serve", flag.ContinueOnError)
-	port := fs.Int("port", sysd.DefaultWebUIPort, i18n.T("监听端口"))
-	bind := fs.String("bind", "127.0.0.1", i18n.T("绑定地址"))
-	dir := fs.String("dir", "", i18n.T("静态文件目录"))
-	if err := fs.Parse(args); err != nil {
-		return 2
-	}
-	if *dir == "" {
-		execx.Error(i18n.T("webui-serve 需要 --dir"))
-		return 2
-	}
-	addr := fmt.Sprintf("%s:%d", *bind, *port)
-	execx.Info(fmt.Sprintf(i18n.T("静态面板服务: http://%s/ ← %s"), addr, *dir))
-	if err := http.ListenAndServe(addr, http.FileServer(http.Dir(*dir))); err != nil {
-		execx.Error(err.Error())
-		return 1
 	}
 	return 0
 }

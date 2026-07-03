@@ -19,11 +19,10 @@ func Uninstall(p paths.Paths) error {
 		i18n.T("systemd 服务"),
 		i18n.T("网络自愈（NM 钩子 + watchdog）"),
 		i18n.T("每周更新定时器"),
-		i18n.T("独立 Web 面板服务"),
 		i18n.T("清理产物（内核 / UI / 下载缓存 / geo 数据）"),
 		i18n.T("清理所有订阅与配置（含整个状态目录）"),
 	}
-	chosen, err := tui.MultiSelect(i18n.T("卸载（勾选要移除的项）"), items, []int{0, 1, 2, 3})
+	chosen, err := tui.MultiSelect(i18n.T("卸载（勾选要移除的项）"), items, []int{0, 1, 2})
 	if err != nil {
 		return nil // 取消
 	}
@@ -45,13 +44,6 @@ func Uninstall(p paths.Paths) error {
 		func() error { return sysd.Remove(p, sysd.DefaultName, true) },
 		func() error { return sysd.RemoveResilience(sysd.DefaultName) },
 		sysd.RemoveTimer,
-		func() error {
-			if sysd.WebUIInstalled() {
-				return sysd.RemoveWebUI()
-			}
-			execx.Info(i18n.T("未安装独立 Web 面板服务，跳过。"))
-			return nil
-		},
 		func() error {
 			for _, d := range []string{p.Bin, p.UI, p.Downloads, p.Ruleset} {
 				os.RemoveAll(d)

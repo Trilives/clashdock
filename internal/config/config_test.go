@@ -27,8 +27,8 @@ func TestLoadMissingReturnsDefaults(t *testing.T) {
 	if !Bool(cfg, "enable_tun") {
 		t.Fatal("默认 enable_tun 应为 true")
 	}
-	if Int(cfg, "webui_port") != 9091 {
-		t.Fatalf("默认 webui_port = %d", Int(cfg, "webui_port"))
+	if Int(cfg, "bootstrap_dns_port") != 53 {
+		t.Fatalf("默认 bootstrap_dns_port = %d", Int(cfg, "bootstrap_dns_port"))
 	}
 	if Str(cfg, "subconverter_backend") != DefaultSubconverterBackend {
 		t.Fatal("默认 subconverter_backend 不符")
@@ -42,13 +42,13 @@ func TestLoadMergesKnownDropsUnknown(t *testing.T) {
 	p := testPaths(t)
 	os.MkdirAll(p.State, 0o755)
 	os.WriteFile(p.CustomizeFile,
-		[]byte(`{"enable_tun": false, "no_such_key": 1, "webui_port": 8080}`), 0o644)
+		[]byte(`{"enable_tun": false, "no_such_key": 1, "bootstrap_dns_port": 8080}`), 0o644)
 	cfg := Load(p)
 	if Bool(cfg, "enable_tun") {
 		t.Fatal("文件中的 enable_tun=false 应生效")
 	}
-	if Int(cfg, "webui_port") != 8080 {
-		t.Fatalf("webui_port = %d, 期望 8080", Int(cfg, "webui_port"))
+	if Int(cfg, "bootstrap_dns_port") != 8080 {
+		t.Fatalf("bootstrap_dns_port = %d, 期望 8080", Int(cfg, "bootstrap_dns_port"))
 	}
 	if _, ok := cfg["no_such_key"]; ok {
 		t.Fatal("未知键应被丢弃")
@@ -72,7 +72,7 @@ func TestSaveLoadRoundtripOrderAndUnicode(t *testing.T) {
 	p := testPaths(t)
 	cfg := Defaults()
 	cfg["secret"] = "abcd1234"
-	cfg["webui_port"] = 9092
+	cfg["bootstrap_dns_port"] = 9092
 	if err := Save(p, cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +85,7 @@ func TestSaveLoadRoundtripOrderAndUnicode(t *testing.T) {
 	if !strings.Contains(s, `"新加坡"`) {
 		t.Fatal("非 ASCII 字符不应被转义")
 	}
-	if strings.Index(s, `"enable_tun"`) > strings.Index(s, `"webui_port"`) {
+	if strings.Index(s, `"enable_tun"`) > strings.Index(s, `"bootstrap_dns_port"`) {
 		t.Fatal("写盘键序应与默认声明顺序一致")
 	}
 
@@ -93,8 +93,8 @@ func TestSaveLoadRoundtripOrderAndUnicode(t *testing.T) {
 	if Str(got, "secret") != "abcd1234" {
 		t.Fatal("roundtrip 后 secret 不符")
 	}
-	if Int(got, "webui_port") != 9092 {
-		t.Fatal("roundtrip 后 webui_port 不符")
+	if Int(got, "bootstrap_dns_port") != 9092 {
+		t.Fatal("roundtrip 后 bootstrap_dns_port 不符")
 	}
 }
 
@@ -125,7 +125,7 @@ func TestSummary(t *testing.T) {
 		{"direct_domain_suffixes", "空"},
 		{"prefer_keywords", "4 条"},
 		{"secret", "未设置"},
-		{"webui_port", "9091"},
+		{"bootstrap_dns_port", "53"},
 	}
 	for _, c := range cases {
 		if got := Summary(cfg, c.key); got != c.want {

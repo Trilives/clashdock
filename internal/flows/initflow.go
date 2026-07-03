@@ -113,7 +113,7 @@ func Init(p paths.Paths) error {
 		}
 
 		// 4. 服务先跑起来；再询问是否在线下载/更新内核、geo 与可选 Web UI。
-		if err := optionalPostStartUpdate(p, t); err != nil {
+		if err := optionalPostStartUpdate(p); err != nil {
 			return err
 		}
 
@@ -213,12 +213,12 @@ func ensureStartupResources(p paths.Paths) error {
 	return nil
 }
 
-func optionalPostStartUpdate(p paths.Paths, t *txn.Transaction) error {
+func optionalPostStartUpdate(p paths.Paths) error {
 	ok, err := tui.Confirm(i18n.T("服务已启动。现在下载/更新内核、geo 数据和可选 Web 管理面板？"), false)
 	if err != nil || !ok {
 		return err
 	}
-	wantUI, err := tui.Confirm(i18n.T("同时下载 Web 管理面板（浏览器查看 / 切换节点）？"), true)
+	wantUI, err := tui.Confirm(i18n.T("同时下载 Web UI（浏览器访问 http://host:9090/ui/ 查看 / 切换节点）？"), true)
 	if err != nil {
 		return err
 	}
@@ -232,35 +232,7 @@ func optionalPostStartUpdate(p paths.Paths, t *txn.Transaction) error {
 		return err
 	}
 	execx.Info(i18n.T("已更新资源，重新部署运行时并重启服务…"))
-	if err := sysd.Install(p, sysd.DefaultName, true); err != nil {
-		return err
-	}
-	if wantUI {
-		return maybeSetupWebui(p, t)
-	}
-	return nil
-}
-
-// maybeSetupWebui 可选：为面板启用『根路径直接打开』（独立静态服务）。
-func maybeSetupWebui(p paths.Paths, t *txn.Transaction) error {
-	ok, err := tui.Confirm(i18n.T("为面板启用『根路径直接打开』？（独立端口，浏览器开根地址即用，免去 /ui 后缀）"), true)
-	if err != nil {
-		return err
-	}
-	if !ok {
-		return nil
-	}
-	lan := config.Bool(config.Load(p), "lan_panel")
-	t.AddUndo(i18n.T("卸载独立 Web 面板"), sysd.RemoveWebUI)
-	port, err := webuiSetupInteractive(p, 0, lan) // 内部已写回 customize.webui_port
-	if err != nil {
-		return err
-	}
-	if lan && port != 0 {
-		fp := port
-		t.AddUndo(i18n.T("撤销防火墙放行面板端口"), func() error { firewall.Revoke(fp); return nil })
-	}
-	return nil
+	return sysd.Install(p, sysd.DefaultName, true)
 }
 
 func optionalExtras(t *txn.Transaction) error {

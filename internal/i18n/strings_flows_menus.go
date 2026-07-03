@@ -2,17 +2,8 @@ package i18n
 
 func init() {
 	register(map[string]string{
-		"独立面板端口":         "Standalone panel port",
-		"端口需为整数，已取消。":    "Port must be an integer, cancelled.",
-		"更新防火墙放行 %d 端口？": "Update firewall to allow port %d?",
-
 		"未安装": "Not installed",
 		"已安装": "Installed",
-
-		"安装独立面板（根路径直接打开）":  "Install standalone panel (root path)",
-		"重新配置 / 换端口":       "Reconfigure / change port",
-		"卸载独立面板":           "Uninstall standalone panel",
-		"独立 Web 面板（当前：%s）": "Standalone Web Panel (current: %s)",
 
 		"安装网络自愈":             "Install network self-healing",
 		"调整探测间隔":             "Adjust probe interval",
@@ -41,7 +32,6 @@ func init() {
 		"重启服务":      "Restart service",
 		"同步当前配置并重启": "Sync current config and restart",
 
-		"Web 面板（根路径直开）: http://%s:%d/":                                "Web panel (root path): http://%s:%d/",
 		"Web UI（mihomo 内置路径）: http://%s:9090/ui/":                     "Web UI (mihomo built-in path): http://%s:9090/ui/",
 		"远程查看建议用 SSH 端口转发： ssh -N -L 9090:127.0.0.1:9090 user@server": "For remote viewing, use SSH port forwarding: ssh -N -L 9090:127.0.0.1:9090 user@server",
 		"局域网代理已开启：其他主机可设置 http/socks 代理为 本机IP:7890":                   "LAN proxy is enabled: other hosts can set their http/socks proxy to this machine's IP:7890",

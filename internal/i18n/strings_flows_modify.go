@@ -6,15 +6,13 @@ func init() {
 		"回退并退出":       "Roll back and exit",
 		"保存并退出":       "Save and exit",
 
-		"订阅管理（增 / 删 / 改名 / 切换 / 刷新）":      "Subscription management (add / remove / rename / switch / refresh)",
-		"编辑定制层（TUN / 局域网 / 面板 / 自定义分流 …）": "Edit customization layer (TUN / LAN / panel / custom routing rules …)",
+		"订阅管理（增 / 删 / 改名 / 切换 / 刷新）": "Subscription management (add / remove / rename / switch / refresh)",
 
 		"临时切换节点（不写盘，重启后失效）":   "Live-switch node (not saved, lost on restart)",
 		"切换并固定节点（写入配置，可选重启）":  "Switch & pin node (saved to config, restart optional)",
 		"更新 内核 / UI / geo 数据": "Update core / UI / geo data",
 		"更新 clashdock 自身":     "Update clashdock itself",
 		"服务设置（重启 / 状态）":       "Service settings (restart / status)",
-		"独立 Web 面板（根路径直开）":    "Standalone web panel (root path)",
 		"网络自愈设置":              "Network self-healing settings",
 		"每周更新定时器":             "Weekly update timer",
 
@@ -43,7 +41,7 @@ func init() {
 		"确认删除订阅「%s」？":          "Confirm deleting subscription \"%s\"?",
 		"立即用本地原文重新生成生效订阅并重启？（不重新拉取链接）": "Regenerate the active subscription from the local original now and restart? (won't re-fetch the URL)",
 		"更新 内核 / UI / geo 数据？":         "Update core / UI / geo data?",
-		"同时下载 / 更新 Web UI 面板？":         "Also download / update the Web UI panel?",
+		"同时下载 / 更新 Web UI？":            "Also download / update the Web UI?",
 		"服务同步失败：%v":                    "Service sync failed: %v",
 	})
 }

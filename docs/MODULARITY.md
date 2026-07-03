@@ -60,11 +60,10 @@
 
 - `initflow.go`：初始化主流程和少量只读步骤 glue。
 - `init_resources.go`：初始化资源判定、种子使用、下载兜底。
-- `init_webui.go`：初始化阶段 Web UI 后置设置。
 - `service.go`：主 systemd 服务。
-- `webui.go`：独立 Web UI 服务。
 - `resilience.go`：NetworkManager/watchdog 安装卸载。
 - `healthcheck.go`：watchdog 探针实现。
+- `selfupdate.go`：clashdock 自更新（版本化目录 + 原子符号链接切换）。
 
 测试文件跟随被测职责命名，例如 `init_resources_test.go`，不要把所有流程测试堆进
 `initflow_test.go`。

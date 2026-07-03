@@ -9,7 +9,10 @@
 - **开箱即用**：.deb 包内置 mihomo 内核与基础规则文件（geosite + IP 库），
   安装后**离线即可启动**；更大的规则数据（geoip.metadb 等）可稍后在线更新。
 - **单文件零依赖**：Go 编译的静态二进制，不需要 python3 / curl / 任何运行时。
-- **TUI 交互**：方向键导航、反显高亮；非 TTY（管道/脚本）自动回退编号菜单。
+- **自更新**：主菜单一键把 clashdock 自身更新到最新发行版（校验 SHA-256、原子
+  切换版本、失败自动回滚），无需重新走一遍 .deb 安装。
+- **TUI 交互**：方向键导航、反显高亮、长提示语自动换行；非 TTY（管道/脚本）
+  自动回退编号菜单。
 - **随时可中止可回退**：配置类改动包在事务里，**esc 保存退出、^R 回退退出**，
   已应用的改动自动回滚。
 - **按需提权**：普通用户启动，需要 root 时自动 `sudo`。
@@ -60,55 +63,60 @@ clashdock
 
 ## 预览
 
-首次运行（或服务尚未注册/已停止但单元仍在）会自动进入初始化，无需从主菜单单独选择；
+首次运行（或检测到服务尚未注册）会询问是否现在进行初始化，初始化第一步先选语言；
 主菜单默认英文启动，可在「Language / 语言」里切成中文（部分终端无法正常显示中文字符）。
 
 ```
 ┌─ mihomo deployment system ──────────────┐
 │                                          │
-│  ❯ ① Pause Service ⏸                    │
-│    ② Runtime Management (no restart)    │
-│    ③ Config Changes (restart to apply)  │
-│    ④ Network Test                       │
+│  ❯ ① Runtime Management                 │
+│    ② Config Changes                     │
+│    ③ Tools                              │
+│    ④ Pause Service ⏸                    │
 │    ⑤ Language / 语言                    │
 │    ⑥ Uninstall All Services             │
 │                                          │
 │  ↑/↓ select   ⏎ confirm   esc exit   ^R exit │
 └──────────────────────────────────────────┘
-┌─ Runtime Management (no restart) ───────────────────────┐
-│                                                         │
-│  ❯ ① Switch / pin node                                 │
-│    ② Service settings (restart / status)               │
-│    ③ Update core / UI / geo data                       │
-│    ④ Standalone web panel (root path)                  │
-│    ⑤ Network self-healing settings                     │
-│    ⑥ Weekly update timer                               │
-│                                                         │
+┌─ Runtime Management ─────────────────────────────────────┐
+│                                                           │
+│  ❯ ① Live-switch node (not saved, lost on restart)       │
+│    ② Switch & pin node (saved to config, restart optional) │
+│    ③ Service settings (restart / status)                 │
+│    ④ Update core / UI / geo data                         │
+│    ⑤ Update clashdock itself                             │
+│    ⑥ Network self-healing settings                       │
+│    ⑦ Weekly update timer                                 │
+│                                                           │
 │  ↑/↓ select   ⏎ confirm   esc save & exit   ^R roll back & exit │
-└─────────────────────────────────────────────────────────┘
+└───────────────────────────────────────────────────────────┘
 ```
 
-「配置变更（需重启生效）」子菜单包含订阅管理（增/删/改名/切换/刷新，且切换/刷新会自动
-同步并重启服务）与编辑定制层（TUN / 局域网 / 面板 / 自定义分流 …）；「运行时管理」里的
-操作均为即时生效的系统操作。菜单选项按常用程度排列（日常操作在前，卸载这类低频/破坏性
-操作放最后）。
+「配置变更」子菜单包含订阅管理（增/删/改名/切换/刷新，且切换/刷新会自动同步并重启服务）、
+部署设置（TUN / 面板 / 下载）与自定义分流叠加（AI / 流媒体 / 地区组）——两个定制层字段
+分组直接是本菜单下的平级项，不再经过多余的中间层；「运行时管理」里的操作均为即时生效的
+系统操作，各自按需处理重启（无需你事后再单独重启一次）。「工具」聚合网络测试与主要文件
+位置查看，未来会继续加。菜单选项按常用程度排列（日常操作在前，卸载这类低频/破坏性操作
+放最后）。
 
-方向键上下移动、⏎ 确认、esc 保存返回、^R 回退返回；每层菜单重入时光标停在上次选中项。
-非 TTY（管道/重定向）下自动回退为编号列表 + 文本输入。
+方向键上下移动、⏎ 确认、esc 保存返回、^R 回退返回；每层菜单重入时光标停在上次选中项；
+长提示语按终端宽度自动换行。非 TTY（管道/重定向）下自动回退为编号列表 + 文本输入。
 
 ## 功能一览
 
 | 功能 | 说明 |
 |---|---|
 | 订阅管理 | 多订阅增/删/改名/切换/刷新；可导入本地 `config.yaml`；clash 与 base64（经 subconverter）两种来源 |
-| 定制层 | TUN / 局域网代理 / LAN 面板 / 密钥（脱敏展示）/ 下载代理 / GitHub 镜像与 Token 等 23 项 |
-| 节点切换 | 两级菜单（地区→节点）、Clash API 并发实测延迟、热切换 + 跨重启固定首选 |
+| 定制层 | 拆成「部署设置」与「自定义分流叠加」两个分组，共 25 项：TUN / 局域网代理 / LAN 面板 / 密钥（脱敏展示）/ 下载代理 / GitHub 镜像与 Token / 强制直连端口（默认 22，规避出口封 SSH）等 |
+| 节点切换 | 拆成「临时切换」（仅 Clash API 热切换，不写盘）与「切换并固定」（写入配置，可选重启）两个独立操作；两级菜单（地区→节点）+ 并发实测延迟 |
 | 地区聚合组 | 可选生成 SG-Auto / HK-Auto url-test 组，插入主选择组直接选用 |
-| 自定义分流叠加 | 可选 AI / 流媒体 / 直连域名规则叠加（默认关，直用机场分流） |
-| systemd 集成 | 主服务 + 独立 Web 面板 + 网络自愈 watchdog + 每周更新定时器，统一暂停/启动 |
+| 自定义分流叠加 | 可选 AI / 流媒体 / 直连域名 / 直连端口规则叠加（默认关，直用机场分流） |
+| clashdock 自更新 | 下载最新发行版、校验 SHA-256、原子切换版本、试跑校验，失败自动回滚，只保留当前+上一版本 |
+| systemd 集成 | 主服务 + 网络自愈 watchdog + 每周更新定时器，统一暂停/启动；Web UI 走 mihomo 内置的 `:9090/ui/` 路径，不再单独占用端口 |
 | 网络自愈 | NetworkManager 钩子 + watchdog：断网/漫游后自动恢复，防重启风暴 |
-| 网络测试 | 流媒体/站点/AI 延迟（TTFB）与 OpenAI/Claude 出口 IP 落地探测 |
-| 中英双语 | 默认英文启动（部分终端无法正常显示中文），主菜单「Language / 语言」可切中文，持久化到 `customize.json`；`CLASHDOCK_LANG=en\|zh` 可覆盖 |
+| 工具 | 网络测试（流媒体/站点/AI 延迟 + OpenAI/Claude 出口 IP 落地）与主要文件位置一览，聚合在同一个子菜单 |
+| 日志 | 可选写入 `<state>/clashdock.log`，超过体量上限自动裁剪保留最新内容 |
+| 中英双语 | 默认英文启动（部分终端无法正常显示中文），初始化第一步与主菜单「Language / 语言」均可切中文，持久化到 `customize.json`；`CLASHDOCK_LANG=en\|zh` 可覆盖 |
 
 ## 数据目录
 
@@ -128,7 +136,8 @@ clashdock/
 │   ├── i18n/               # 中英文界面文案（默认英文，源码中文原文即翻译表 key）
 │   ├── subscription/       # 订阅：拉取 / 识别 / 最小改写 / 分流叠加 / 地区聚合组
 │   ├── kernel/  fetchx/    # 内核·UI·geo 下载（直连优先→代理兜底）与 deb 种子接管
-│   ├── sysd/               # systemd 四组单元（服务/面板/自愈/定时器，模板内嵌）
+│   ├── selfupdate/         # clashdock 自更新：版本化目录 + 原子符号链接切换
+│   ├── sysd/               # systemd 三组单元（服务/自愈/定时器，模板内嵌）
 │   ├── config/  txn/  …    # 定制层存取、事务回滚、路径、防火墙、代理环境变量
 ├── scripts/fetch-deb-deps.sh  # 打包前预下载 mihomo 内核与规则种子
 ├── packaging/copyright     # .deb 第三方资产许可与归属
