@@ -1,0 +1,71 @@
+version: 2
+project_name: clashdock
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: clashdock
+    main: ./cmd/clashdock
+    binary: clashdock
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - id: default
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+
+nfpms:
+  - id: deb
+    package_name: clashdock
+    formats: [deb]
+    vendor: Trilives
+    homepage: https://github.com/Trilives/clashdock
+    maintainer: Trilives <trlives.j@gmail.com>
+    description: |-
+      Interactive TUI to deploy and manage mihomo (Clash.Meta) on Linux.
+      Bundles the mihomo core and basic rule files so the service can start
+      offline right after installation; larger rule data can be updated online.
+    license: MIT
+    section: net
+    contents:
+      # mihomo 内核（MIT，见 copyright / LICENSE.mihomo）
+      - src: packaging/deps/{{ .Arch }}/mihomo
+        dst: /usr/libexec/clashdock/mihomo
+        file_info:
+          mode: 0755
+      # 基础规则种子：先能离线启动，之后可在线更新更大的规则文件
+      - src: packaging/deps/rules/geosite.dat
+        dst: /usr/share/clashdock/ruleset/geosite.dat
+      - src: packaging/deps/rules/country.mmdb
+        dst: /usr/share/clashdock/ruleset/country.mmdb
+      # 许可与归属
+      - src: packaging/copyright
+        dst: /usr/share/doc/clashdock/copyright
+      - src: packaging/deps/LICENSE.mihomo
+        dst: /usr/share/doc/clashdock/LICENSE.mihomo
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^chore:"
+      - "^test:"

@@ -1,0 +1,122 @@
+// Package flows 交互流程编排（对应 Python 版 flows/ + 各模块 menu_flow）：
+// 初始化 / 更改配置 / 网络测试 / 卸载 / 切换节点 / 定制层编辑 / 主菜单。
+//
+// 结构与 Python 版一比一对应：tui 的四类提示为阻塞调用，esc/^R 以
+// ErrSaveExit/ErrCancelled 错误返回，事务语义由 txn.Run 承载。
+package flows
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/Trilives/clashdock/internal/config"
+	"github.com/Trilives/clashdock/internal/execx"
+	"github.com/Trilives/clashdock/internal/kernel"
+	"github.com/Trilives/clashdock/internal/paths"
+	"github.com/Trilives/clashdock/internal/tui"
+)
+
+// 菜单顺序即推荐优先级：Clash / mihomo 订阅优先。
+var sourceOptions = []string{
+	"Clash / mihomo 订阅（★推荐：直用机场配置，凭证不外泄）",
+	"通用 base64 订阅（经 subconverter 云端解析为 Clash）",
+}
+
+var sourceTypes = []string{"clash", "base64"}
+
+// stripScheme 去掉 http:// / https:// 前缀，便于以 IP:端口 形式回显默认值。
+func stripScheme(proxy string) string {
+	p := strings.TrimSpace(proxy)
+	if i := strings.Index(p, "://"); i >= 0 {
+		return p[i+3:]
+	}
+	return p
+}
+
+// normalizeProxy 把用户输入的代理归一化为可用 URL：空→空；含 scheme 原样；否则补 http://。
+func normalizeProxy(raw string) string {
+	p := strings.TrimSpace(raw)
+	if p == "" {
+		return ""
+	}
+	if strings.Contains(p, "://") {
+		return p
+	}
+	return "http://" + p
+}
+
+type newSub struct {
+	Name         string
+	URL          string
+	SourceType   string
+	ApplyOverlay bool
+}
+
+// askNewSubscription 交互收集新订阅信息；订阅链接留空 → (nil, nil) 表示「暂不配置」。
+func askNewSubscription() (*newSub, error) {
+	defaultName := time.Now().Format("sub-20060102-150405")
+	name, err := tui.Ask("订阅名称，留空=时间戳", tui.AskOpts{Default: defaultName})
+	if err != nil {
+		return nil, err
+	}
+	idx, err := tui.Select("选择订阅来源类型", sourceOptions, tui.SelectOpts{})
+	if err != nil {
+		return nil, err
+	}
+	subURL, err := tui.Ask("订阅链接，留空=暂不配置", tui.AskOpts{AllowEmpty: true})
+	if err != nil {
+		return nil, err
+	}
+	if subURL == "" {
+		return nil, nil
+	}
+	// 默认直用机场自带分流；叠加自定义分流为可选高级项
+	overlay, err := tui.Confirm("是否叠加自定义分流（AI / 流媒体 / 地区组）？默认否＝直接沿用机场订阅自带的策略组与规则（推荐）。", false)
+	if err != nil {
+		return nil, err
+	}
+	return &newSub{Name: name, URL: subURL, SourceType: sourceTypes[idx], ApplyOverlay: overlay}, nil
+}
+
+// EnsureStateRoot 确保固定数据目录存在且当前用户可写：能直接建则直接建，
+// 无权限（如首次创建 /var/lib/clashdock）则经 sudo 创建并把属主交回当前用户。
+func EnsureStateRoot(p paths.Paths) error {
+	if err := os.MkdirAll(p.State, 0o755); err == nil {
+		probe := filepath.Join(p.State, ".probe")
+		if werr := os.WriteFile(probe, nil, 0o644); werr == nil {
+			os.Remove(probe)
+			return nil
+		}
+	}
+	uid, gid := fmt.Sprint(os.Getuid()), fmt.Sprint(os.Getgid())
+	_, err := execx.RunRoot([]string{"install", "-d", "-m", "0755", "-o", uid, "-g", gid, p.State},
+		"创建数据目录 "+p.State, nil)
+	return err
+}
+
+// ensureGithubToken 未配置 GitHub Token 时交互式询问是否补充，输入后写回 customize.json
+// （对应 core._prompt_and_save_token）。非 TTY 静默跳过。
+func ensureGithubToken(p paths.Paths) {
+	if kernel.LoadSettings(p).GithubToken != "" || !tui.UseTUI() {
+		return
+	}
+	execx.Warn("未配置 GitHub Token，匿名 API 限额较低（60 次/小时），高频操作易被限流。")
+	ok, err := tui.Confirm("现在添加 GitHub Token？", false)
+	if err != nil || !ok {
+		return
+	}
+	token, err := tui.Ask("GitHub Token", tui.AskOpts{AllowEmpty: true})
+	if err != nil || token == "" {
+		return
+	}
+	cfg := config.Load(p)
+	cfg["github_token"] = token
+	if err := config.Save(p, cfg); err != nil {
+		execx.Warn("Token 保存失败：" + err.Error())
+		return
+	}
+	execx.Ok("GitHub Token 已保存到 customize.json。")
+}

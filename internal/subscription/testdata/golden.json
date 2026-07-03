@@ -1,0 +1,1382 @@
+{
+  "patch": [
+    {
+      "name": "tun_on",
+      "input": {
+        "port": 7890,
+        "socks-port": 7891,
+        "mixed-port": 7893,
+        "allow-lan": true,
+        "external-controller": "0.0.0.0:9090",
+        "mode": "rule",
+        "dns": {
+          "enable": true,
+          "nameserver": [
+            "223.5.5.5"
+          ]
+        },
+        "proxies": [
+          {
+            "name": "hk-01",
+            "type": "ss",
+            "server": "1.2.3.4",
+            "port": 8388,
+            "cipher": "aes-256-gcm",
+            "password": "pw"
+          }
+        ],
+        "proxy-groups": [
+          {
+            "name": "Proxies",
+            "type": "select",
+            "proxies": [
+              "hk-01",
+              "DIRECT"
+            ]
+          }
+        ],
+        "rules": [
+          "GEOIP,CN,DIRECT",
+          "MATCH,Proxies"
+        ]
+      },
+      "customize": {
+        "enable_tun": true
+      },
+      "output": {
+        "mixed-port": 7890,
+        "allow-lan": false,
+        "external-controller": "127.0.0.1:9090",
+        "mode": "rule",
+        "dns": {
+          "enable": true,
+          "nameserver": [
+            "223.5.5.5"
+          ]
+        },
+        "proxies": [
+          {
+            "name": "hk-01",
+            "type": "ss",
+            "server": "1.2.3.4",
+            "port": 8388,
+            "cipher": "aes-256-gcm",
+            "password": "pw"
+          }
+        ],
+        "proxy-groups": [
+          {
+            "name": "Proxies",
+            "type": "select",
+            "proxies": [
+              "hk-01",
+              "DIRECT"
+            ]
+          }
+        ],
+        "rules": [
+          "GEOIP,CN,DIRECT",
+          "MATCH,Proxies"
+        ],
+        "external-ui": "/golden-root/state/ui",
+        "log-level": "warning",
+        "profile": {
+          "store-selected": true
+        },
+        "tun": {
+          "enable": true,
+          "stack": "gvisor",
+          "device": "mihomo",
+          "auto-route": true,
+          "auto-detect-interface": true,
+          "dns-hijack": [
+            "any:53"
+          ],
+          "route-exclude-address": [
+            "127.0.0.0/8",
+            "10.0.0.0/8",
+            "172.16.0.0/12",
+            "192.168.0.0/16",
+            "169.254.0.0/16",
+            "100.64.0.0/10",
+            "::1/128",
+            "fc00::/7",
+            "fe80::/10"
+          ]
+        }
+      }
+    },
+    {
+      "name": "tun_off",
+      "input": {
+        "port": 7890,
+        "socks-port": 7891,
+        "mixed-port": 7893,
+        "allow-lan": true,
+        "external-controller": "0.0.0.0:9090",
+        "mode": "rule",
+        "dns": {
+          "enable": true,
+          "nameserver": [
+            "223.5.5.5"
+          ]
+        },
+        "proxies": [
+          {
+            "name": "hk-01",
+            "type": "ss",
+            "server": "1.2.3.4",
+            "port": 8388,
+            "cipher": "aes-256-gcm",
+            "password": "pw"
+          }
+        ],
+        "proxy-groups": [
+          {
+            "name": "Proxies",
+            "type": "select",
+            "proxies": [
+              "hk-01",
+              "DIRECT"
+            ]
+          }
+        ],
+        "rules": [
+          "GEOIP,CN,DIRECT",
+          "MATCH,Proxies"
+        ]
+      },
+      "customize": {
+        "enable_tun": false
+      },
+      "output": {
+        "mixed-port": 7890,
+        "allow-lan": false,
+        "external-controller": "127.0.0.1:9090",
+        "mode": "rule",
+        "dns": {
+          "enable": true,
+          "nameserver": [
+            "223.5.5.5"
+          ]
+        },
+        "proxies": [
+          {
+            "name": "hk-01",
+            "type": "ss",
+            "server": "1.2.3.4",
+            "port": 8388,
+            "cipher": "aes-256-gcm",
+            "password": "pw"
+          }
+        ],
+        "proxy-groups": [
+          {
+            "name": "Proxies",
+            "type": "select",
+            "proxies": [
+              "hk-01",
+              "DIRECT"
+            ]
+          }
+        ],
+        "rules": [
+          "GEOIP,CN,DIRECT",
+          "MATCH,Proxies"
+        ],
+        "external-ui": "/golden-root/state/ui",
+        "log-level": "warning",
+        "profile": {
+          "store-selected": true
+        },
+        "tun": {
+          "enable": false
+        }
+      }
+    },
+    {
+      "name": "lan_panel_no_secret",
+      "input": {
+        "port": 7890,
+        "socks-port": 7891,
+        "mixed-port": 7893,
+        "allow-lan": true,
+        "external-controller": "0.0.0.0:9090",
+        "mode": "rule",
+        "dns": {
+          "enable": true,
+          "nameserver": [
+            "223.5.5.5"
+          ]
+        },
+        "proxies": [
+          {
+            "name": "hk-01",
+            "type": "ss",
+            "server": "1.2.3.4",
+            "port": 8388,
+            "cipher": "aes-256-gcm",
+            "password": "pw"
+          }
+        ],
+        "proxy-groups": [
+          {
+            "name": "Proxies",
+            "type": "select",
+            "proxies": [
+              "hk-01",
+              "DIRECT"
+            ]
+          }
+        ],
+        "rules": [
+          "GEOIP,CN,DIRECT",
+          "MATCH,Proxies"
+        ]
+      },
+      "customize": {
+        "lan_panel": true
+      },
+      "error": "已开启 LAN 面板（lan_panel）但未设置 secret，拒绝在无密钥下放开控制器。"
+    },
+    {
+      "name": "lan_panel_secret",
+      "input": {
+        "port": 7890,
+        "socks-port": 7891,
+        "mixed-port": 7893,
+        "allow-lan": true,
+        "external-controller": "0.0.0.0:9090",
+        "mode": "rule",
+        "dns": {
+          "enable": true,
+          "nameserver": [
+            "223.5.5.5"
+          ]
+        },
+        "proxies": [
+          {
+            "name": "hk-01",
+            "type": "ss",
+            "server": "1.2.3.4",
+            "port": 8388,
+            "cipher": "aes-256-gcm",
+            "password": "pw"
+          }
+        ],
+        "proxy-groups": [
+          {
+            "name": "Proxies",
+            "type": "select",
+            "proxies": [
+              "hk-01",
+              "DIRECT"
+            ]
+          }
+        ],
+        "rules": [
+          "GEOIP,CN,DIRECT",
+          "MATCH,Proxies"
+        ]
+      },
+      "customize": {
+        "lan_panel": true,
+        "secret": "s3cr3t"
+      },
+      "output": {
+        "mixed-port": 7890,
+        "allow-lan": false,
+        "external-controller": "0.0.0.0:9090",
+        "mode": "rule",
+        "dns": {
+          "enable": true,
+          "nameserver": [
+            "223.5.5.5"
+          ]
+        },
+        "proxies": [
+          {
+            "name": "hk-01",
+            "type": "ss",
+            "server": "1.2.3.4",
+            "port": 8388,
+            "cipher": "aes-256-gcm",
+            "password": "pw"
+          }
+        ],
+        "proxy-groups": [
+          {
+            "name": "Proxies",
+            "type": "select",
+            "proxies": [
+              "hk-01",
+              "DIRECT"
+            ]
+          }
+        ],
+        "rules": [
+          "GEOIP,CN,DIRECT",
+          "MATCH,Proxies"
+        ],
+        "external-ui": "/golden-root/state/ui",
+        "secret": "s3cr3t",
+        "log-level": "warning",
+        "profile": {
+          "store-selected": true
+        },
+        "tun": {
+          "enable": true,
+          "stack": "gvisor",
+          "device": "mihomo",
+          "auto-route": true,
+          "auto-detect-interface": true,
+          "dns-hijack": [
+            "any:53"
+          ],
+          "route-exclude-address": [
+            "127.0.0.0/8",
+            "10.0.0.0/8",
+            "172.16.0.0/12",
+            "192.168.0.0/16",
+            "169.254.0.0/16",
+            "100.64.0.0/10",
+            "::1/128",
+            "fc00::/7",
+            "fe80::/10"
+          ]
+        }
+      }
+    },
+    {
+      "name": "lan_proxy",
+      "input": {
+        "port": 7890,
+        "socks-port": 7891,
+        "mixed-port": 7893,
+        "allow-lan": true,
+        "external-controller": "0.0.0.0:9090",
+        "mode": "rule",
+        "dns": {
+          "enable": true,
+          "nameserver": [
+            "223.5.5.5"
+          ]
+        },
+        "proxies": [
+          {
+            "name": "hk-01",
+            "type": "ss",
+            "server": "1.2.3.4",
+            "port": 8388,
+            "cipher": "aes-256-gcm",
+            "password": "pw"
+          }
+        ],
+        "proxy-groups": [
+          {
+            "name": "Proxies",
+            "type": "select",
+            "proxies": [
+              "hk-01",
+              "DIRECT"
+            ]
+          }
+        ],
+        "rules": [
+          "GEOIP,CN,DIRECT",
+          "MATCH,Proxies"
+        ]
+      },
+      "customize": {
+        "lan_proxy": true
+      },
+      "output": {
+        "mixed-port": 7890,
+        "allow-lan": true,
+        "external-controller": "127.0.0.1:9090",
+        "mode": "rule",
+        "dns": {
+          "enable": true,
+          "nameserver": [
+            "223.5.5.5"
+          ]
+        },
+        "proxies": [
+          {
+            "name": "hk-01",
+            "type": "ss",
+            "server": "1.2.3.4",
+            "port": 8388,
+            "cipher": "aes-256-gcm",
+            "password": "pw"
+          }
+        ],
+        "proxy-groups": [
+          {
+            "name": "Proxies",
+            "type": "select",
+            "proxies": [
+              "hk-01",
+              "DIRECT"
+            ]
+          }
+        ],
+        "rules": [
+          "GEOIP,CN,DIRECT",
+          "MATCH,Proxies"
+        ],
+        "bind-address": "*",
+        "external-ui": "/golden-root/state/ui",
+        "log-level": "warning",
+        "profile": {
+          "store-selected": true
+        },
+        "tun": {
+          "enable": true,
+          "stack": "gvisor",
+          "device": "mihomo",
+          "auto-route": true,
+          "auto-detect-interface": true,
+          "dns-hijack": [
+            "any:53"
+          ],
+          "route-exclude-address": [
+            "127.0.0.0/8",
+            "10.0.0.0/8",
+            "172.16.0.0/12",
+            "192.168.0.0/16",
+            "169.254.0.0/16",
+            "100.64.0.0/10",
+            "::1/128",
+            "fc00::/7",
+            "fe80::/10"
+          ]
+        }
+      }
+    },
+    {
+      "name": "default_dns",
+      "input": {
+        "port": 7890,
+        "socks-port": 7891,
+        "mixed-port": 7893,
+        "allow-lan": true,
+        "external-controller": "0.0.0.0:9090",
+        "mode": "rule",
+        "proxies": [
+          {
+            "name": "hk-01",
+            "type": "ss",
+            "server": "1.2.3.4",
+            "port": 8388,
+            "cipher": "aes-256-gcm",
+            "password": "pw"
+          }
+        ],
+        "proxy-groups": [
+          {
+            "name": "Proxies",
+            "type": "select",
+            "proxies": [
+              "hk-01",
+              "DIRECT"
+            ]
+          }
+        ],
+        "rules": [
+          "GEOIP,CN,DIRECT",
+          "MATCH,Proxies"
+        ]
+      },
+      "customize": {
+        "enable_tun": true
+      },
+      "output": {
+        "mixed-port": 7890,
+        "allow-lan": false,
+        "external-controller": "127.0.0.1:9090",
+        "mode": "rule",
+        "proxies": [
+          {
+            "name": "hk-01",
+            "type": "ss",
+            "server": "1.2.3.4",
+            "port": 8388,
+            "cipher": "aes-256-gcm",
+            "password": "pw"
+          }
+        ],
+        "proxy-groups": [
+          {
+            "name": "Proxies",
+            "type": "select",
+            "proxies": [
+              "hk-01",
+              "DIRECT"
+            ]
+          }
+        ],
+        "rules": [
+          "GEOIP,CN,DIRECT",
+          "MATCH,Proxies"
+        ],
+        "external-ui": "/golden-root/state/ui",
+        "log-level": "warning",
+        "profile": {
+          "store-selected": true
+        },
+        "tun": {
+          "enable": true,
+          "stack": "gvisor",
+          "device": "mihomo",
+          "auto-route": true,
+          "auto-detect-interface": true,
+          "dns-hijack": [
+            "any:53"
+          ],
+          "route-exclude-address": [
+            "127.0.0.0/8",
+            "10.0.0.0/8",
+            "172.16.0.0/12",
+            "192.168.0.0/16",
+            "169.254.0.0/16",
+            "100.64.0.0/10",
+            "::1/128",
+            "fc00::/7",
+            "fe80::/10"
+          ]
+        },
+        "dns": {
+          "enable": true,
+          "listen": "0.0.0.0:1053",
+          "ipv6": false,
+          "enhanced-mode": "fake-ip",
+          "fake-ip-range": "198.18.0.1/16",
+          "fake-ip-filter": [
+            "*.lan",
+            "*.local",
+            "localhost.ptlogin2.qq.com"
+          ],
+          "default-nameserver": [
+            "223.5.5.5"
+          ],
+          "nameserver": [
+            "223.5.5.5",
+            "https://doh.pub/dns-query"
+          ],
+          "fallback": [
+            "https://1.1.1.1/dns-query",
+            "https://dns.google/dns-query"
+          ]
+        }
+      }
+    },
+    {
+      "name": "empty_proxies",
+      "input": {
+        "proxies": []
+      },
+      "customize": {},
+      "error": "订阅缺少 proxies 列表或为空，无法作为 mihomo 配置。"
+    },
+    {
+      "name": "tun_custom",
+      "input": {
+        "port": 7890,
+        "socks-port": 7891,
+        "mixed-port": 7893,
+        "allow-lan": true,
+        "external-controller": "0.0.0.0:9090",
+        "mode": "rule",
+        "dns": {
+          "enable": true,
+          "nameserver": [
+            "223.5.5.5"
+          ]
+        },
+        "proxies": [
+          {
+            "name": "hk-01",
+            "type": "ss",
+            "server": "1.2.3.4",
+            "port": 8388,
+            "cipher": "aes-256-gcm",
+            "password": "pw"
+          }
+        ],
+        "proxy-groups": [
+          {
+            "name": "Proxies",
+            "type": "select",
+            "proxies": [
+              "hk-01",
+              "DIRECT"
+            ]
+          }
+        ],
+        "rules": [
+          "GEOIP,CN,DIRECT",
+          "MATCH,Proxies"
+        ]
+      },
+      "customize": {
+        "enable_tun": true,
+        "tun_stack": "system",
+        "tun_route_exclude_cidrs": [
+          "10.0.0.0/8"
+        ],
+        "tun_exclude_uids": [
+          1000,
+          1001
+        ]
+      },
+      "output": {
+        "mixed-port": 7890,
+        "allow-lan": false,
+        "external-controller": "127.0.0.1:9090",
+        "mode": "rule",
+        "dns": {
+          "enable": true,
+          "nameserver": [
+            "223.5.5.5"
+          ]
+        },
+        "proxies": [
+          {
+            "name": "hk-01",
+            "type": "ss",
+            "server": "1.2.3.4",
+            "port": 8388,
+            "cipher": "aes-256-gcm",
+            "password": "pw"
+          }
+        ],
+        "proxy-groups": [
+          {
+            "name": "Proxies",
+            "type": "select",
+            "proxies": [
+              "hk-01",
+              "DIRECT"
+            ]
+          }
+        ],
+        "rules": [
+          "GEOIP,CN,DIRECT",
+          "MATCH,Proxies"
+        ],
+        "external-ui": "/golden-root/state/ui",
+        "log-level": "warning",
+        "profile": {
+          "store-selected": true
+        },
+        "tun": {
+          "enable": true,
+          "stack": "system",
+          "device": "mihomo",
+          "auto-route": true,
+          "auto-detect-interface": true,
+          "dns-hijack": [
+            "any:53"
+          ],
+          "route-exclude-address": [
+            "10.0.0.0/8"
+          ],
+          "exclude-uid": [
+            1000,
+            1001
+          ]
+        }
+      }
+    }
+  ],
+  "overlay": [
+    {
+      "name": "full",
+      "input": {
+        "proxies": [
+          {
+            "name": "HK-01",
+            "type": "ss"
+          },
+          {
+            "name": "SG-01",
+            "type": "ss"
+          },
+          {
+            "name": "US-01",
+            "type": "ss"
+          }
+        ],
+        "proxy-groups": [
+          {
+            "name": "Proxies",
+            "type": "select",
+            "proxies": [
+              "HK-01",
+              "SG-01",
+              "US-01",
+              "DIRECT"
+            ]
+          }
+        ],
+        "rules": [
+          "GEOIP,CN,DIRECT",
+          "MATCH,Proxies"
+        ]
+      },
+      "customize": {
+        "ai_domain_suffixes": [
+          "openai.com",
+          "claude.ai"
+        ],
+        "streaming_domain_suffixes": [
+          "netflix.com"
+        ],
+        "direct_domain_suffixes": [
+          "example.cn"
+        ],
+        "generate_sg_groups": true,
+        "prefer_keywords": [
+          "SG",
+          "新加坡"
+        ],
+        "generate_hk_groups": true,
+        "hk_prefer_keywords": [
+          "HK",
+          "香港"
+        ]
+      },
+      "output": {
+        "proxies": [
+          {
+            "name": "HK-01",
+            "type": "ss"
+          },
+          {
+            "name": "SG-01",
+            "type": "ss"
+          },
+          {
+            "name": "US-01",
+            "type": "ss"
+          }
+        ],
+        "proxy-groups": [
+          {
+            "name": "SG-Auto",
+            "type": "url-test",
+            "proxies": [
+              "SG-01"
+            ],
+            "url": "https://www.gstatic.com/generate_204",
+            "interval": 300,
+            "tolerance": 50
+          },
+          {
+            "name": "HK-Auto",
+            "type": "url-test",
+            "proxies": [
+              "HK-01"
+            ],
+            "url": "https://www.gstatic.com/generate_204",
+            "interval": 300,
+            "tolerance": 50
+          },
+          {
+            "name": "AI",
+            "type": "select",
+            "proxies": [
+              "Proxies",
+              "SG-Auto",
+              "HK-Auto",
+              "DIRECT"
+            ]
+          },
+          {
+            "name": "Streaming",
+            "type": "select",
+            "proxies": [
+              "Proxies",
+              "SG-Auto",
+              "HK-Auto",
+              "DIRECT"
+            ]
+          },
+          {
+            "name": "Proxies",
+            "type": "select",
+            "proxies": [
+              "HK-01",
+              "SG-01",
+              "US-01",
+              "DIRECT"
+            ]
+          }
+        ],
+        "rules": [
+          "DOMAIN-SUFFIX,example.cn,DIRECT",
+          "DOMAIN-SUFFIX,openai.com,AI",
+          "DOMAIN-SUFFIX,claude.ai,AI",
+          "DOMAIN-SUFFIX,netflix.com,Streaming",
+          "GEOIP,CN,DIRECT",
+          "MATCH,Proxies"
+        ]
+      },
+      "info": {
+        "overlay": true,
+        "overlay_main": "Proxies",
+        "overlay_groups": [
+          "SG-Auto",
+          "HK-Auto",
+          "AI",
+          "Streaming"
+        ],
+        "overlay_rules": 4
+      }
+    },
+    {
+      "name": "no_main",
+      "input": {
+        "proxies": [],
+        "proxy-groups": [],
+        "rules": []
+      },
+      "customize": {
+        "ai_domain_suffixes": [
+          "openai.com",
+          "claude.ai"
+        ],
+        "streaming_domain_suffixes": [
+          "netflix.com"
+        ],
+        "direct_domain_suffixes": [
+          "example.cn"
+        ],
+        "generate_sg_groups": true,
+        "prefer_keywords": [
+          "SG",
+          "新加坡"
+        ],
+        "generate_hk_groups": true,
+        "hk_prefer_keywords": [
+          "HK",
+          "香港"
+        ]
+      },
+      "output": {
+        "proxies": [],
+        "proxy-groups": [],
+        "rules": []
+      },
+      "info": {
+        "overlay": false,
+        "overlay_reason": "未找到主选择组"
+      }
+    },
+    {
+      "name": "name_dedup",
+      "input": {
+        "proxies": [
+          {
+            "name": "HK-01",
+            "type": "ss"
+          },
+          {
+            "name": "SG-01",
+            "type": "ss"
+          },
+          {
+            "name": "US-01",
+            "type": "ss"
+          }
+        ],
+        "proxy-groups": [
+          {
+            "name": "Proxies",
+            "type": "select",
+            "proxies": [
+              "HK-01",
+              "SG-01",
+              "US-01",
+              "DIRECT"
+            ]
+          },
+          {
+            "name": "AI",
+            "type": "select",
+            "proxies": [
+              "HK-01"
+            ]
+          }
+        ],
+        "rules": [
+          "GEOIP,CN,DIRECT",
+          "MATCH,Proxies"
+        ]
+      },
+      "customize": {
+        "ai_domain_suffixes": [
+          "openai.com"
+        ]
+      },
+      "output": {
+        "proxies": [
+          {
+            "name": "HK-01",
+            "type": "ss"
+          },
+          {
+            "name": "SG-01",
+            "type": "ss"
+          },
+          {
+            "name": "US-01",
+            "type": "ss"
+          }
+        ],
+        "proxy-groups": [
+          {
+            "name": "AI-1",
+            "type": "select",
+            "proxies": [
+              "Proxies",
+              "DIRECT"
+            ]
+          },
+          {
+            "name": "Streaming",
+            "type": "select",
+            "proxies": [
+              "Proxies",
+              "DIRECT"
+            ]
+          },
+          {
+            "name": "Proxies",
+            "type": "select",
+            "proxies": [
+              "HK-01",
+              "SG-01",
+              "US-01",
+              "DIRECT"
+            ]
+          },
+          {
+            "name": "AI",
+            "type": "select",
+            "proxies": [
+              "HK-01"
+            ]
+          }
+        ],
+        "rules": [
+          "DOMAIN-SUFFIX,openai.com,AI-1",
+          "GEOIP,CN,DIRECT",
+          "MATCH,Proxies"
+        ]
+      },
+      "info": {
+        "overlay": true,
+        "overlay_main": "Proxies",
+        "overlay_groups": [
+          "AI-1",
+          "Streaming"
+        ],
+        "overlay_rules": 1
+      }
+    }
+  ],
+  "regiongroups": [
+    {
+      "name": "insert_main",
+      "input": {
+        "proxies": [
+          {
+            "name": "🇭🇰 HK-01",
+            "type": "ss"
+          },
+          {
+            "name": "🇭🇰 HK-02",
+            "type": "ss"
+          },
+          {
+            "name": "🇸🇬 SG-01",
+            "type": "ss"
+          },
+          {
+            "name": "🇺🇸 US-01",
+            "type": "ss"
+          }
+        ],
+        "proxy-groups": [
+          {
+            "name": "Proxies",
+            "type": "select",
+            "proxies": [
+              "🇭🇰 HK-01",
+              "🇭🇰 HK-02",
+              "🇸🇬 SG-01",
+              "🇺🇸 US-01",
+              "DIRECT"
+            ]
+          }
+        ],
+        "rules": [
+          "GEOIP,CN,DIRECT",
+          "MATCH,Proxies"
+        ]
+      },
+      "customize": {
+        "generate_sg_groups": true,
+        "prefer_keywords": [
+          "SG",
+          "新加坡"
+        ],
+        "generate_hk_groups": true,
+        "hk_prefer_keywords": [
+          "HK",
+          "香港"
+        ]
+      },
+      "output": {
+        "proxies": [
+          {
+            "name": "🇭🇰 HK-01",
+            "type": "ss"
+          },
+          {
+            "name": "🇭🇰 HK-02",
+            "type": "ss"
+          },
+          {
+            "name": "🇸🇬 SG-01",
+            "type": "ss"
+          },
+          {
+            "name": "🇺🇸 US-01",
+            "type": "ss"
+          }
+        ],
+        "proxy-groups": [
+          {
+            "name": "SG-Auto",
+            "type": "url-test",
+            "proxies": [
+              "🇸🇬 SG-01"
+            ],
+            "url": "https://www.gstatic.com/generate_204",
+            "interval": 300,
+            "tolerance": 50
+          },
+          {
+            "name": "HK-Auto",
+            "type": "url-test",
+            "proxies": [
+              "🇭🇰 HK-01",
+              "🇭🇰 HK-02"
+            ],
+            "url": "https://www.gstatic.com/generate_204",
+            "interval": 300,
+            "tolerance": 50
+          },
+          {
+            "name": "Proxies",
+            "type": "select",
+            "proxies": [
+              "SG-Auto",
+              "HK-Auto",
+              "🇭🇰 HK-01",
+              "🇭🇰 HK-02",
+              "🇸🇬 SG-01",
+              "🇺🇸 US-01",
+              "DIRECT"
+            ]
+          }
+        ],
+        "rules": [
+          "GEOIP,CN,DIRECT",
+          "MATCH,Proxies"
+        ]
+      },
+      "info": {
+        "region_groups": [
+          "SG-Auto",
+          "HK-Auto"
+        ],
+        "region_main": "Proxies"
+      }
+    },
+    {
+      "name": "disabled",
+      "input": {
+        "proxies": [
+          {
+            "name": "🇭🇰 HK-01",
+            "type": "ss"
+          },
+          {
+            "name": "🇭🇰 HK-02",
+            "type": "ss"
+          },
+          {
+            "name": "🇸🇬 SG-01",
+            "type": "ss"
+          },
+          {
+            "name": "🇺🇸 US-01",
+            "type": "ss"
+          }
+        ],
+        "proxy-groups": [
+          {
+            "name": "Proxies",
+            "type": "select",
+            "proxies": [
+              "🇭🇰 HK-01",
+              "🇭🇰 HK-02",
+              "🇸🇬 SG-01",
+              "🇺🇸 US-01",
+              "DIRECT"
+            ]
+          }
+        ],
+        "rules": [
+          "GEOIP,CN,DIRECT",
+          "MATCH,Proxies"
+        ]
+      },
+      "customize": {},
+      "output": {
+        "proxies": [
+          {
+            "name": "🇭🇰 HK-01",
+            "type": "ss"
+          },
+          {
+            "name": "🇭🇰 HK-02",
+            "type": "ss"
+          },
+          {
+            "name": "🇸🇬 SG-01",
+            "type": "ss"
+          },
+          {
+            "name": "🇺🇸 US-01",
+            "type": "ss"
+          }
+        ],
+        "proxy-groups": [
+          {
+            "name": "Proxies",
+            "type": "select",
+            "proxies": [
+              "🇭🇰 HK-01",
+              "🇭🇰 HK-02",
+              "🇸🇬 SG-01",
+              "🇺🇸 US-01",
+              "DIRECT"
+            ]
+          }
+        ],
+        "rules": [
+          "GEOIP,CN,DIRECT",
+          "MATCH,Proxies"
+        ]
+      },
+      "info": {
+        "region_groups": []
+      }
+    },
+    {
+      "name": "no_match",
+      "input": {
+        "proxies": [
+          {
+            "name": "🇭🇰 HK-01",
+            "type": "ss"
+          },
+          {
+            "name": "🇭🇰 HK-02",
+            "type": "ss"
+          },
+          {
+            "name": "🇸🇬 SG-01",
+            "type": "ss"
+          },
+          {
+            "name": "🇺🇸 US-01",
+            "type": "ss"
+          }
+        ],
+        "proxy-groups": [
+          {
+            "name": "Proxies",
+            "type": "select",
+            "proxies": [
+              "🇭🇰 HK-01",
+              "🇭🇰 HK-02",
+              "🇸🇬 SG-01",
+              "🇺🇸 US-01",
+              "DIRECT"
+            ]
+          }
+        ],
+        "rules": [
+          "GEOIP,CN,DIRECT",
+          "MATCH,Proxies"
+        ]
+      },
+      "customize": {
+        "generate_sg_groups": true,
+        "prefer_keywords": [
+          "不存在的地区"
+        ]
+      },
+      "output": {
+        "proxies": [
+          {
+            "name": "🇭🇰 HK-01",
+            "type": "ss"
+          },
+          {
+            "name": "🇭🇰 HK-02",
+            "type": "ss"
+          },
+          {
+            "name": "🇸🇬 SG-01",
+            "type": "ss"
+          },
+          {
+            "name": "🇺🇸 US-01",
+            "type": "ss"
+          }
+        ],
+        "proxy-groups": [
+          {
+            "name": "Proxies",
+            "type": "select",
+            "proxies": [
+              "🇭🇰 HK-01",
+              "🇭🇰 HK-02",
+              "🇸🇬 SG-01",
+              "🇺🇸 US-01",
+              "DIRECT"
+            ]
+          }
+        ],
+        "rules": [
+          "GEOIP,CN,DIRECT",
+          "MATCH,Proxies"
+        ]
+      },
+      "info": {
+        "region_groups": []
+      }
+    },
+    {
+      "name": "reuse_existing",
+      "input": {
+        "proxies": [
+          {
+            "name": "🇭🇰 HK-01",
+            "type": "ss"
+          },
+          {
+            "name": "🇭🇰 HK-02",
+            "type": "ss"
+          },
+          {
+            "name": "🇸🇬 SG-01",
+            "type": "ss"
+          },
+          {
+            "name": "🇺🇸 US-01",
+            "type": "ss"
+          }
+        ],
+        "proxy-groups": [
+          {
+            "name": "Proxies",
+            "type": "select",
+            "proxies": [
+              "🇭🇰 HK-01",
+              "🇭🇰 HK-02",
+              "🇸🇬 SG-01",
+              "🇺🇸 US-01",
+              "DIRECT"
+            ]
+          },
+          {
+            "name": "HK-Auto",
+            "type": "url-test",
+            "proxies": [
+              "🇭🇰 HK-01"
+            ]
+          }
+        ],
+        "rules": [
+          "GEOIP,CN,DIRECT",
+          "MATCH,Proxies"
+        ]
+      },
+      "customize": {
+        "generate_hk_groups": true,
+        "hk_prefer_keywords": [
+          "HK"
+        ]
+      },
+      "output": {
+        "proxies": [
+          {
+            "name": "🇭🇰 HK-01",
+            "type": "ss"
+          },
+          {
+            "name": "🇭🇰 HK-02",
+            "type": "ss"
+          },
+          {
+            "name": "🇸🇬 SG-01",
+            "type": "ss"
+          },
+          {
+            "name": "🇺🇸 US-01",
+            "type": "ss"
+          }
+        ],
+        "proxy-groups": [
+          {
+            "name": "Proxies",
+            "type": "select",
+            "proxies": [
+              "HK-Auto",
+              "🇭🇰 HK-01",
+              "🇭🇰 HK-02",
+              "🇸🇬 SG-01",
+              "🇺🇸 US-01",
+              "DIRECT"
+            ]
+          },
+          {
+            "name": "HK-Auto",
+            "type": "url-test",
+            "proxies": [
+              "🇭🇰 HK-01"
+            ]
+          }
+        ],
+        "rules": [
+          "GEOIP,CN,DIRECT",
+          "MATCH,Proxies"
+        ]
+      },
+      "info": {
+        "region_groups": [
+          "HK-Auto"
+        ],
+        "region_main": "Proxies"
+      }
+    }
+  ]
+}

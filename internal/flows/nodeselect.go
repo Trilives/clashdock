@@ -1,0 +1,355 @@
+// 交互式切换 / 固定首选节点（对应 node_select.py）。
+//
+// 把选中项设为目标 select 组（默认主选择组）的第一个成员，使重启后稳定停在该节点；
+// 服务在跑时还经 Clash API 实时切换，并并发实测延迟。选组持久化由
+// profile.store-selected + cache.db 负责；改写成员顺序作为跨重启兜底。
+package flows
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+
+	"golang.org/x/term"
+
+	"github.com/Trilives/clashdock/internal/clashapi"
+	"github.com/Trilives/clashdock/internal/errs"
+	"github.com/Trilives/clashdock/internal/execx"
+	"github.com/Trilives/clashdock/internal/jsonx"
+	"github.com/Trilives/clashdock/internal/paths"
+	"github.com/Trilives/clashdock/internal/subscription"
+	"github.com/Trilives/clashdock/internal/sysd"
+	"github.com/Trilives/clashdock/internal/tui"
+)
+
+// mihomo 策略组类型（可作为「子组」展示）
+var groupTypes = map[string]bool{
+	"select": true, "url-test": true, "fallback": true, "load-balance": true, "relay": true,
+}
+
+var builtinNodes = map[string]bool{
+	"DIRECT": true, "REJECT": true, "REJECT-DROP": true,
+	"PASS": true, "COMPATIBLE": true, "GLOBAL": true,
+}
+
+var mainGroupKeywords = []string{"proxy", "节点选择", "节点", "选择", "select", "🚀", "手动"}
+
+var infoKeywords = []string{"Traffic:", "Expire:", "剩余流量", "过期时间", "剩余", "套餐", "官网", "订阅", "重置"}
+
+type region struct {
+	key   string
+	label string
+	kws   []string
+}
+
+var regions = []region{
+	{"hk", "🇭🇰 香港", []string{"香港", "hong kong", "hongkong"}},
+	{"tw", "🇹🇼 台湾", []string{"台湾", "臺灣", "taiwan"}},
+	{"jp", "🇯🇵 日本", []string{"日本", "japan", "东京", "大阪"}},
+	{"kr", "🇰🇷 韩国", []string{"韩国", "韓國", "korea", "首尔"}},
+	{"sg", "🇸🇬 新加坡", []string{"新加坡", "singapore", "狮城", "獅城"}},
+	{"us", "🇺🇸 美国", []string{"美国", "united states", "america", "硅谷", "洛杉矶", "圣何塞"}},
+}
+
+const otherKey, otherLabel = "other", "🌐 其他地区"
+
+func groupsOf(cfg map[string]any) []map[string]any {
+	gs, ok := cfg["proxy-groups"].([]any)
+	if !ok {
+		return nil
+	}
+	out := make([]map[string]any, 0, len(gs))
+	for _, g := range gs {
+		if m, ok := g.(map[string]any); ok {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+func pickGroup(cfg map[string]any, forced string) (map[string]any, error) {
+	var selects []map[string]any
+	for _, g := range groupsOf(cfg) {
+		if t, _ := g["type"].(string); t == "select" {
+			selects = append(selects, g)
+		}
+	}
+	if len(selects) == 0 {
+		return nil, fmt.Errorf("配置里没有 select 策略组，无法切换节点")
+	}
+	if forced != "" {
+		for _, g := range selects {
+			if g["name"] == forced {
+				return g, nil
+			}
+		}
+		return nil, fmt.Errorf("指定分组 '%s' 不存在", forced)
+	}
+	for _, g := range selects {
+		low := strings.ToLower(fmt.Sprint(g["name"]))
+		for _, kw := range mainGroupKeywords {
+			if strings.Contains(low, kw) {
+				return g, nil
+			}
+		}
+	}
+	best := selects[0]
+	for _, g := range selects[1:] {
+		if lenAnyList(g["proxies"]) > lenAnyList(best["proxies"]) {
+			best = g
+		}
+	}
+	return best, nil
+}
+
+func lenAnyList(v any) int {
+	if l, ok := v.([]any); ok {
+		return len(l)
+	}
+	return 0
+}
+
+func classify(name string) string {
+	low := strings.ToLower(name)
+	for _, r := range regions {
+		for _, kw := range r.kws {
+			if strings.Contains(name, kw) || strings.Contains(low, kw) {
+				return r.key
+			}
+		}
+	}
+	return otherKey
+}
+
+func isInfo(name string) bool {
+	for _, kw := range infoKeywords {
+		if strings.Contains(name, kw) {
+			return true
+		}
+	}
+	return false
+}
+
+// collectMembers 把组成员分为「按地区分桶的真实节点」与「子组」。
+func collectMembers(cfg, group map[string]any) (map[string][]string, []string) {
+	typeByName := map[string]string{}
+	for _, g := range groupsOf(cfg) {
+		name, _ := g["name"].(string)
+		t, _ := g["type"].(string)
+		typeByName[name] = t
+	}
+	buckets := map[string][]string{}
+	var subgroups []string
+	members, _ := group["proxies"].([]any)
+	for _, m := range members {
+		name := fmt.Sprint(m)
+		switch {
+		case groupTypes[typeByName[name]]:
+			subgroups = append(subgroups, name)
+		case builtinNodes[name] || isInfo(name):
+		default:
+			buckets[classify(name)] = append(buckets[classify(name)], name)
+		}
+	}
+	return buckets, subgroups
+}
+
+// measure 并发实测延迟，带 TTY 进度。
+func measure(api *clashapi.Client, names []string) map[string]int {
+	if len(names) == 0 {
+		return nil
+	}
+	tty := term.IsTerminal(int(os.Stdout.Fd()))
+	if !tty {
+		execx.Info(fmt.Sprintf("测速中（%d 个节点）…", len(names)))
+	}
+	results := make(map[string]int, len(names))
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, min(16, len(names)))
+	done := 0
+	for _, name := range names {
+		wg.Add(1)
+		go func(n string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			ms, ok := api.Delay(n)
+			mu.Lock()
+			if ok {
+				results[n] = ms
+			}
+			done++
+			if tty {
+				fmt.Printf("\r\033[K  测速中… %d/%d", done, len(names))
+			}
+			mu.Unlock()
+		}(name)
+	}
+	wg.Wait()
+	if tty {
+		fmt.Print("\r\033[K")
+	}
+	execx.Ok(fmt.Sprintf("测速完成：%d/%d 可用", len(results), len(names)))
+	return results
+}
+
+func fmtDelay(results map[string]int, name string) string {
+	if ms, ok := results[name]; ok {
+		return fmt.Sprintf("%dms", ms)
+	}
+	return "超时"
+}
+
+// persistFirst 把选中节点提为目标组首成员，双写生效配置与订阅配置（跨重启兜底）。
+func persistFirst(cfg map[string]any, groupName, node string, files []string) error {
+	for _, g := range groupsOf(cfg) {
+		if t, _ := g["type"].(string); t == "select" && g["name"] == groupName {
+			members, _ := g["proxies"].([]any)
+			out := make([]any, 0, len(members)+1)
+			out = append(out, node)
+			for _, m := range members {
+				if fmt.Sprint(m) != node {
+					out = append(out, m)
+				}
+			}
+			g["proxies"] = out
+			break
+		}
+	}
+	payload, err := jsonx.MarshalPretty(cfg)
+	if err != nil {
+		return err
+	}
+	for _, f := range files {
+		tmp := f + ".tmp"
+		if err := os.WriteFile(tmp, payload, 0o644); err != nil {
+			return err
+		}
+		if err := os.Rename(tmp, f); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// NodeSelect 两级菜单（地区/分组 → 节点）切换并固定首选节点。
+func NodeSelect(p paths.Paths, configPath, group string) error {
+	if configPath == "" {
+		configPath = p.ConfigFile
+	}
+	raw, err := os.ReadFile(configPath)
+	if err != nil {
+		return fmt.Errorf("找不到配置文件：%s", configPath)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		return fmt.Errorf("解析配置：%w", err)
+	}
+	target, err := pickGroup(cfg, group)
+	if err != nil {
+		return err
+	}
+	groupName := fmt.Sprint(target["name"])
+	buckets, subgroups := collectMembers(cfg, target)
+	if len(buckets) == 0 && len(subgroups) == 0 {
+		return fmt.Errorf("分组 '%s' 下没有可选项", groupName)
+	}
+
+	// 节点切换走 Clash API 热切换，直接连 API 实时测速/切换
+	api := clashapi.FromConfig(cfg)
+	apiOK := api != nil && api.Reachable()
+	if apiOK {
+		execx.Info("已连上 Clash API，列表将实时测速。")
+	} else {
+		execx.Info("Clash API 不可达，跳过测速。")
+	}
+
+	type menuEntry struct {
+		label string
+		items []string
+	}
+	var firstMenu []menuEntry
+	for _, r := range regions {
+		if len(buckets[r.key]) > 0 {
+			firstMenu = append(firstMenu, menuEntry{r.label, buckets[r.key]})
+		}
+	}
+	if len(buckets[otherKey]) > 0 {
+		firstMenu = append(firstMenu, menuEntry{otherLabel, buckets[otherKey]})
+	}
+	if len(subgroups) > 0 {
+		firstMenu = append(firstMenu, menuEntry{"🧭 子组（自动测速 / 故障转移）", subgroups})
+	}
+
+	// esc 在第二步只退回第一步；^R 才穿透放弃本次切换
+	var selected string
+	idx := 0
+	for {
+		labels := make([]string, len(firstMenu))
+		for i, e := range firstMenu {
+			labels[i] = fmt.Sprintf("%s（%d）", e.label, len(e.items))
+		}
+		i, err := tui.Select("选择地区 / 分组", labels, tui.SelectOpts{BackLabel: "退出切换节点", Initial: idx})
+		if err != nil {
+			return err
+		}
+		idx = i
+		entry := firstMenu[i]
+
+		var delays map[string]int
+		if apiOK {
+			delays = measure(api, entry.items)
+		}
+		nodeLabels := make([]string, len(entry.items))
+		for j, name := range entry.items {
+			if apiOK {
+				nodeLabels[j] = fmt.Sprintf("%s   %s", name, fmtDelay(delays, name))
+			} else {
+				nodeLabels[j] = name
+			}
+		}
+		nidx, err := tui.Select(entry.label, nodeLabels, tui.SelectOpts{SaveLabel: "返回地区/分组", BackLabel: "放弃并退出"})
+		if err != nil {
+			if errors.Is(err, errs.ErrSaveExit) {
+				continue // 返回地区/分组选择，重新选
+			}
+			return err
+		}
+		selected = entry.items[nidx]
+		break
+	}
+
+	// 应用：写生效配置 + 当前 active 订阅的 config.yaml（双写以跨重启持久）
+	targets := []string{configPath}
+	if active := subscription.GetActive(p); active != nil {
+		subCfg := filepath.Join(p.SubscriptionDir(active.Name), "config.yaml")
+		if _, err := os.Stat(subCfg); err == nil && subCfg != configPath {
+			targets = append(targets, subCfg)
+		}
+	}
+	if err := persistFirst(cfg, groupName, selected, targets); err != nil {
+		return err
+	}
+	execx.Ok(fmt.Sprintf("已固定 %s 首选 = %s", groupName, selected))
+
+	if apiOK {
+		if err := api.Switch(groupName, selected); err != nil {
+			execx.Warn(fmt.Sprintf("Clash API 实时切换失败：%v", err))
+		} else {
+			execx.Ok(fmt.Sprintf("已通过 Clash API 实时切换 %s → %s", groupName, selected))
+		}
+	}
+
+	if sysd.IsInstalled(sysd.DefaultName) {
+		ok, err := tui.Confirm("重启服务以确保生效？", false)
+		if err == nil && ok {
+			return sysd.SyncAndRestart(p, sysd.DefaultName)
+		}
+	}
+	return nil
+}

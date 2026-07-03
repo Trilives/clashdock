@@ -1,0 +1,31 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: clashdock
+Source: https://github.com/Trilives/clashdock
+
+Files: *
+Copyright: 2026 Trilives
+License: MIT
+Comment: clashdock 本体（/usr/bin/clashdock）。完整文本见源仓库 LICENSE。
+
+Files: /usr/libexec/clashdock/mihomo
+Copyright: MetaCubeX and contributors
+License: MIT
+Comment: mihomo (Clash.Meta) 内核，未作修改的官方 release 二进制。
+ 源代码与完整许可证：https://github.com/MetaCubeX/mihomo
+ 本包附带副本：/usr/share/doc/clashdock/LICENSE.mihomo
+
+Files: /usr/share/clashdock/ruleset/geosite.dat
+Copyright: MetaCubeX/meta-rules-dat contributors; v2fly/domain-list-community
+ contributors; blackmatrix7/ios_rule_script contributors
+License: GPL-3.0
+Comment: 域名分类规则数据，取自 MetaCubeX/meta-rules-dat 滚动发布。
+ 源仓库（含构建脚本与完整许可证）：https://github.com/MetaCubeX/meta-rules-dat
+ 应用可在线更新到最新版本（更新 内核/UI/geo 数据）。
+
+Files: /usr/share/clashdock/ruleset/country.mmdb
+Copyright: DB-IP.com
+License: CC-BY-4.0
+Comment: IP Geolocation by DB-IP — https://db-ip.com
+ 数据为 DB-IP IP to Country Lite（CC BY 4.0，允许再分发，需署名，此为署名声明）。
+ 刻意不捆绑 GeoLite2 衍生的 geoip.metadb（MaxMind EULA 含数据新鲜度义务，
+ 不适合冻结进安装包）；应用内『更新 geo 数据』会在线获取 geoip.metadb 供运行时使用。
