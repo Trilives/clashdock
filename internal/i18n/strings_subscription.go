@@ -11,7 +11,8 @@ func init() {
 
 		"内容看起来更像「%s」而非你选择的「%s」。": "The content looks more like \"%s\" than the \"%s\" you selected.",
 
-		"拉取订阅失败: %w": "Failed to fetch subscription: %w",
+		"拉取订阅失败: %w":            "Failed to fetch subscription: %w",
+		"拉取失败（%v），第 %d/%d 次重试…": "Fetch failed (%v), retrying (%d/%d)…",
 
 		"未找到主选择组": "Main selector group not found",
 

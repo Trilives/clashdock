@@ -30,11 +30,14 @@ var modifyConfigOptions = []string{
 }
 
 // 顺序按常用程度排列：切节点/查看服务状态是日常操作，独立面板/自愈/定时器
-// 属一次性设置项，排最后。
+// 属一次性设置项，排最后。临时切换与固定切换拆成两项：前者不写盘/不重启，
+// 后者才会写盘并可选重启。
 var modifyRuntimeOptions = []string{
-	"切换 / 固定节点",
+	"临时切换节点（不写盘，重启后失效）",
+	"切换并固定节点（写入配置，可选重启）",
 	"服务设置（重启 / 状态）",
 	"更新 内核 / UI / geo 数据",
+	"更新 clashdock 自身",
 	"独立 Web 面板（根路径直开）",
 	"网络自愈设置",
 	"每周更新定时器",
@@ -49,13 +52,15 @@ func ModifyConfig(p paths.Paths) error {
 	})
 }
 
-// ModifyRuntime 运行时管理会话（无需重启）：节点切换 / 内核更新 / 服务设置 /
-// Web 面板 / 网络自愈 / 更新定时器，均为即时生效的系统操作。
-func ModifyRuntime(p paths.Paths) error {
+// ModifyRuntime 运行时管理会话（无需重启）：节点切换 / 内核更新 / clashdock 自
+// 更新 / 服务设置 / Web 面板 / 网络自愈 / 更新定时器，均为即时生效的系统操作。
+func ModifyRuntime(p paths.Paths, currentVersion string) error {
 	return modifySession(p, "运行时管理（无需重启）", modifyRuntimeOptions, []func() error{
+		func() error { return NodeSwitchLive(p, p.ConfigFile, "") },
 		func() error { return NodeSelect(p, p.ConfigFile, "") },
 		func() error { return serviceSettings(p) },
 		func() error { return updateCoreFlow(p) },
+		func() error { return SelfUpdateFlow(p, currentVersion) },
 		func() error { return webuiMenuFlow(p) },
 		func() error { return resilienceMenuFlow() },
 		func() error { return timerMenuFlow() },

@@ -453,10 +453,12 @@ func extract(archive, outDir string) error {
 	return fmt.Errorf(i18n.T("不支持的压缩格式: %s"), name)
 }
 
-// safeJoin 防 zip-slip：解包目标必须落在 outDir 内。
+// safeJoin 防 zip-slip：解包目标必须落在 outDir 内（或就是 outDir 本身——
+// 很多归档把根目录自身打包为 "./" 条目，属正常写法，不应拒绝）。
 func safeJoin(outDir, name string) (string, error) {
 	target := filepath.Join(outDir, name)
-	if !strings.HasPrefix(target, filepath.Clean(outDir)+string(os.PathSeparator)) {
+	cleanOut := filepath.Clean(outDir)
+	if target != cleanOut && !strings.HasPrefix(target, cleanOut+string(os.PathSeparator)) {
 		return "", fmt.Errorf(i18n.T("非法压缩条目路径: %s"), name)
 	}
 	return target, nil
@@ -514,8 +516,10 @@ func DownloadAll(p paths.Paths, opts Options) (string, error) {
 		return version, err
 	}
 	if opts.WithUI {
+		// Web UI 是可选附加项（内核 + geo 数据已足够启动服务）：下载/解包失败
+		// 只警告，不让整个更新/初始化操作因这一个可选子步骤失败而回退。
 		if err := UpdateUI(p, f, s, opts.Force); err != nil {
-			return version, err
+			execx.Warn(fmt.Sprintf(i18n.T("Web UI 更新失败（不影响内核与 geo 数据，可稍后重试）：%v"), err))
 		}
 	}
 	return version, nil

@@ -20,7 +20,12 @@ import (
 )
 
 // Init 初始化流程；ErrCancelled 由 txn.Run 回退并吞掉。
+// 第一步先选语言（在事务外执行，不随后续步骤的取消/回退而撤销），
+// 确保后续所有提示都以用户选定的语言展示。
 func Init(p paths.Paths) error {
+	if err := PickLanguage(p); err != nil {
+		return err
+	}
 	return txn.Run(i18n.T("初始化"), func(t *txn.Transaction) error {
 		execx.Header(i18n.T("初始化（首次部署）"))
 

@@ -9,7 +9,11 @@
 // 靠启发式定位，新组名遇冲突自动加后缀。地区聚合组构造委托 regiongroups，两者共存不重复建组。
 package subscription
 
-import "github.com/Trilives/clashdock/internal/i18n"
+import (
+	"fmt"
+
+	"github.com/Trilives/clashdock/internal/i18n"
+)
 
 // ApplyOverlay 在已 patch 的运行时配置上叠加自定义分流。返回 (config, info)。
 func ApplyOverlay(config, customize map[string]any) (map[string]any, map[string]any) {
@@ -53,8 +57,13 @@ func ApplyOverlay(config, customize map[string]any) (map[string]any, map[string]
 		map[string]any{"name": aiName, "type": "select", "proxies": append([]any(nil), members...)},
 		map[string]any{"name": streamingName, "type": "select", "proxies": append([]any(nil), members...)})
 
-	// 叠加规则（插到 rules 头部，优先命中）
+	// 叠加规则（插到 rules 头部，优先命中）。端口直连排最前：不少机场出口节点
+	// 封禁 SSH 等端口出站，若被订阅自身规则命中代理组会连接被动断开，直连规则
+	// 必须比域名/AI/流媒体规则更早命中才能确保生效。
 	newRules := make([]any, 0)
+	for _, port := range intListOf(customize["direct_ports"]) {
+		newRules = append(newRules, fmt.Sprintf("DST-PORT,%d,DIRECT", port))
+	}
 	for _, suf := range strListOf(customize["direct_domain_suffixes"]) {
 		newRules = append(newRules, "DOMAIN-SUFFIX,"+suf+",DIRECT")
 	}

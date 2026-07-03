@@ -34,11 +34,15 @@ const (
 	ansiCyan  = "\033[36m"
 )
 
-var circled = []rune("①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳")
-
+// num 序号：带圈数字覆盖 1-50（①-⑳、㉑-㉟、㊱-㊿ 三段 Unicode 区间），超出后退化为普通数字。
 func num(i int) string {
-	if i < len(circled) {
-		return string(circled[i])
+	switch {
+	case i < 20:
+		return string(rune(0x2460 + i))
+	case i < 35:
+		return string(rune(0x3251 + i - 20))
+	case i < 50:
+		return string(rune(0x32B1 + i - 35))
 	}
 	return strconv.Itoa(i + 1)
 }
@@ -88,6 +92,78 @@ func dim(s string) string {
 		return s
 	}
 	return ansiDim + s + ansiReset
+}
+
+// termWidth 当前终端列宽，取不到时回退 80（对应 select.go 里 tea.WindowSizeMsg
+// 拿不到时的默认宽度）。用于 Ask/Confirm 等非盒装、内联提示语的自动换行。
+func termWidth() int {
+	if w, _, err := term.GetSize(int(os.Stdout.Fd())); err == nil && w > 0 {
+		return w
+	}
+	return 80
+}
+
+// wrapText 按显示宽度整词换行（连续无空格的片段，多见于 CJK 文本，逐字符硬拆）；
+// 用于长提示语在窄终端下自动换行，而不是被截断或撑破一行。
+func wrapText(s string, width int) []string {
+	if width < 10 {
+		width = 10
+	}
+	var lines []string
+	for _, para := range strings.Split(s, "\n") {
+		lines = append(lines, wrapLine(para, width)...)
+	}
+	return lines
+}
+
+func wrapLine(s string, width int) []string {
+	words := strings.Fields(s)
+	if len(words) == 0 {
+		return []string{""}
+	}
+	var lines []string
+	var cur strings.Builder
+	curW := 0
+	flush := func() {
+		lines = append(lines, cur.String())
+		cur.Reset()
+		curW = 0
+	}
+	for _, w := range words {
+		ww := dispWidth(w)
+		if ww > width {
+			if curW > 0 {
+				flush()
+			}
+			for _, r := range w {
+				rw := runewidth.RuneWidth(r)
+				if curW+rw > width && curW > 0 {
+					flush()
+				}
+				cur.WriteRune(r)
+				curW += rw
+			}
+			continue
+		}
+		sep := 0
+		if curW > 0 {
+			sep = 1
+		}
+		if curW+sep+ww > width {
+			flush()
+			sep = 0
+		}
+		if sep == 1 {
+			cur.WriteByte(' ')
+			curW++
+		}
+		cur.WriteString(w)
+		curW += ww
+	}
+	if cur.Len() > 0 || len(lines) == 0 {
+		flush()
+	}
+	return lines
 }
 
 func maxBoxWidth(termCols int) int {

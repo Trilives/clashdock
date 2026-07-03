@@ -35,6 +35,12 @@ var StreamingDomainSuffixes = []string{
 	"googlevideo.com", "spotify.com",
 }
 
+// DefaultDirectPorts 强制直连端口（叠加规则，仅 enable_overlay 时生效）：默认含 22
+// （SSH，如 git push），因为不少机场出口节点封禁 SSH 出站，若该端口流量被订阅自身
+// 规则命中代理组，会表现为「服务运行时 SSH 连接被 remote 关闭，暂停服务/改用
+// https 则正常」——直连可绕开这个问题。
+var DefaultDirectPorts = []int{22}
+
 var DefaultPreferKeywords = []string{"Singapore", "SG", "新加坡", "狮城"}
 var DefaultHKPreferKeywords = []string{"Hong Kong", "HongKong", "HK", "香港"}
 
@@ -59,6 +65,7 @@ var defaultsOrder = []string{
 	"download_proxy",
 	"webui_port",
 	"language",
+	"enable_log",
 	// —— 地区自动测速聚合组（各地区独立开关，不依赖 overlay）——
 	"generate_sg_groups",
 	"generate_hk_groups",
@@ -67,6 +74,7 @@ var defaultsOrder = []string{
 	"ai_domain_suffixes",
 	"streaming_domain_suffixes",
 	"direct_domain_suffixes",
+	"direct_ports",
 	"prefer_keywords",
 	"hk_prefer_keywords",
 }
@@ -90,12 +98,14 @@ func Defaults() map[string]any {
 		"download_proxy":            "",
 		"webui_port":                9091,
 		"language":                  "en",
+		"enable_log":                false,
 		"generate_sg_groups":        false,
 		"generate_hk_groups":        false,
 		"enable_overlay":            false,
 		"ai_domain_suffixes":        append([]string(nil), AIDomainSuffixes...),
 		"streaming_domain_suffixes": append([]string(nil), StreamingDomainSuffixes...),
 		"direct_domain_suffixes":    []string{},
+		"direct_ports":              append([]int(nil), DefaultDirectPorts...),
 		"prefer_keywords":           append([]string(nil), DefaultPreferKeywords...),
 		"hk_prefer_keywords":        append([]string(nil), DefaultHKPreferKeywords...),
 	}
@@ -184,6 +194,7 @@ var ListFields = map[string]string{
 	"ai_domain_suffixes":        "AI 域名后缀（叠加）",
 	"streaming_domain_suffixes": "流媒体域名后缀（叠加）",
 	"direct_domain_suffixes":    "直连域名后缀（叠加）",
+	"direct_ports":              "强制直连端口（叠加，默认 22/SSH）",
 	"prefer_keywords":           "新加坡关键词（叠加）",
 	"hk_prefer_keywords":        "香港关键词（叠加）",
 }
@@ -196,6 +207,7 @@ var BoolFields = map[string]string{
 	"generate_hk_groups":    "生成香港自动测速聚合组（HK-Auto，可直接选用）",
 	"enable_overlay":        "启用自定义分流叠加（AI / 流媒体）",
 	"base64_local_fallback": "base64 应急本地解析",
+	"enable_log":            "启用日志（写入文件，超限自动裁剪旧内容）",
 }
 
 var ScalarFields = map[string]string{
@@ -227,6 +239,7 @@ var FieldOrder = []string{
 	"tun_route_exclude_cidrs",
 	"tun_exclude_uids",
 	"base64_local_fallback",
+	"enable_log",
 	"generate_sg_groups",
 	"generate_hk_groups",
 	"prefer_keywords",
@@ -235,6 +248,7 @@ var FieldOrder = []string{
 	"ai_domain_suffixes",
 	"streaming_domain_suffixes",
 	"direct_domain_suffixes",
+	"direct_ports",
 }
 
 // SensitiveFields 涉密字段：菜单展示与编辑提示里都不出现明文。

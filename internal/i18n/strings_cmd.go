@@ -9,13 +9,15 @@ func init() {
 		"初始化（首次部署）":     "Initialize (first-time deployment)",
 		"配置变更（需重启生效）":   "Config Changes (restart to apply)",
 		"运行时管理（无需重启）":   "Runtime Management (no restart)",
-		"网络测试":          "Network Test",
+		"网络测试 / 诊断":     "Network Test / Diagnostics",
 		"卸载所有服务":        "Uninstall All Services",
 		"语言 / Language": "Language / 语言",
 
 		"暂停 / 启动服务": "Pause / Start Service",
 		"暂停服务 ⏸":    "Pause Service ⏸",
 		"启动服务 ▶":    "Start Service ▶",
+
+		"未检测到已注册的服务，是否现在进行初始化？": "No registered service detected. Run initialization now?",
 
 		"用法: clashdock [init|modify|nettest|uninstall|update|pause|resume|version]\n不带参数则进入交互式主菜单。": "Usage: clashdock [init|modify|nettest|uninstall|update|pause|resume|version]\nRun without arguments to enter the interactive main menu.",
 		"未知子命令: %s\n%s\n": "Unknown subcommand: %s\n%s\n",

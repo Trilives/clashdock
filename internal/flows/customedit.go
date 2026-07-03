@@ -48,6 +48,7 @@ func EditCustomize(p paths.Paths) (bool, error) {
 				if ferr := syncLanProxyFirewall(original, cfg); ferr != nil {
 					return true, ferr
 				}
+				syncLogging(p, cfg)
 				return true, nil
 			}
 			if changed {
@@ -98,8 +99,19 @@ func syncLanProxyFirewall(original, cfg map[string]any) error {
 	return nil
 }
 
+// syncLogging enable_log 开关变化时立即生效，不必等下次启动 clashdock。
+func syncLogging(p paths.Paths, cfg map[string]any) {
+	if !config.Bool(cfg, "enable_log") {
+		execx.DisableLog()
+		return
+	}
+	if err := execx.EnableLog(execx.LogPath(p.State), 0); err != nil {
+		execx.Warn(i18n.T("日志启用失败：") + err.Error())
+	}
+}
+
 func editList(cfg map[string]any, key, label string) bool {
-	isInt := key == "tun_exclude_uids"
+	isInt := key == "tun_exclude_uids" || key == "direct_ports"
 	changed := false
 	act := 0
 	for {

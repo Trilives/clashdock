@@ -76,8 +76,16 @@ func readInput(prompt string) (string, error) {
 	if !UseTUI() {
 		return readPlainLine(prompt)
 	}
+	// 长提示语先按终端宽度自动换行打印，只把最后一行接在输入光标前——
+	// bubbles/textinput 的 Prompt 是单行组件，直接塞入整段长文本会把行撑
+	// 破或被硬截断，观感很差。
+	last := prompt
+	if lines := wrapText(prompt, termWidth()-2); len(lines) > 1 {
+		fmt.Println(strings.Join(lines[:len(lines)-1], "\n"))
+		last = lines[len(lines)-1]
+	}
 	ti := textinput.New()
-	ti.Prompt = ansiCyan + "❯ " + ansiReset + prompt
+	ti.Prompt = ansiCyan + "❯ " + ansiReset + last
 	ti.Focus()
 	m := &inputModel{ti: ti}
 	out, err := tea.NewProgram(m).Run()

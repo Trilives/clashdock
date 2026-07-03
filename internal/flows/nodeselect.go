@@ -241,23 +241,30 @@ func persistFirst(cfg map[string]any, groupName, node string, files []string) er
 	return nil
 }
 
-// NodeSelect 两级菜单（地区/分组 → 节点）切换并固定首选节点。
-func NodeSelect(p paths.Paths, configPath, group string) error {
-	if configPath == "" {
-		configPath = p.ConfigFile
-	}
+// pickResult 两级菜单选完节点后的结果，供临时切换 / 固定切换两个流程各自处理。
+type pickResult struct {
+	cfg       map[string]any
+	groupName string
+	node      string
+	api       *clashapi.Client
+	apiOK     bool
+}
+
+// pickNode 两级菜单（地区/分组 → 节点）交互选择，不做任何写盘/切换——
+// 是「临时切换」与「切换并固定」两个流程共用的选择器。
+func pickNode(configPath, group string) (*pickResult, error) {
 	cfg, err := configfile.Read(configPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	target, err := pickGroup(cfg, group)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	groupName := fmt.Sprint(target["name"])
 	buckets, subgroups := collectMembers(cfg, target)
 	if len(buckets) == 0 && len(subgroups) == 0 {
-		return fmt.Errorf(i18n.T("分组 '%s' 下没有可选项"), groupName)
+		return nil, fmt.Errorf(i18n.T("分组 '%s' 下没有可选项"), groupName)
 	}
 
 	// 节点切换走 Clash API 热切换，直接连 API 实时测速/切换
@@ -296,7 +303,7 @@ func NodeSelect(p paths.Paths, configPath, group string) error {
 		}
 		i, err := tui.Select(i18n.T("选择地区 / 分组"), labels, tui.SelectOpts{BackLabel: i18n.T("退出切换节点"), Initial: idx})
 		if err != nil {
-			return err
+			return nil, err
 		}
 		idx = i
 		entry := firstMenu[i]
@@ -318,13 +325,59 @@ func NodeSelect(p paths.Paths, configPath, group string) error {
 			if errors.Is(err, errs.ErrSaveExit) {
 				continue // 返回地区/分组选择，重新选
 			}
-			return err
+			return nil, err
 		}
 		selected = entry.items[nidx]
 		break
 	}
+	return &pickResult{cfg: cfg, groupName: groupName, node: selected, api: api, apiOK: apiOK}, nil
+}
 
-	// 应用：写生效配置 + 当前 active 订阅的 config.yaml（双写以跨重启持久）
+// NodeSwitchLive 临时切换节点：仅经 Clash API 热切换，不写盘、不重启——
+// 服务重启或切换/刷新订阅后失效，适合"先试试看"的场景。需要服务正在运行。
+func NodeSwitchLive(p paths.Paths, configPath, group string) error {
+	if configPath == "" {
+		configPath = p.ConfigFile
+	}
+	r, err := pickNode(configPath, group)
+	if err != nil {
+		return err
+	}
+	if !r.apiOK {
+		return fmt.Errorf("%s", i18n.T("Clash API 不可达，临时切换需要服务正在运行（如需跨重启保留，请改用「切换并固定节点」）"))
+	}
+	if err := r.api.Switch(r.groupName, r.node); err != nil {
+		return err
+	}
+	execx.Ok(fmt.Sprintf(i18n.T("已临时切换 %s → %s（不写盘，重启/切换订阅后失效）"), r.groupName, r.node))
+	return nil
+}
+
+// NodeSelect 两级菜单（地区/分组 → 节点）切换节点；是否固定为首选（写盘，
+// 跨重启/服务重建后仍保留）由用户显式确认，只有选择固定时才会问是否重启服务。
+func NodeSelect(p paths.Paths, configPath, group string) error {
+	if configPath == "" {
+		configPath = p.ConfigFile
+	}
+	r, err := pickNode(configPath, group)
+	if err != nil {
+		return err
+	}
+
+	if r.apiOK {
+		if err := r.api.Switch(r.groupName, r.node); err != nil {
+			execx.Warn(fmt.Sprintf(i18n.T("Clash API 实时切换失败：%v"), err))
+		} else {
+			execx.Ok(fmt.Sprintf(i18n.T("已通过 Clash API 实时切换 %s → %s"), r.groupName, r.node))
+		}
+	}
+
+	pin, err := tui.Confirm(i18n.T("固定为该分组首选节点？（写入配置，跨重启/切换订阅后仍保留；否则仅本次生效）"), true)
+	if err != nil || !pin {
+		return err
+	}
+
+	// 写生效配置 + 当前 active 订阅的 config.yaml（双写以跨重启持久）
 	targets := []string{configPath}
 	if active := subscription.GetActive(p); active != nil {
 		subCfg := filepath.Join(p.SubscriptionDir(active.Name), "config.yaml")
@@ -332,18 +385,10 @@ func NodeSelect(p paths.Paths, configPath, group string) error {
 			targets = append(targets, subCfg)
 		}
 	}
-	if err := persistFirst(cfg, groupName, selected, targets); err != nil {
+	if err := persistFirst(r.cfg, r.groupName, r.node, targets); err != nil {
 		return err
 	}
-	execx.Ok(fmt.Sprintf(i18n.T("已固定 %s 首选 = %s"), groupName, selected))
-
-	if apiOK {
-		if err := api.Switch(groupName, selected); err != nil {
-			execx.Warn(fmt.Sprintf(i18n.T("Clash API 实时切换失败：%v"), err))
-		} else {
-			execx.Ok(fmt.Sprintf(i18n.T("已通过 Clash API 实时切换 %s → %s"), groupName, selected))
-		}
-	}
+	execx.Ok(fmt.Sprintf(i18n.T("已固定 %s 首选 = %s"), r.groupName, r.node))
 
 	if sysd.IsInstalled(sysd.DefaultName) {
 		ok, err := tui.Confirm(i18n.T("重启服务以确保生效？"), false)

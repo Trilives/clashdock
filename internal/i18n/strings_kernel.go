@@ -18,6 +18,7 @@ func init() {
 		"未从 %s releases 找到 UI 资源": "No UI asset found in %s releases",
 		"未能定位 UI 根目录: %s":         "Could not locate the UI root directory: %s",
 		"Web UI 已部署":              "Web UI deployed",
+		"Web UI 更新失败（不影响内核与 geo 数据，可稍后重试）：%v": "Web UI update failed (core and geo data are unaffected; you can retry later): %v",
 
 		"不支持的压缩格式: %s": "Unsupported archive format: %s",
 		"非法压缩条目路径: %s": "Illegal archive entry path: %s",

@@ -21,6 +21,8 @@ import (
 
 	"github.com/Trilives/clashdock/internal/execx"
 	"github.com/Trilives/clashdock/internal/i18n"
+	"github.com/Trilives/clashdock/internal/paths"
+	"github.com/Trilives/clashdock/internal/sysd"
 	"github.com/Trilives/clashdock/internal/tui"
 )
 
@@ -171,9 +173,33 @@ func fmtMs(r latResult) string {
 	return fmt.Sprintf("%dms", r.ms)
 }
 
-// Nettest 网络测试全流程。
-func Nettest() error {
-	execx.Header(i18n.T("网络测试"))
+// fileLocations 主要文件/目录位置一览（对应「网络测试 / 诊断」聚合的排障信息）。
+func fileLocations(p paths.Paths) []struct{ label, path string } {
+	return []struct{ label, path string }{
+		{i18n.T("生效配置"), p.ConfigFile},
+		{i18n.T("定制层"), p.CustomizeFile},
+		{i18n.T("生效订阅名"), p.ActiveFile},
+		{i18n.T("订阅目录"), p.Subscriptions},
+		{i18n.T("mihomo 内核"), p.MihomoBin},
+		{i18n.T("基础规则目录"), p.Ruleset},
+		{i18n.T("Web UI 目录"), p.UI},
+		{i18n.T("下载缓存目录"), p.Downloads},
+		{i18n.T("systemd 单元"), "/etc/systemd/system/" + sysd.DefaultName + ".service"},
+	}
+}
+
+func printFileLocations(p paths.Paths) {
+	execx.Info(fmt.Sprintf(i18n.T("【%s】"), i18n.T("主要文件位置")))
+	for _, r := range fileLocations(p) {
+		fmt.Printf("  %-12s %s\n", r.label+":", r.path)
+	}
+	fmt.Println()
+}
+
+// Nettest 网络测试 / 诊断全流程：延迟测试 + 出口 IP + 主要文件位置一览。
+func Nettest(p paths.Paths) error {
+	execx.Header(i18n.T("网络测试 / 诊断"))
+	printFileLocations(p)
 	viaProxy := proxyUp()
 	proxyURL := fmt.Sprintf("http://%s:%d", nettestProxyHost, nettestProxyPort)
 	if viaProxy {

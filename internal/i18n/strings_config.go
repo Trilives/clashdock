@@ -18,13 +18,14 @@ func init() {
 		"%s：%s":  "%s: %s",
 
 		// ListFields
-		"TUN 排除网段":    "TUN excluded CIDRs",
-		"TUN 排除 UID":  "TUN excluded UIDs",
-		"AI 域名后缀（叠加）": "AI domain suffixes (overlay)",
-		"流媒体域名后缀（叠加）": "Streaming domain suffixes (overlay)",
-		"直连域名后缀（叠加）":  "Direct domain suffixes (overlay)",
-		"新加坡关键词（叠加）":  "Singapore keywords (overlay)",
-		"香港关键词（叠加）":   "Hong Kong keywords (overlay)",
+		"TUN 排除网段":             "TUN excluded CIDRs",
+		"TUN 排除 UID":           "TUN excluded UIDs",
+		"AI 域名后缀（叠加）":          "AI domain suffixes (overlay)",
+		"流媒体域名后缀（叠加）":          "Streaming domain suffixes (overlay)",
+		"直连域名后缀（叠加）":           "Direct domain suffixes (overlay)",
+		"强制直连端口（叠加，默认 22/SSH）": "Ports forced direct (overlay, default 22/SSH)",
+		"新加坡关键词（叠加）":           "Singapore keywords (overlay)",
+		"香港关键词（叠加）":            "Hong Kong keywords (overlay)",
 
 		// BoolFields
 		"TUN 模式（全局透明代理）":              "TUN mode (global transparent proxy)",
@@ -34,6 +35,7 @@ func init() {
 		"生成香港自动测速聚合组（HK-Auto，可直接选用）":  "Generate Hong Kong auto url-test group (HK-Auto, directly selectable)",
 		"启用自定义分流叠加（AI / 流媒体）":         "Enable custom routing overlay (AI / streaming)",
 		"base64 应急本地解析":               "base64 local fallback parsing",
+		"启用日志（写入文件，超限自动裁剪旧内容）":        "Enable logging (write to file, auto-trims oldest content past the size cap)",
 
 		// ScalarFields
 		"TUN 协议栈（gvisor/system/mixed）": "TUN stack (gvisor/system/mixed)",

@@ -125,3 +125,29 @@ func ensureGithubToken(p paths.Paths) {
 	}
 	execx.Ok(i18n.T("GitHub Token 已保存到 customize.json。"))
 }
+
+// PickLanguage 语言选择器（主菜单「语言 / Language」与初始化流程第一步共用）：
+// 标题与选项本身直接写死双语字面量（不经过 i18n.T），因为这是语言选择器自身——
+// 用户在任何当前语言状态下都要能看懂两个选项各自对应哪种语言。esc/^R 取消，
+// 语言保持不变（不算错误）。
+func PickLanguage(p paths.Paths) error {
+	current := 0
+	if i18n.Current() == i18n.ZH {
+		current = 1
+	}
+	i, err := tui.Select("Language / 语言", []string{"English", "中文"}, tui.SelectOpts{Initial: current})
+	if err != nil {
+		return nil
+	}
+	lang := i18n.EN
+	if i == 1 {
+		lang = i18n.ZH
+	}
+	cfg := config.Load(p)
+	cfg["language"] = string(lang)
+	if err := config.Save(p, cfg); err != nil {
+		return err
+	}
+	i18n.SetLang(lang)
+	return nil
+}

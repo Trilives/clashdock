@@ -29,6 +29,7 @@ func usageText() string {
 func main() {
 	p := paths.Detect()
 	setupLanguage(p)
+	setupLogging(p)
 	args := os.Args[1:]
 	if len(args) == 0 {
 		exitIfErr(flows.EnsureStateRoot(p))
@@ -48,7 +49,7 @@ func main() {
 	case "modify":
 		exitFlow(flows.ModifyConfig(p))
 	case "nettest":
-		exitFlow(flows.Nettest())
+		exitFlow(flows.Nettest(p))
 	case "uninstall":
 		exitFlow(flows.Uninstall(p))
 	case "update":
@@ -82,6 +83,17 @@ func setupLanguage(p paths.Paths) {
 	}
 }
 
+// setupLogging customize.json 的 enable_log=true 时，把 execx 的输出额外写入
+// 日志文件（超限自动裁剪旧内容，见 internal/execx/log.go）。
+func setupLogging(p paths.Paths) {
+	if !config.Bool(config.Load(p), "enable_log") {
+		return
+	}
+	if err := execx.EnableLog(execx.LogPath(p.State), 0); err != nil {
+		execx.Warn(i18n.T("日志启用失败：") + err.Error())
+	}
+}
+
 func exitIfErr(err error) {
 	if err != nil {
 		execx.Error(err.Error())
@@ -109,22 +121,25 @@ func switchLabel() string {
 }
 
 func interactive(p paths.Paths) int {
-	// 服务不存在（含已停止但仍注册的情况，IsInstalled 只看单元文件是否存在）时
-	// 自动进入初始化；主菜单不再需要单独的「初始化」入口。
+	// 服务不存在（含已停止但仍注册的情况，IsInstalled 只看单元文件是否存在）时，
+	// 询问是否现在进入初始化；主菜单不再需要单独的「初始化」入口，但是否进入由用户选择。
 	if !sysd.IsInstalled(sysd.DefaultName) {
-		if err := flows.Init(p); err != nil && !errors.Is(err, errs.ErrCancelled) {
-			execx.Error(err.Error())
+		ok, err := tui.Confirm(i18n.T("未检测到已注册的服务，是否现在进行初始化？"), true)
+		if err == nil && ok {
+			if ierr := flows.Init(p); ierr != nil && !errors.Is(ierr, errs.ErrCancelled) {
+				execx.Error(ierr.Error())
+			}
 		}
 	}
 	idx := 0
 	for {
-		// 顺序按常用程度排列：暂停/启动与切节点等日常操作在前，卸载这类
-		// 低频/破坏性操作放最后。
+		// 顺序按常用程度排列：运行时管理/配置变更/网络测试等日常操作在前，
+		// 暂停/启动服务其次，卸载这类低频/破坏性操作放最后。
 		options := []string{
-			switchLabel(),
 			i18n.T("运行时管理（无需重启）"),
 			i18n.T("配置变更（需重启生效）"),
-			i18n.T("网络测试"),
+			i18n.T("网络测试 / 诊断"),
+			switchLabel(),
 			i18n.T("语言 / Language"),
 			i18n.T("卸载所有服务"),
 		}
@@ -137,15 +152,15 @@ func interactive(p paths.Paths) int {
 		var aerr error
 		switch i {
 		case 0:
-			aerr = flows.ServiceToggleFlow(p)
+			aerr = flows.ModifyRuntime(p, version)
 		case 1:
-			aerr = flows.ModifyRuntime(p)
-		case 2:
 			aerr = flows.ModifyConfig(p)
+		case 2:
+			aerr = flows.Nettest(p)
 		case 3:
-			aerr = flows.Nettest()
+			aerr = flows.ServiceToggleFlow(p)
 		case 4:
-			aerr = languageMenu(p)
+			aerr = flows.PickLanguage(p)
 		case 5:
 			aerr = flows.Uninstall(p)
 		}
@@ -153,31 +168,6 @@ func interactive(p paths.Paths) int {
 			execx.Error(aerr.Error())
 		}
 	}
-}
-
-// languageMenu 语言 / Language：标题与选项本身直接写死双语字面量（不经过
-// i18n.T），因为这是语言选择器自身——用户在任何当前语言状态下都要能看懂两个
-// 选项各自对应哪种语言。
-func languageMenu(p paths.Paths) error {
-	current := 0
-	if i18n.Current() == i18n.ZH {
-		current = 1
-	}
-	i, err := tui.Select("Language / 语言", []string{"English", "中文"}, tui.SelectOpts{Initial: current})
-	if err != nil {
-		return nil // esc/^R 取消，语言不变
-	}
-	lang := i18n.EN
-	if i == 1 {
-		lang = i18n.ZH
-	}
-	cfg := config.Load(p)
-	cfg["language"] = string(lang)
-	if err := config.Save(p, cfg); err != nil {
-		return err
-	}
-	i18n.SetLang(lang)
-	return nil
 }
 
 // runUpdate 非交互全量更新（每周定时器的执行目标）：

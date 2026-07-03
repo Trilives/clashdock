@@ -7,10 +7,12 @@ package subscription
 import (
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"time"
 
+	"github.com/Trilives/clashdock/internal/execx"
 	"github.com/Trilives/clashdock/internal/i18n"
 )
 
@@ -21,9 +23,13 @@ var userAgents = map[string]string{
 }
 
 const (
-	fetchRetries    = 3
-	fetchRetryDelay = 2 * time.Second
-	fetchTimeout    = 120 * time.Second
+	fetchRetries     = 3
+	fetchRetryDelay  = 2 * time.Second
+	fetchDialTimeout = 10 * time.Second
+	// 单次尝试超时：链接/代理不可达时应快速失败并重试，而不是让用户等一次
+	// 就长达数分钟——之前 120s×3 次的组合在代理不通时会让整个操作看起来像
+	// 卡死。绝大多数订阅原文体积很小，30s 对正常网络绰绰有余。
+	fetchTimeout = 30 * time.Second
 )
 
 // Fetch 下载订阅内容，返回原始字节。
@@ -32,7 +38,11 @@ func Fetch(rawURL, sourceType, proxy string) ([]byte, error) {
 	if !ok {
 		ua = "Mozilla/5.0"
 	}
-	tr := &http.Transport{Proxy: nil}
+	tr := &http.Transport{
+		Proxy:               nil,
+		DialContext:         (&net.Dialer{Timeout: fetchDialTimeout}).DialContext,
+		TLSHandshakeTimeout: fetchDialTimeout,
+	}
 	if proxy != "" {
 		if u, err := url.Parse(proxy); err == nil {
 			tr.Proxy = http.ProxyURL(u)
@@ -43,6 +53,7 @@ func Fetch(rawURL, sourceType, proxy string) ([]byte, error) {
 	var lastErr error
 	for i := 0; i < fetchRetries; i++ {
 		if i > 0 {
+			execx.Warn(fmt.Sprintf(i18n.T("拉取失败（%v），第 %d/%d 次重试…"), lastErr, i+1, fetchRetries))
 			time.Sleep(fetchRetryDelay)
 		}
 		req, err := http.NewRequest(http.MethodGet, rawURL, nil)

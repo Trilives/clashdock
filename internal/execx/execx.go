@@ -23,10 +23,26 @@ func tint(code, text string) string {
 	return "\033[" + code + "m" + text + "\033[0m"
 }
 
-func Info(msg string)  { fmt.Println(tint("36", i18n.T("[信息] ")) + msg) }
-func Ok(msg string)    { fmt.Println(tint("32", i18n.T("[完成] ")) + msg) }
-func Warn(msg string)  { fmt.Println(tint("33", i18n.T("[注意] ")) + msg) }
-func Error(msg string) { fmt.Fprintln(os.Stderr, tint("31", i18n.T("[错误] "))+msg) }
+func Info(msg string) {
+	prefix := i18n.T("[信息] ")
+	fmt.Println(tint("36", prefix) + msg)
+	writeLog(prefix + msg)
+}
+func Ok(msg string) {
+	prefix := i18n.T("[完成] ")
+	fmt.Println(tint("32", prefix) + msg)
+	writeLog(prefix + msg)
+}
+func Warn(msg string) {
+	prefix := i18n.T("[注意] ")
+	fmt.Println(tint("33", prefix) + msg)
+	writeLog(prefix + msg)
+}
+func Error(msg string) {
+	prefix := i18n.T("[错误] ")
+	fmt.Fprintln(os.Stderr, tint("31", prefix)+msg)
+	writeLog(prefix + msg)
+}
 
 func Header(title string) {
 	n := len([]rune(title))
@@ -36,6 +52,7 @@ func Header(title string) {
 	fmt.Println()
 	fmt.Println(tint("1", title))
 	fmt.Println(strings.Repeat("─", n))
+	writeLog("== " + title + " ==")
 }
 
 // CommandError 子进程非零退出。

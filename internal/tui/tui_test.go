@@ -94,7 +94,35 @@ func TestNum(t *testing.T) {
 	if num(0) != "①" || num(19) != "⑳" {
 		t.Error("圈号映射不符")
 	}
-	if num(20) != "21" {
+	if num(20) != "㉑" || num(34) != "㉟" || num(35) != "㊱" || num(49) != "㊿" {
+		t.Error("扩展圈号范围（21-50）映射不符")
+	}
+	if num(50) != "51" {
 		t.Error("超出圈号范围应回退数字")
+	}
+}
+
+func TestWrapText(t *testing.T) {
+	short := wrapText("hello world", 20)
+	if len(short) != 1 || short[0] != "hello world" {
+		t.Errorf("短文本不应换行: %#v", short)
+	}
+	words := wrapText("aaaa bbbb cccc dddd", 9)
+	for _, l := range words {
+		if dispWidth(l) > 9 {
+			t.Errorf("按词换行超出宽度: %q", l)
+		}
+	}
+	if len(words) < 2 {
+		t.Error("超宽文本应换成多行")
+	}
+	cjk := wrapText("这是一段很长的中文提示语用来测试自动换行是否正常工作", 10)
+	if len(cjk) < 2 {
+		t.Error("长中文提示语应按字符宽度换成多行")
+	}
+	for _, l := range cjk {
+		if dispWidth(l) > 10 {
+			t.Errorf("中文换行超出宽度: %q", l)
+		}
 	}
 }
