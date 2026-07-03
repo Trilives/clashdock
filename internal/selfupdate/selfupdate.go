@@ -160,17 +160,18 @@ func Update(p paths.Paths, currentVersion string) (string, bool, error) {
 		return "", false, err
 	}
 
-	realExe, err := filepath.EvalSymlinks(exeSelf())
-	if err != nil {
-		realExe = exeSelf()
-	}
 	prevTarget, _ := os.Readlink(currentLink(p))
 
 	if err := swapCurrentLink(p, newBin); err != nil {
 		return "", false, err
 	}
 
-	if err := probeBinary(realExe); err != nil {
+	// 注意：不能用 os.Executable() 来试跑"切换后的版本"——它在 Linux 上读
+	// /proc/self/exe，返回的是当前进程加载时就已解析到底的真实文件（也就是
+	// 切换前那个版本），并不会因为重写了 current 符号链接而改变。要验证刚
+	// 切换到的新版本，必须显式执行 currentLink（符号链接，每次 exec 都会
+	// 重新解析到它当前指向的文件）。
+	if err := probeBinary(currentLink(p)); err != nil {
 		execx.Warn(fmt.Sprintf(i18n.T("新版本启动校验失败，回退到旧版本：%v"), err))
 		if prevTarget != "" {
 			swapCurrentLink(p, prevTarget) //nolint:errcheck // 回退已在出错路径，尽力而为
@@ -194,6 +195,13 @@ func exeSelf() string {
 // ensureManagedByCurrentLink 首次自更新迁移：若正在运行的可执行文件还不是
 // current 符号链接（apt 刚装好的普通文件），把它搬进版本目录当基线版本，
 // 再把该路径替换成指向 current 的符号链接。之后的更新只需重写 current。
+//
+// 判断"是否已迁移"不能用 os.Readlink(exe)：os.Executable() 在 Linux 上读
+// /proc/self/exe，内核已经把符号链接完全解析成真实文件路径，exe 本身永远
+// 不是符号链接（迁移与否都一样），Readlink 对它总会失败。真正可靠的判断是
+// 看这个已解析的真实路径是否已经落在 versionsDir 下——已经在，说明早迁移
+// 过了；如果这里误判成"未迁移"又重新执行一遍复制，会把正在运行的二进制
+// 自身当成迁移源尝试原地覆写自己，触发 "text file busy"。
 func ensureManagedByCurrentLink(p paths.Paths, currentVersion string) error {
 	if err := os.MkdirAll(versionsDir(p), 0o755); err != nil {
 		return err
@@ -202,8 +210,8 @@ func ensureManagedByCurrentLink(p paths.Paths, currentVersion string) error {
 	if exe == "" {
 		return fmt.Errorf("%s", i18n.T("无法定位当前运行的可执行文件"))
 	}
-	if target, err := os.Readlink(exe); err == nil && filepath.Clean(target) == filepath.Clean(currentLink(p)) {
-		return nil // 已经是托管符号链接
+	if strings.HasPrefix(exe, versionsDir(p)+string(os.PathSeparator)) {
+		return nil // 已经落在版本目录下，说明早迁移过了
 	}
 	baseline := strings.TrimPrefix(currentVersion, "v")
 	if baseline == "" || baseline == "dev" {
