@@ -1,5 +1,6 @@
 // 初始化（首次部署）全流程（对应 flows/init.py）。
-// 整个流程包在事务内：任意步骤 ESC / 出错都会回退已应用的改动。
+// 流程按模块提交：服务启动前的核心步骤可整体回退；服务启动后，外部资源更新、
+// 伴生单元等后续模块只回退各自尚未提交的改动，不反向卸载已启动的主服务。
 package flows
 
 import (
@@ -20,12 +21,7 @@ import (
 )
 
 // Init 初始化流程；ErrCancelled 由 txn.Run 回退并吞掉。
-// 第一步先选语言（在事务外执行，不随后续步骤的取消/回退而撤销），
-// 确保后续所有提示都以用户选定的语言展示。
 func Init(p paths.Paths) error {
-	if err := PickLanguage(p); err != nil {
-		return err
-	}
 	return txn.Run(i18n.T("初始化"), func(t *txn.Transaction) error {
 		execx.Header(i18n.T("初始化（首次部署）"))
 
@@ -111,16 +107,20 @@ func Init(p paths.Paths) error {
 		if err := sysd.Install(p, sysd.DefaultName, true); err != nil {
 			return err
 		}
+		// 主服务已运行就是持久边界；后续可选模块失败时不应反向卸载它。
+		t.Commit()
 
 		// 4. 服务先跑起来；再询问是否在线下载/更新内核、geo 与可选 Web UI。
 		if err := optionalPostStartUpdate(p); err != nil {
 			return err
 		}
+		t.Commit()
 
 		// 5. 可选增强：网络自愈 / 每周更新
 		if err := optionalExtras(t); err != nil {
 			return err
 		}
+		t.Commit()
 
 		// 6. 提示切换 / 固定节点
 		ok, err := tui.Confirm(i18n.T("配置已就绪，是否现在切换 / 固定节点？"), false)

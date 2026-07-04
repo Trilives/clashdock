@@ -138,7 +138,7 @@ func ensureGithubToken(p paths.Paths) {
 	execx.Ok(i18n.T("GitHub Token 已保存到 customize.json。"))
 }
 
-// PickLanguage 语言选择器（主菜单「语言 / Language」与初始化流程第一步共用）：
+// PickLanguage 语言选择器（首次运行入口与主菜单「语言 / Language」共用）：
 // 标题与选项本身直接写死双语字面量（不经过 i18n.T），因为这是语言选择器自身——
 // 用户在任何当前语言状态下都要能看懂两个选项各自对应哪种语言。esc/^R 取消，
 // 语言保持不变（不算错误）。
