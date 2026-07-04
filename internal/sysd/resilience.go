@@ -23,7 +23,7 @@ const (
 	dispatcherDir = "/etc/NetworkManager/dispatcher.d"
 )
 
-func legacyHealthcheckDest() string { return filepath.Join(paths.EtcDir, "healthcheck.sh") }
+func legacyHealthcheckDest() string { return filepath.Join(paths.RuntimeDir, "healthcheck.sh") }
 
 func dispatcherFile(name string) string {
 	return filepath.Join(dispatcherDir, "90-"+name+"-restart")
@@ -115,7 +115,7 @@ func InstallResilience(opts ResilienceOptions) error {
 	if err := execx.EnsureSudo(i18n.T("安装网络自愈")); err != nil {
 		return err
 	}
-	if _, err := execx.RunRoot([]string{"mkdir", "-p", paths.EtcDir}, "", nil); err != nil {
+	if _, err := execx.RunRoot([]string{"mkdir", "-p", paths.RuntimeDir}, "", nil); err != nil {
 		return err
 	}
 

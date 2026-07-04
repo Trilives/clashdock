@@ -20,7 +20,7 @@ func TestStageRuntimeConfigAcceptsYAMLAndRewritesExternalUI(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	staged, err := stageRuntimeConfig(p, runtimePaths{UI: "/etc/mihomo/ui"})
+	staged, err := stageRuntimeConfig(p, runtimePaths{UI: "/var/lib/clashdock-runtime/ui"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,7 +30,7 @@ func TestStageRuntimeConfigAcceptsYAMLAndRewritesExternalUI(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(out), `"/etc/mihomo/ui"`) {
+	if !strings.Contains(string(out), `"/var/lib/clashdock-runtime/ui"`) {
 		t.Fatalf("external-ui was not rewritten in staged config:\n%s", out)
 	}
 }

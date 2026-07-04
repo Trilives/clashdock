@@ -52,6 +52,6 @@ printf '3\ny\n' | clashdock        # 例：进入主菜单第 3 项并确认
 
 | 单元 | 作用 |
 |---|---|
-| `mihomo.service` | 主服务（`/etc/mihomo` 自包含运行时）；Web UI 走其内置的 `:9090/ui/` 路径，不再有独立面板服务 |
+| `mihomo.service` | 主服务（`/var/lib/clashdock-runtime` 自包含运行时）；Web UI 走其内置的 `:9090/ui/` 路径，不再有独立面板服务 |
 | `mihomo-watchdog.timer/.service` | 网络自愈探针（有上行但代理不通才重启） |
 | `mihomo-update.timer/.service` | 每周自动更新（`clashdock update`） |

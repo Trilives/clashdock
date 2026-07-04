@@ -1,12 +1,16 @@
 // Package sysd systemd 单元管理（对应 service.py + resilience.py + timer.py）：
-// 在 /etc/mihomo 暂存自包含运行时并注册主服务，以及两类伴生单元
+// 在 /var/lib/clashdock-runtime 暂存自包含运行时并注册主服务，以及两类伴生单元
 // （网络自愈 watchdog / 每周更新定时器）。mihomo 自带的 Web UI 只走内置
 // 控制器路径（http://host:9090/ui/），不再提供独立根路径面板服务
 // （多占一个端口，转发/放行更麻烦，收益有限）。
 //
-// 把内核、配置、geo 数据、UI 暂存到 /etc/mihomo（mihomo 的工作目录 -d），并把配置内的
-// external-ui 改写为该目录下的绝对路径，使服务与状态目录（可能在 /home）解耦。
+// 把内核、配置、geo 数据、UI 暂存到 /var/lib/clashdock-runtime（mihomo 的工作目录 -d），
+// 并把配置内的 external-ui 改写为该目录下的绝对路径，使服务与状态目录（可能在 /home）解耦。
 // 所有 root 操作经 execx.RunRoot（非 root 自动 sudo，凭证会话内缓存）。
+//
+// 注意：本目录曾用 /etc/mihomo（旧版遗留），自本次改名起不再兼容旧路径——
+// 旧版本升级上来的部署需要先完整卸载旧版本（或运行
+// scripts/migrate-runtime-dir.sh 清理），再重新初始化。
 package sysd
 
 import (
@@ -44,7 +48,7 @@ type runtimePaths struct {
 }
 
 func rtPaths(name string) runtimePaths {
-	d := paths.EtcDir
+	d := paths.RuntimeDir
 	return runtimePaths{
 		Dir:     d,
 		Bin:     filepath.Join(d, "mihomo"),
@@ -254,10 +258,10 @@ func Remove(p paths.Paths, name string, purgeRuntime bool) error {
 		rt := rtPaths(name)
 		execx.RunRoot([]string{"rm", "-f", rt.Config}, "", nil)
 		remaining, _ := execx.RunRoot(
-			[]string{"bash", "-c", fmt.Sprintf("ls %s/*.yaml 2>/dev/null | wc -l", paths.EtcDir)},
+			[]string{"bash", "-c", fmt.Sprintf("ls %s/*.yaml 2>/dev/null | wc -l", paths.RuntimeDir)},
 			"", &execx.Opt{Capture: true})
 		if strings.TrimSpace(remaining.Stdout) == "0" {
-			execx.RunRoot([]string{"rm", "-rf", paths.EtcDir}, "", nil)
+			execx.RunRoot([]string{"rm", "-rf", paths.RuntimeDir}, "", nil)
 		}
 	}
 	execx.Ok(i18n.T("服务已删除: ") + name + ".service")

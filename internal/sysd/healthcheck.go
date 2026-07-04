@@ -109,7 +109,7 @@ func systemctlQuiet(args ...string) bool {
 }
 
 func runtimeProxyAddr(service string) string {
-	raw, err := os.ReadFile(paths.EtcDir + "/" + service + ".yaml")
+	raw, err := os.ReadFile(paths.RuntimeDir + "/" + service + ".yaml")
 	if err != nil {
 		return ""
 	}

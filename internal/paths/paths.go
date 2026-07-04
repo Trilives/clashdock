@@ -13,8 +13,9 @@ import (
 // DefaultStateRoot 固定数据目录。
 const DefaultStateRoot = "/var/lib/clashdock"
 
-// EtcDir 系统侧运行时目录（与旧版一致，老部署无缝接管）。
-const EtcDir = "/etc/mihomo"
+// RuntimeDir 系统侧运行时目录：mihomo 服务实际读取的暂存副本
+// （内核 + 配置 + geo + UI），与状态目录解耦。
+const RuntimeDir = "/var/lib/clashdock-runtime"
 
 // Paths 全部运行期路径；由 Detect 依据环境变量解析一次后传递使用。
 type Paths struct {

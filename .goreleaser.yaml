@@ -66,8 +66,13 @@ checksum:
 # 为 GitHub prerelease：不会顶替"Latest release"，也不会被 /releases/latest
 # 接口返回——self-update 的稳定渠道天然只看得到正式版，预览渠道另走 /releases
 # 列表读取最新一项（见 internal/selfupdate）。
+#
+# extra_files 额外把运行时目录迁移脚本作为独立 release 资产上传（不进 tar.gz/deb），
+# 供从 /etc/mihomo 旧路径升级的用户下载单独运行，见 scripts/migrate-runtime-dir.sh。
 release:
   prerelease: auto
+  extra_files:
+    - glob: ./scripts/migrate-runtime-dir.sh
 
 changelog:
   sort: asc

@@ -132,7 +132,13 @@ clashdock
 运行期所有数据使用**固定工作目录 `/var/lib/clashdock`**（不随用户 / HOME 变化，
 root 运行的定时器与用户会话看到同一份数据；首次使用自动经 sudo 创建并交回属主）。
 环境变量 `CLASHDOCK_HOME` 可覆盖（主要用于测试）。运行时自包含暂存于
-`/etc/mihomo`，systemd 单元名沿用 `mihomo.service` 等。
+`/var/lib/clashdock-runtime`，systemd 单元名沿用 `mihomo.service` 等。
+
+> **⚠️ 破坏性变更（v0.2.0 起）**：运行时暂存目录从 `/etc/mihomo` 改名为
+> `/var/lib/clashdock-runtime`，且**不再兼容旧路径**。从 v0.1.x 升级的用户请先用旧版本
+> 执行「卸载所有服务」，或运行本次 release 附带的 `migrate-runtime-dir.sh`
+> 清理旧残留（`sudo bash migrate-runtime-dir.sh`），再用新版本重新初始化；
+> `/var/lib/clashdock` 里的订阅与自定义配置不受影响，会被自动复用。
 
 ## 目录结构
 
