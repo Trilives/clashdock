@@ -23,6 +23,9 @@ func init() {
 
 		"删除订阅 ": "Delete subscription ",
 
+		"检测到本地已有 %d 个订阅记录，是否直接使用现有订阅？": "Detected %d existing subscription(s) locally. Use the existing subscription directly?",
+		"已使用现有订阅：%s": "Using existing subscription: %s",
+
 		"使用本地内核与基础规则启动服务（系统包种子或既有资源）。":             "Starting the service with the local core and basic rules (system package seed or existing resources).",
 		"未找到本地内核或基础规则；非 .deb 安装/种子缺失时需要先下载才能启动服务。": "Local core or basic rules not found; for non-.deb installs or missing seeds, you need to download them first to start the service.",
 		"现在下载内核和基础规则以便启动服务？":                       "Download the core and basic rules now to start the service?",

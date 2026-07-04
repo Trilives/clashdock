@@ -139,15 +139,37 @@ func Init(p paths.Paths) error {
 	})
 }
 
-// initialConfigSource 添加首个订阅：与「配置变更 → 添加订阅」共用同一个三选一
-// 来源选择器（Clash / base64 / 本地 YAML 文件），本地文件此时也是作为一个真正
-// 的订阅条目创建，而不是走单独的「本地文件覆盖」直接改写路径。
+// initialConfigSource 添加首个订阅。若状态目录（/var/lib/clashdock）里已有
+// 订阅记录——典型场景是运行 migrate-runtime-dir.sh 后重新初始化，订阅数据本
+// 就没被清理过——询问是否直接复用现有订阅，跳过重新添加。否则与「配置变更 →
+// 添加订阅」共用同一个三选一来源选择器（Clash / base64 / 本地 YAML 文件），
+// 本地文件此时也是作为一个真正的订阅条目创建，而不是走单独的「本地文件覆盖」
+// 直接改写路径。
 func initialConfigSource(p paths.Paths, t *txn.Transaction) (bool, error) {
 	if err := t.BackupFile(p.ConfigFile); err != nil {
 		return false, err
 	}
 	if err := t.BackupFile(p.ActiveFile); err != nil {
 		return false, err
+	}
+
+	if existing := subscription.ListAll(p); len(existing) > 0 {
+		useLocal, err := tui.Confirm(
+			fmt.Sprintf(i18n.T("检测到本地已有 %d 个订阅记录，是否直接使用现有订阅？"), len(existing)), true)
+		if err != nil {
+			return false, err
+		}
+		if useLocal {
+			target := existing[0].Name
+			if active := subscription.GetActive(p); active != nil {
+				target = active.Name
+			}
+			if err := subscription.Switch(p, target); err != nil {
+				return false, err
+			}
+			execx.Ok(fmt.Sprintf(i18n.T("已使用现有订阅：%s"), target))
+			return true, nil
+		}
 	}
 
 	info, err := askNewSubscription()
