@@ -16,6 +16,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/Trilives/clashdock/internal/clashapi"
+	"github.com/Trilives/clashdock/internal/config"
 	"github.com/Trilives/clashdock/internal/configfile"
 	"github.com/Trilives/clashdock/internal/errs"
 	"github.com/Trilives/clashdock/internal/execx"
@@ -75,7 +76,7 @@ func groupsOf(cfg map[string]any) []map[string]any {
 	return out
 }
 
-func pickGroup(cfg map[string]any, forced string) (map[string]any, error) {
+func pickGroup(cfg map[string]any, forced string, extraKeywords []string) (map[string]any, error) {
 	var selects []map[string]any
 	for _, g := range groupsOf(cfg) {
 		if t, _ := g["type"].(string); t == "select" {
@@ -93,10 +94,15 @@ func pickGroup(cfg map[string]any, forced string) (map[string]any, error) {
 		}
 		return nil, fmt.Errorf(i18n.T("指定分组 '%s' 不存在"), forced)
 	}
+	keywords := make([]string, 0, len(mainGroupKeywords)+len(extraKeywords))
+	keywords = append(keywords, mainGroupKeywords...)
+	for _, kw := range extraKeywords {
+		keywords = append(keywords, strings.ToLower(kw))
+	}
 	for _, g := range selects {
 		low := strings.ToLower(fmt.Sprint(g["name"]))
-		for _, kw := range mainGroupKeywords {
-			if strings.Contains(low, kw) {
+		for _, kw := range keywords {
+			if kw != "" && strings.Contains(low, kw) {
 				return g, nil
 			}
 		}
@@ -252,12 +258,13 @@ type pickResult struct {
 
 // pickNode 两级菜单（地区/分组 → 节点）交互选择，不做任何写盘/切换——
 // 是「节点切换」与「固定节点」两个流程共用的选择器。
-func pickNode(configPath, group string) (*pickResult, error) {
+func pickNode(p paths.Paths, configPath, group string) (*pickResult, error) {
 	cfg, err := configfile.Read(configPath)
 	if err != nil {
 		return nil, err
 	}
-	target, err := pickGroup(cfg, group)
+	extraKeywords := config.StrList(config.Load(p), "main_group_keywords")
+	target, err := pickGroup(cfg, group, extraKeywords)
 	if err != nil {
 		return nil, err
 	}
@@ -339,7 +346,7 @@ func NodeSwitchLive(p paths.Paths, configPath, group string) error {
 	if configPath == "" {
 		configPath = p.ConfigFile
 	}
-	r, err := pickNode(configPath, group)
+	r, err := pickNode(p, configPath, group)
 	if err != nil {
 		return err
 	}
@@ -359,7 +366,7 @@ func NodeSelect(p paths.Paths, configPath, group string) error {
 	if configPath == "" {
 		configPath = p.ConfigFile
 	}
-	r, err := pickNode(configPath, group)
+	r, err := pickNode(p, configPath, group)
 	if err != nil {
 		return err
 	}

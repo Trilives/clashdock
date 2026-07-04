@@ -15,14 +15,14 @@ import (
 )
 
 func importConfigFlow(p paths.Paths) error {
-	path, err := tui.Ask(i18n.T("config.yaml 文件路径"), tui.AskOpts{AllowEmpty: false})
+	path, err := tui.Ask(i18n.T("YAML 配置文件路径"), tui.AskOpts{AllowEmpty: false})
 	if err != nil {
 		return err
 	}
 	if err := importConfigFromFile(p, path); err != nil {
 		return err
 	}
-	execx.Ok(i18n.T("已导入 config.yaml，并设为当前生效配置。"))
+	execx.Ok(i18n.T("已导入 YAML 配置文件，并设为当前生效配置。"))
 	if sysd.IsInstalled(sysd.DefaultName) {
 		ok, err := tui.Confirm(i18n.T("服务已安装，立即同步并重启以使用该配置？"), true)
 		if err != nil {
@@ -38,7 +38,7 @@ func importConfigFlow(p paths.Paths) error {
 func importConfigFromFile(p paths.Paths, sourcePath string) error {
 	sourcePath = strings.TrimSpace(sourcePath)
 	if sourcePath == "" {
-		return fmt.Errorf("%s", i18n.T("config.yaml 文件路径不能为空"))
+		return fmt.Errorf("%s", i18n.T("YAML 配置文件路径不能为空"))
 	}
 	if strings.HasPrefix(sourcePath, "~/") {
 		if home, err := os.UserHomeDir(); err == nil {
@@ -51,17 +51,17 @@ func importConfigFromFile(p paths.Paths, sourcePath string) error {
 	}
 	st, err := os.Stat(absSource)
 	if err != nil {
-		return fmt.Errorf(i18n.T("读取 config.yaml 文件: %w"), err)
+		return fmt.Errorf(i18n.T("读取 YAML 配置文件: %w"), err)
 	}
 	if st.IsDir() {
-		return fmt.Errorf(i18n.T("请输入 config.yaml 文件路径，而不是目录: %s"), absSource)
+		return fmt.Errorf(i18n.T("请输入 YAML 配置文件路径，而不是目录: %s"), absSource)
 	}
 	raw, err := os.ReadFile(absSource)
 	if err != nil {
 		return err
 	}
 	if _, err := configfile.Parse(raw); err != nil {
-		return fmt.Errorf(i18n.T("解析 config.yaml: %w"), err)
+		return fmt.Errorf(i18n.T("解析 YAML 配置文件: %w"), err)
 	}
 	if err := writeFileAtomic(p.ConfigFile, raw, 0o644); err != nil {
 		return err

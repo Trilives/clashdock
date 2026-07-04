@@ -17,12 +17,12 @@ func init() {
 		"Token 保存失败：":                       "Failed to save token: ",
 		"GitHub Token 已保存到 customize.json。": "GitHub token saved to customize.json.",
 
-		"config.yaml 文件路径":               "Path to config.yaml file",
-		"已导入 config.yaml，并设为当前生效配置。":     "config.yaml imported and set as the active config.",
-		"服务已安装，立即同步并重启以使用该配置？":           "The service is installed; sync and restart now to use this config?",
-		"config.yaml 文件路径不能为空":           "Path to config.yaml must not be empty",
-		"读取 config.yaml 文件: %w":          "Failed to read config.yaml file: %w",
-		"请输入 config.yaml 文件路径，而不是目录: %s": "Please provide a config.yaml file path, not a directory: %s",
-		"解析 config.yaml: %w":             "Failed to parse config.yaml: %w",
+		"YAML 配置文件路径":               "Path to the YAML config file",
+		"已导入 YAML 配置文件，并设为当前生效配置。":  "YAML config file imported and set as the active config.",
+		"服务已安装，立即同步并重启以使用该配置？":      "The service is installed; sync and restart now to use this config?",
+		"YAML 配置文件路径不能为空":           "Path to the YAML config file must not be empty",
+		"读取 YAML 配置文件: %w":          "Failed to read the YAML config file: %w",
+		"请输入 YAML 配置文件路径，而不是目录: %s": "Please provide a YAML config file path, not a directory: %s",
+		"解析 YAML 配置文件: %w":          "Failed to parse the YAML config file: %w",
 	})
 }

@@ -13,21 +13,21 @@ func init() {
 		"更新防火墙放行 7890 端口？": "Update firewall to allow port 7890?",
 		"撤销防火墙放行 7890":     "Revoke firewall rule for port 7890",
 
-		"已跳过订阅与服务注册，结束初始化。设置已保存，":                     "Skipped subscription and service registration; initialization ended. Settings have been saved; ",
-		"稍后可在主菜单「订阅 → 添加订阅 / 导入 config.yaml」补配并启动服务。": "you can later finish setup via the main menu 'Subscriptions → Add subscription / Import config.yaml' and start the service.",
+		"已跳过订阅与服务注册，结束初始化。设置已保存，":                   "Skipped subscription and service registration; initialization ended. Settings have been saved; ",
+		"稍后可在主菜单「订阅 → 添加订阅 / 导入 YAML 配置文件」补配并启动服务。": "you can later finish setup via the main menu 'Subscriptions → Add subscription / Import YAML config file' and start the service.",
 
 		"卸载服务 mihomo": "Uninstall mihomo service",
 
 		"配置已就绪，是否现在切换 / 固定节点？": "Config is ready. Switch / pin a node now?",
 		"初始化完成。": "Initialization complete.",
 
-		"配置来源":             "Config Source",
-		"添加订阅链接":           "Add subscription URL",
-		"导入本地 config.yaml": "Import local config.yaml",
-		"暂不配置":             "Skip for now",
-		"config.yaml 文件路径": "Path to config.yaml file",
-		"已导入 config.yaml。": "config.yaml imported.",
-		"删除订阅 ":            "Delete subscription ",
+		"配置来源":           "Config Source",
+		"添加订阅链接":         "Add subscription URL",
+		"导入本地 YAML 配置文件": "Import local YAML config file",
+		"暂不配置":           "Skip for now",
+		"YAML 配置文件路径":    "Path to the YAML config file",
+		"已导入 YAML 配置文件。": "YAML config file imported.",
+		"删除订阅 ":          "Delete subscription ",
 
 		"使用本地内核与基础规则启动服务（系统包种子或既有资源）。":             "Starting the service with the local core and basic rules (system package seed or existing resources).",
 		"未找到本地内核或基础规则；非 .deb 安装/种子缺失时需要先下载才能启动服务。": "Local core or basic rules not found; for non-.deb installs or missing seeds, you need to download them first to start the service.",

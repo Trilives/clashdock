@@ -53,6 +53,7 @@ var defaultsOrder = []string{
 	"tun_stack",
 	"tun_route_exclude_cidrs",
 	"tun_exclude_uids",
+	"main_group_keywords",
 	"lan_proxy",
 	"lan_panel",
 	"secret",
@@ -85,6 +86,7 @@ func Defaults() map[string]any {
 		"tun_stack":                 "gvisor",
 		"tun_route_exclude_cidrs":   append([]string(nil), DefaultTunRouteExclude...),
 		"tun_exclude_uids":          []int{},
+		"main_group_keywords":       []string{},
 		"lan_proxy":                 false,
 		"lan_panel":                 false,
 		"secret":                    "",
@@ -189,6 +191,7 @@ func marshalNoEscape(v any, prefix, indent string) ([]byte, error) {
 var ListFields = map[string]string{
 	"tun_route_exclude_cidrs":   "TUN 排除网段",
 	"tun_exclude_uids":          "TUN 排除 UID",
+	"main_group_keywords":       "主选择组识别关键词（追加，用于定位节点切换的分组）",
 	"ai_domain_suffixes":        "AI 域名后缀（叠加）",
 	"streaming_domain_suffixes": "流媒体域名后缀（叠加）",
 	"direct_domain_suffixes":    "直连域名后缀（叠加）",
@@ -234,6 +237,7 @@ var DeploymentFields = []string{
 	"bootstrap_dns_port",
 	"tun_route_exclude_cidrs",
 	"tun_exclude_uids",
+	"main_group_keywords",
 	"base64_local_fallback",
 	"enable_log",
 }

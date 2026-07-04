@@ -51,7 +51,9 @@ func groupsOf(config map[string]any) []map[string]any {
 	return out
 }
 
-func mainGroupName(config map[string]any) string {
+// mainGroupName 定位主选择组：先按内置 + customize.main_group_keywords 追加的
+// 关键词匹配，未命中则退化为成员数最多的 select 组。
+func mainGroupName(config, customize map[string]any) string {
 	var selects []map[string]any
 	for _, g := range groupsOf(config) {
 		if s, _ := g["type"].(string); s == "select" {
@@ -61,9 +63,15 @@ func mainGroupName(config map[string]any) string {
 	if len(selects) == 0 {
 		return ""
 	}
+	keywords := append([]string(nil), mainGroupKeywords...)
+	for _, kw := range strListOf(customize["main_group_keywords"]) {
+		if kw != "" {
+			keywords = append(keywords, strings.ToLower(kw))
+		}
+	}
 	for _, g := range selects {
 		lower := strings.ToLower(anyToStr(g["name"]))
-		for _, kw := range mainGroupKeywords {
+		for _, kw := range keywords {
 			if strings.Contains(lower, kw) {
 				return anyToStr(g["name"])
 			}
@@ -177,7 +185,7 @@ func ApplyRegionGroups(config, customize map[string]any) (map[string]any, map[st
 			newGroups = append(newGroups, b.Group)
 		}
 	}
-	main := mainGroupName(config)
+	main := mainGroupName(config, customize)
 	if main != "" {
 		for _, g := range groups {
 			if anyToStr(g["name"]) == main {

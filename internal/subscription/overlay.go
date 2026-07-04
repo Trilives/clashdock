@@ -17,7 +17,7 @@ import (
 
 // ApplyOverlay 在已 patch 的运行时配置上叠加自定义分流。返回 (config, info)。
 func ApplyOverlay(config, customize map[string]any) (map[string]any, map[string]any) {
-	main := mainGroupName(config)
+	main := mainGroupName(config, customize)
 	if main == "" {
 		// 没有可引用的主选择组，放弃叠加（保持订阅原状）
 		return config, map[string]any{"overlay": false, "overlay_reason": i18n.T("未找到主选择组")}
