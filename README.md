@@ -25,7 +25,7 @@
 从 [Releases](https://github.com/Trilives/clashdock/releases) 下载对应架构的包：
 
 ```bash
-sudo dpkg -i clashdock_*_linux_amd64.deb   # 或 arm64
+sudo dpkg -i clashdock_*_linux_amd64.deb   # 或 arm64 / armv7
 clashdock
 ```
 
@@ -37,7 +37,7 @@ clashdock
 ### 方式二：tar.gz（仅二进制）
 
 ```bash
-tar -xzf clashdock_*_linux_amd64.tar.gz
+tar -xzf clashdock_*_linux_amd64.tar.gz    # 或 arm64 / armv7
 ./clashdock    # 内核 / 规则 / UI 由程序内『下载』步骤在线获取
 ```
 

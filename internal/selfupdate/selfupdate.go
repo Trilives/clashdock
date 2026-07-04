@@ -87,7 +87,18 @@ func fetchRelease(f *fetchx.Fetcher, channel Channel) (ghRelease, error) {
 }
 
 func assetName(version string) string {
-	return fmt.Sprintf("clashdock_%s_linux_%s.tar.gz", version, runtime.GOARCH)
+	return fmt.Sprintf("clashdock_%s_linux_%s.tar.gz", version, releaseArch())
+}
+
+func releaseArch() string {
+	return releaseArchFor(runtime.GOARCH)
+}
+
+func releaseArchFor(goarch string) string {
+	if goarch == "arm" {
+		return "armv7"
+	}
+	return goarch
 }
 
 func findAssetURL(rel ghRelease, name string) string {

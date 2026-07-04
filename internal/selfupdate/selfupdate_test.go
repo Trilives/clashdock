@@ -147,6 +147,19 @@ func TestAssetName(t *testing.T) {
 	}
 }
 
+func TestReleaseArchFor(t *testing.T) {
+	cases := map[string]string{
+		"amd64": "amd64",
+		"arm64": "arm64",
+		"arm":   "armv7",
+	}
+	for goarch, want := range cases {
+		if got := releaseArchFor(goarch); got != want {
+			t.Fatalf("releaseArchFor(%q) = %q, want %q", goarch, got, want)
+		}
+	}
+}
+
 func fakeExecutable(t *testing.T, path string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

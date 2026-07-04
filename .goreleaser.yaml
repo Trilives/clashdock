@@ -16,6 +16,9 @@ builds:
     goarch:
       - amd64
       - arm64
+      - arm
+    goarm:
+      - "7"
     flags:
       - -trimpath
     ldflags:
@@ -24,7 +27,7 @@ builds:
 archives:
   - id: default
     formats: [tar.gz]
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{- if eq .Arch "arm" -}}armv{{ .Arm }}{{- else -}}{{ .Arch }}{{- end -}}'
     files:
       - LICENSE
       - README.md
@@ -44,7 +47,7 @@ nfpms:
     section: net
     contents:
       # mihomo 内核（MIT，见 copyright / LICENSE.mihomo）
-      - src: packaging/deps/{{ .Arch }}/mihomo
+      - src: 'packaging/deps/{{- if eq .Arch "arm" -}}armv{{ .Arm }}{{- else -}}{{ .Arch }}{{- end -}}/mihomo'
         dst: /usr/libexec/clashdock/mihomo
         file_info:
           mode: 0755

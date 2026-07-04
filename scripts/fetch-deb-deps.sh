@@ -9,7 +9,7 @@
 # 不适合冻结进安装包；运行时由用户在线更新则不受影响）。
 set -euo pipefail
 
-ARCHES=(${DEB_ARCHES:-amd64 arm64})
+ARCHES=(${DEB_ARCHES:-amd64 arm64 armv7})
 DEPS=packaging/deps
 mkdir -p "${DEPS}/rules"
 
@@ -25,8 +25,12 @@ for arch in "${ARCHES[@]}"; do
     echo "==> ${arch}: 已存在，跳过"
     continue
   fi
+  asset_arch="${arch}"
+  if [[ "${arch}" == "arm" ]]; then
+    asset_arch="armv7"
+  fi
   echo "==> 下载 mihomo ${TAG} (${arch})"
-  fetch "https://github.com/MetaCubeX/mihomo/releases/download/${TAG}/mihomo-linux-${arch}-${TAG}.gz" \
+  fetch "https://github.com/MetaCubeX/mihomo/releases/download/${TAG}/mihomo-linux-${asset_arch}-${TAG}.gz" \
     "${DEPS}/${arch}/mihomo.gz"
   gunzip -f "${DEPS}/${arch}/mihomo.gz"
   chmod 0755 "${DEPS}/${arch}/mihomo"
