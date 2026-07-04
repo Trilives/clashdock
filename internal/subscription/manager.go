@@ -38,7 +38,7 @@ type Subscription struct {
 	LastNodeCount int    `json:"last_node_count"`
 }
 
-var rawExt = map[string]string{"clash": "yaml", "base64": "txt"}
+var rawExt = map[string]string{"clash": "yaml", "base64": "txt", "local": "yaml"}
 
 // now 对应 Python isoformat(timespec="seconds")：2026-07-03T12:34:56+00:00。
 func now() string {
@@ -182,17 +182,30 @@ func Rebuild(p paths.Paths, name string) (*Subscription, error) {
 	return sub, nil
 }
 
-// build 拉取 → 写 raw → 生成配置写盘。
+// build 拉取（或读本地文件）→ 写 raw → 生成配置写盘。
 func build(p paths.Paths, sub *Subscription) error {
 	cfg := config.Load(p)
-	proxy := config.Str(cfg, "download_proxy")
-	execx.Info(fmt.Sprintf(i18n.T("拉取订阅「%s」…"), sub.Name))
-	raw, err := Fetch(sub.URL, sub.SourceType, proxy)
-	if err != nil {
-		return err
-	}
-	if msg := WarnIfMismatch(sub.SourceType, raw); msg != "" {
-		execx.Warn(msg)
+	var raw []byte
+	var err error
+	if sub.SourceType == "local" {
+		// URL 字段复用为本地文件绝对路径（由 flows.resolveLocalPath 校验过）；
+		// 不联网，也不做 WarnIfMismatch——那是给"URL 拉取内容 vs 声明类型"的
+		// 探测，本地文件是用户直接指定的，没有这个歧义。
+		execx.Info(fmt.Sprintf(i18n.T("读取本地文件生成订阅「%s」…"), sub.Name))
+		raw, err = os.ReadFile(sub.URL)
+		if err != nil {
+			return fmt.Errorf(i18n.T("读取本地文件: %w"), err)
+		}
+	} else {
+		proxy := config.Str(cfg, "download_proxy")
+		execx.Info(fmt.Sprintf(i18n.T("拉取订阅「%s」…"), sub.Name))
+		raw, err = Fetch(sub.URL, sub.SourceType, proxy)
+		if err != nil {
+			return err
+		}
+		if msg := WarnIfMismatch(sub.SourceType, raw); msg != "" {
+			execx.Warn(msg)
+		}
 	}
 	if err := os.MkdirAll(p.SubscriptionDir(sub.Name), 0o755); err != nil {
 		return err

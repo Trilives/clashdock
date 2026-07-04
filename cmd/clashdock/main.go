@@ -137,7 +137,7 @@ func interactive(p paths.Paths) int {
 			i18n.T("工具"),
 			switchLabel(),
 			i18n.T("语言 / Language"),
-			i18n.T("卸载所有服务"),
+			i18n.T("卸载"),
 		}
 		i, err := tui.Select(i18n.T("mihomo 部署系统"), options, tui.SelectOpts{BackLabel: i18n.T("退出"), Initial: idx})
 		if err != nil {

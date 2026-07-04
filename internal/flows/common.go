@@ -20,13 +20,14 @@ import (
 	"github.com/Trilives/clashdock/internal/tui"
 )
 
-// 菜单顺序即推荐优先级：Clash / mihomo 订阅优先。
+// 菜单顺序即推荐优先级：Clash / mihomo 订阅优先；本地文件排最后（少数场景）。
 var sourceOptions = []string{
 	"Clash / mihomo 订阅（★推荐：直用机场配置，凭证不外泄）",
 	"通用 base64 订阅（经 subconverter 云端解析为 Clash）",
+	"本地 YAML 文件（直接导入为订阅，不联网拉取）",
 }
 
-var sourceTypes = []string{"clash", "base64"}
+var sourceTypes = []string{"clash", "base64", "local"}
 
 // stripScheme 去掉 http:// / https:// 前缀，便于以 IP:端口 形式回显默认值。
 func stripScheme(proxy string) string {
@@ -71,19 +72,30 @@ func askNewSubscription() (*newSub, error) {
 	if err != nil {
 		return nil, err
 	}
-	subURL, err := tui.Ask(i18n.T("订阅链接，留空=暂不配置"), tui.AskOpts{AllowEmpty: true})
+	sourceType := sourceTypes[idx]
+	prompt := i18n.T("订阅链接，留空=暂不配置")
+	if sourceType == "local" {
+		prompt = i18n.T("本地 YAML 文件路径，留空=暂不配置")
+	}
+	subURL, err := tui.Ask(prompt, tui.AskOpts{AllowEmpty: true})
 	if err != nil {
 		return nil, err
 	}
 	if subURL == "" {
 		return nil, nil
 	}
+	if sourceType == "local" {
+		subURL, err = resolveLocalPath(subURL)
+		if err != nil {
+			return nil, err
+		}
+	}
 	// 默认直用机场自带分流；叠加自定义分流为可选高级项
 	overlay, err := tui.Confirm(i18n.T("是否叠加自定义分流（AI / 流媒体 / 地区组）？默认否＝直接沿用机场订阅自带的策略组与规则（推荐）。"), false)
 	if err != nil {
 		return nil, err
 	}
-	return &newSub{Name: name, URL: subURL, SourceType: sourceTypes[idx], ApplyOverlay: overlay}, nil
+	return &newSub{Name: name, URL: subURL, SourceType: sourceType, ApplyOverlay: overlay}, nil
 }
 
 // EnsureStateRoot 确保固定数据目录存在且当前用户可写：能直接建则直接建，

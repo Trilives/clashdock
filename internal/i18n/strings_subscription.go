@@ -28,6 +28,8 @@ func init() {
 		"本地缺少订阅原文，改为联网刷新。":                  "Local subscription source is missing, refreshing from the network instead.",
 		"用本地原文重新生成「%s」（不重新拉取）…":             "Regenerating \"%s\" from the local source (not re-fetching)…",
 		"拉取订阅「%s」…":                         "Fetching subscription \"%s\"…",
+		"读取本地文件生成订阅「%s」…":                   "Reading local file to build subscription \"%s\"…",
+		"读取本地文件: %w":                        "Failed to read the local file: %w",
 		"经 subconverter 将 base64 转为 Clash…": "Converting base64 to Clash via subconverter…",
 		"生成 mihomo 配置（直用订阅 + 最小改写）…":        "Generating mihomo config (using the subscription directly, minimal rewrite)…",
 		"叠加自定义分流（overlay）…":                 "Applying custom routing overlay…",

@@ -10,7 +10,7 @@ func init() {
 		"配置变更":          "Config Changes",
 		"运行时管理":         "Runtime Management",
 		"工具":            "Tools",
-		"卸载所有服务":        "Uninstall All Services",
+		"卸载":            "Uninstall",
 		"语言 / Language": "Language / 语言",
 
 		"暂停 / 启动服务": "Pause / Start Service",

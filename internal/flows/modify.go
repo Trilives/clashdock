@@ -149,7 +149,7 @@ func subscriptionsMenu(p paths.Paths) error {
 		}
 		// 顺序按常用程度排列：切换/刷新已有订阅最常用，新增/导入次之，改名/删除最少见。
 		a, err := tui.Select(i18n.T("订阅操作"),
-			[]string{i18n.T("切换生效订阅"), i18n.T("刷新订阅"), i18n.T("添加订阅"), i18n.T("导入本地 YAML 配置文件"), i18n.T("重命名"), i18n.T("删除订阅")},
+			[]string{i18n.T("切换生效订阅"), i18n.T("刷新订阅"), i18n.T("添加订阅"), i18n.T("本地文件覆盖"), i18n.T("重命名"), i18n.T("删除订阅")},
 			tui.SelectOpts{BackLabel: i18n.T("返回上层"), Initial: act})
 		if err != nil {
 			return nil // 返回上层菜单（改动仍在会话缓冲中）

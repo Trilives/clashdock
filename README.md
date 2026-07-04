@@ -75,7 +75,7 @@ clashdock
 │    ③ Tools                              │
 │    ④ Pause Service ⏸                    │
 │    ⑤ Language / 语言                    │
-│    ⑥ Uninstall All Services             │
+│    ⑥ Uninstall                          │
 │                                          │
 │  ↑/↓ select   ⏎ confirm   esc exit   ^R exit │
 └──────────────────────────────────────────┘
@@ -115,7 +115,7 @@ clashdock
 
 | 功能 | 说明 |
 |---|---|
-| 订阅管理 | 多订阅增/删/改名/切换/刷新；可导入本地 YAML 配置文件（任意文件名，无需叫 `config.yaml`）；clash 与 base64（经 subconverter）两种来源 |
+| 订阅管理 | 多订阅增/删/改名/切换/刷新；添加订阅支持 clash / base64（经 subconverter）/ 本地 YAML 文件三种来源；另有「本地文件覆盖」直接改写当前生效配置（不建订阅条目） |
 | 定制层 | 拆成「部署设置」与「自定义分流叠加」两个分组，共 26 项：TUN / 局域网代理 / LAN 面板 / 密钥（脱敏展示）/ 下载代理 / GitHub 镜像与 Token / 强制直连端口（默认 22，规避出口封 SSH）/ 主选择组识别关键词（追加）等 |
 | 节点切换 | 运行时管理提供「节点切换」与「固定节点」两个独立操作：前者仅 Clash API 热切换不写盘，后者写入配置并可选重启；均支持两级菜单（地区→节点）+ 并发实测延迟 |
 | 地区聚合组 | 可选生成 SG-Auto / HK-Auto url-test 组，插入主选择组直接选用 |

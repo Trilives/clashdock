@@ -35,10 +35,12 @@ func importConfigFlow(p paths.Paths) error {
 	return nil
 }
 
-func importConfigFromFile(p paths.Paths, sourcePath string) error {
+// resolveLocalPath 展开 ~/ 前缀、转绝对路径、校验存在且不是目录；供「本地文件
+// 覆盖」与「添加订阅（本地 YAML 文件）」两条路径共用。
+func resolveLocalPath(sourcePath string) (string, error) {
 	sourcePath = strings.TrimSpace(sourcePath)
 	if sourcePath == "" {
-		return fmt.Errorf("%s", i18n.T("YAML 配置文件路径不能为空"))
+		return "", fmt.Errorf("%s", i18n.T("本地文件路径不能为空"))
 	}
 	if strings.HasPrefix(sourcePath, "~/") {
 		if home, err := os.UserHomeDir(); err == nil {
@@ -47,14 +49,22 @@ func importConfigFromFile(p paths.Paths, sourcePath string) error {
 	}
 	absSource, err := filepath.Abs(sourcePath)
 	if err != nil {
-		return err
+		return "", err
 	}
 	st, err := os.Stat(absSource)
 	if err != nil {
-		return fmt.Errorf(i18n.T("读取 YAML 配置文件: %w"), err)
+		return "", fmt.Errorf(i18n.T("读取本地文件: %w"), err)
 	}
 	if st.IsDir() {
-		return fmt.Errorf(i18n.T("请输入 YAML 配置文件路径，而不是目录: %s"), absSource)
+		return "", fmt.Errorf(i18n.T("请输入文件路径，而不是目录: %s"), absSource)
+	}
+	return absSource, nil
+}
+
+func importConfigFromFile(p paths.Paths, sourcePath string) error {
+	absSource, err := resolveLocalPath(sourcePath)
+	if err != nil {
+		return err
 	}
 	raw, err := os.ReadFile(absSource)
 	if err != nil {

@@ -26,7 +26,7 @@ func init() {
 		"  ← 生效":          "  ← active",
 		"订阅操作":            "Subscription Actions",
 		"添加订阅":            "Add subscription",
-		"导入本地 YAML 配置文件":  "Import local YAML config file",
+		"本地文件覆盖":          "Overwrite from local file",
 		"切换生效订阅":          "Switch active subscription",
 		"刷新订阅":            "Refresh subscription",
 		"重命名":             "Rename",

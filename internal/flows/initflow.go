@@ -91,14 +91,14 @@ func Init(p paths.Paths) error {
 			}
 		}
 
-		// 2. 添加首个订阅，或直接导入本地 YAML 配置文件。
+		// 2. 添加首个订阅（Clash / base64 / 本地 YAML 文件三选一）。
 		ready, err := initialConfigSource(p, t)
 		if err != nil {
 			return err
 		}
 		if !ready {
 			execx.Info(i18n.T("已跳过订阅与服务注册，结束初始化。设置已保存，") +
-				i18n.T("稍后可在主菜单「订阅 → 添加订阅 / 导入 YAML 配置文件」补配并启动服务。"))
+				i18n.T("稍后可在主菜单「订阅 → 添加订阅」补配并启动服务。"))
 			return nil // 正常返回 → 事务提交，保留步骤 1-2 成果
 		}
 
@@ -139,27 +139,15 @@ func Init(p paths.Paths) error {
 	})
 }
 
+// initialConfigSource 添加首个订阅：与「配置变更 → 添加订阅」共用同一个三选一
+// 来源选择器（Clash / base64 / 本地 YAML 文件），本地文件此时也是作为一个真正
+// 的订阅条目创建，而不是走单独的「本地文件覆盖」直接改写路径。
 func initialConfigSource(p paths.Paths, t *txn.Transaction) (bool, error) {
-	source, err := tui.Select(i18n.T("配置来源"), []string{i18n.T("添加订阅链接"), i18n.T("导入本地 YAML 配置文件")}, tui.SelectOpts{BackLabel: i18n.T("暂不配置")})
-	if err != nil {
-		return false, nil
-	}
 	if err := t.BackupFile(p.ConfigFile); err != nil {
 		return false, err
 	}
 	if err := t.BackupFile(p.ActiveFile); err != nil {
 		return false, err
-	}
-	if source == 1 {
-		path, err := tui.Ask(i18n.T("YAML 配置文件路径"), tui.AskOpts{AllowEmpty: false})
-		if err != nil {
-			return false, err
-		}
-		if err := importConfigFromFile(p, path); err != nil {
-			return false, err
-		}
-		execx.Ok(i18n.T("已导入 YAML 配置文件。"))
-		return true, nil
 	}
 
 	info, err := askNewSubscription()
