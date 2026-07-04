@@ -51,10 +51,11 @@ func normalizeProxy(raw string) string {
 }
 
 type newSub struct {
-	Name         string
-	URL          string
-	SourceType   string
-	ApplyOverlay bool
+	Name          string
+	URL           string
+	SourceType    string
+	ApplyOverlay  bool
+	FetchViaProxy bool
 }
 
 // askNewSubscription 交互收集新订阅信息；订阅链接留空 → (nil, nil) 表示「暂不配置」。
@@ -90,12 +91,20 @@ func askNewSubscription() (*newSub, error) {
 			return nil, err
 		}
 	}
+	fetchViaProxy := false
+	if sourceType != "local" {
+		use, err := tui.Confirm(i18n.T("使用下载代理拉取此订阅？默认否＝直连"), false)
+		if err != nil {
+			return nil, err
+		}
+		fetchViaProxy = use
+	}
 	// 默认直用机场自带分流；叠加自定义分流为可选高级项
 	overlay, err := tui.Confirm(i18n.T("是否叠加自定义分流（AI / 流媒体 / 地区组）？默认否＝直接沿用机场订阅自带的策略组与规则（推荐）。"), false)
 	if err != nil {
 		return nil, err
 	}
-	return &newSub{Name: name, URL: subURL, SourceType: sourceType, ApplyOverlay: overlay}, nil
+	return &newSub{Name: name, URL: subURL, SourceType: sourceType, ApplyOverlay: overlay, FetchViaProxy: fetchViaProxy}, nil
 }
 
 // EnsureStateRoot 确保固定数据目录存在且当前用户可写：能直接建则直接建，

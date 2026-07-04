@@ -10,6 +10,7 @@ func init() {
 		"选择订阅来源类型":                  "Select subscription source type",
 		"订阅链接，留空=暂不配置":              "Subscription URL, empty = skip for now",
 		"本地 YAML 文件路径，留空=暂不配置":      "Local YAML file path, empty = skip for now",
+		"使用下载代理拉取此订阅？默认否＝直连":        "Use the download proxy to fetch this subscription? Default no = direct connection",
 		"是否叠加自定义分流（AI / 流媒体 / 地区组）？默认否＝直接沿用机场订阅自带的策略组与规则（推荐）。": "Overlay custom routing (AI / streaming / region groups)? Default no = keep the subscription's own proxy groups and rules as-is (recommended).",
 
 		"创建数据目录 ": "Create data directory ",

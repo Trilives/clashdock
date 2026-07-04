@@ -62,3 +62,14 @@ func TestMetaRoundtripPythonCompatible(t *testing.T) {
 		t.Errorf("ListAll = %+v", subs)
 	}
 }
+
+func TestFetchProxyForChoiceDefaultsToDirect(t *testing.T) {
+	cfg := map[string]any{"download_proxy": "http://127.0.0.1:7890"}
+
+	if got := fetchProxyForChoice(cfg, false); got != "" {
+		t.Fatalf("default no-proxy choice should fetch directly, got %q", got)
+	}
+	if got := fetchProxyForChoice(cfg, true); got != "http://127.0.0.1:7890" {
+		t.Fatalf("opt-in proxy choice should use configured proxy, got %q", got)
+	}
+}

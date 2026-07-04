@@ -119,7 +119,7 @@ func GetActive(p paths.Paths) *Subscription {
 // --------------------------------------------------------------------------
 
 // Add 新增订阅（拉取 → 生成配置）；setActive 时切换生效。
-func Add(p paths.Paths, name, subURL, sourceType string, applyOverlay, setActive bool) (*Subscription, error) {
+func Add(p paths.Paths, name, subURL, sourceType string, applyOverlay, setActive, fetchViaProxy bool) (*Subscription, error) {
 	name = Slug(name)
 	if _, err := os.Stat(metaFile(p, name)); err == nil {
 		return nil, fmt.Errorf(i18n.T("订阅「%s」已存在，请改名或先删除"), name)
@@ -128,7 +128,7 @@ func Add(p paths.Paths, name, subURL, sourceType string, applyOverlay, setActive
 		Name: name, URL: subURL, SourceType: sourceType, ApplyOverlay: applyOverlay,
 		CreatedAt: now(), UpdatedAt: now(),
 	}
-	if err := build(p, sub); err != nil {
+	if err := buildWithFetchProxy(p, sub, fetchProxyForChoice(config.Load(p), fetchViaProxy)); err != nil {
 		return nil, err
 	}
 	if setActive {
@@ -171,7 +171,8 @@ func Rebuild(p paths.Paths, name string) (*Subscription, error) {
 	}
 	sub.UpdatedAt = now()
 	execx.Info(fmt.Sprintf(i18n.T("用本地原文重新生成「%s」（不重新拉取）…"), sub.Name))
-	if err := convertAndWrite(p, sub, raw, config.Load(p)); err != nil {
+	cfg := config.Load(p)
+	if err := convertAndWrite(p, sub, raw, cfg); err != nil {
 		return nil, err
 	}
 	if active := GetActive(p); active != nil && active.Name == name {
@@ -185,6 +186,11 @@ func Rebuild(p paths.Paths, name string) (*Subscription, error) {
 // build 拉取（或读本地文件）→ 写 raw → 生成配置写盘。
 func build(p paths.Paths, sub *Subscription) error {
 	cfg := config.Load(p)
+	return buildWithFetchProxy(p, sub, config.Str(cfg, "download_proxy"))
+}
+
+func buildWithFetchProxy(p paths.Paths, sub *Subscription, fetchProxy string) error {
+	cfg := config.Load(p)
 	var raw []byte
 	var err error
 	if sub.SourceType == "local" {
@@ -197,9 +203,8 @@ func build(p paths.Paths, sub *Subscription) error {
 			return fmt.Errorf(i18n.T("读取本地文件: %w"), err)
 		}
 	} else {
-		proxy := config.Str(cfg, "download_proxy")
 		execx.Info(fmt.Sprintf(i18n.T("拉取订阅「%s」…"), sub.Name))
-		raw, err = Fetch(sub.URL, sub.SourceType, proxy)
+		raw, err = Fetch(sub.URL, sub.SourceType, fetchProxy)
 		if err != nil {
 			return err
 		}
@@ -213,7 +218,23 @@ func build(p paths.Paths, sub *Subscription) error {
 	if err := os.WriteFile(rawFile(p, sub), raw, 0o644); err != nil {
 		return err
 	}
-	return convertAndWrite(p, sub, raw, cfg)
+	return convertAndWrite(p, sub, raw, cfgWithDownloadProxy(cfg, fetchProxy))
+}
+
+func fetchProxyForChoice(cfg map[string]any, fetchViaProxy bool) string {
+	if !fetchViaProxy {
+		return ""
+	}
+	return config.Str(cfg, "download_proxy")
+}
+
+func cfgWithDownloadProxy(cfg map[string]any, proxy string) map[string]any {
+	out := make(map[string]any, len(cfg)+1)
+	for k, v := range cfg {
+		out[k] = v
+	}
+	out["download_proxy"] = proxy
+	return out
 }
 
 // convertAndWrite 把订阅原文生成 mihomo 配置（直用订阅 + 最小改写），写 config.yaml/meta。
