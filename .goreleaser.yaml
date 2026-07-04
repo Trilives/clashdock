@@ -62,6 +62,13 @@ nfpms:
 checksum:
   name_template: checksums.txt
 
+# prerelease: auto 让打了 semver 预发布后缀的 tag（如 v0.1.7-beta.1）自动标记
+# 为 GitHub prerelease：不会顶替"Latest release"，也不会被 /releases/latest
+# 接口返回——self-update 的稳定渠道天然只看得到正式版，预览渠道另走 /releases
+# 列表读取最新一项（见 internal/selfupdate）。
+release:
+  prerelease: auto
+
 changelog:
   sort: asc
   filters:

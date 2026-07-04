@@ -38,11 +38,6 @@ var builtinNodes = map[string]bool{
 	"PASS": true, "COMPATIBLE": true, "GLOBAL": true,
 }
 
-var mainGroupKeywords = []string{
-	"proxy", "节点选择", "节点", "选择", "select", "🚀", "手动",
-	"代理", "代理选择", "手动选择", "选择节点",
-}
-
 var infoKeywords = []string{"Traffic:", "Expire:", "剩余流量", "过期时间", "剩余", "套餐", "官网", "订阅", "重置"}
 
 type region struct {
@@ -76,7 +71,10 @@ func groupsOf(cfg map[string]any) []map[string]any {
 	return out
 }
 
-func pickGroup(cfg map[string]any, forced string, extraKeywords []string) (map[string]any, error) {
+// pickGroup 定位目标 select 分组：forced 指定时精确匹配；否则按 keywords 顺序
+// 逐个尝试，第一个命中分组名的关键词即采用该分组（先到先得，顺序即优先级）；
+// 全都不命中则退化为成员数最多的 select 组。
+func pickGroup(cfg map[string]any, forced string, keywords []string) (map[string]any, error) {
 	var selects []map[string]any
 	for _, g := range groupsOf(cfg) {
 		if t, _ := g["type"].(string); t == "select" {
@@ -94,15 +92,15 @@ func pickGroup(cfg map[string]any, forced string, extraKeywords []string) (map[s
 		}
 		return nil, fmt.Errorf(i18n.T("指定分组 '%s' 不存在"), forced)
 	}
-	keywords := make([]string, 0, len(mainGroupKeywords)+len(extraKeywords))
-	keywords = append(keywords, mainGroupKeywords...)
-	for _, kw := range extraKeywords {
-		keywords = append(keywords, strings.ToLower(kw))
-	}
-	for _, g := range selects {
-		low := strings.ToLower(fmt.Sprint(g["name"]))
-		for _, kw := range keywords {
-			if kw != "" && strings.Contains(low, kw) {
+	// 逐关键词扫描（而非逐分组扫描）：关键词列表顺序即优先级，用户新增的关键词
+	// 插在最前，能在内置关键词之前抢先命中目标分组。
+	for _, kw := range keywords {
+		kw = strings.ToLower(kw)
+		if kw == "" {
+			continue
+		}
+		for _, g := range selects {
+			if strings.Contains(strings.ToLower(fmt.Sprint(g["name"])), kw) {
 				return g, nil
 			}
 		}
@@ -263,8 +261,8 @@ func pickNode(p paths.Paths, configPath, group string) (*pickResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	extraKeywords := config.StrList(config.Load(p), "main_group_keywords")
-	target, err := pickGroup(cfg, group, extraKeywords)
+	keywords := config.StrList(config.Load(p), "main_group_keywords")
+	target, err := pickGroup(cfg, group, keywords)
 	if err != nil {
 		return nil, err
 	}

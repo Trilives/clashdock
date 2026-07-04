@@ -199,11 +199,11 @@ func FileLocationsTool(p paths.Paths) error {
 	return nil
 }
 
-// ToolsMenu 「工具」菜单：网络测试 / 主要文件位置，未来可继续添加其它排障工具。
+// ToolsMenu 「工具」菜单：网络测试 / 主要文件位置 / 信息，未来可继续添加其它排障工具。
 func ToolsMenu(p paths.Paths) error {
 	idx := 0
 	for {
-		options := []string{i18n.T("网络测试"), i18n.T("主要文件位置")}
+		options := []string{i18n.T("网络测试"), i18n.T("主要文件位置"), i18n.T("信息")}
 		i, err := tui.Select(i18n.T("工具"), options, tui.SelectOpts{BackLabel: i18n.T("返回上层"), Initial: idx})
 		if err != nil {
 			return nil
@@ -215,6 +215,8 @@ func ToolsMenu(p paths.Paths) error {
 			terr = Nettest()
 		case 1:
 			terr = FileLocationsTool(p)
+		case 2:
+			terr = InfoTool(p)
 		}
 		if terr != nil {
 			execx.Error(terr.Error())

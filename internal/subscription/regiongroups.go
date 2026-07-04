@@ -14,12 +14,6 @@ import (
 	"strings"
 )
 
-// 主选择组定位关键词（与 node_select 一致）。
-var mainGroupKeywords = []string{
-	"proxy", "节点选择", "节点", "选择", "select", "🚀", "手动",
-	"代理", "代理选择", "手动选择", "选择节点",
-}
-
 var builtinNames = map[string]bool{
 	"DIRECT": true, "REJECT": true, "REJECT-DROP": true,
 	"PASS": true, "COMPATIBLE": true, "GLOBAL": true,
@@ -51,8 +45,9 @@ func groupsOf(config map[string]any) []map[string]any {
 	return out
 }
 
-// mainGroupName 定位主选择组：先按内置 + customize.main_group_keywords 追加的
-// 关键词匹配，未命中则退化为成员数最多的 select 组。
+// mainGroupName 定位主选择组：按 customize.main_group_keywords 顺序逐个尝试
+// （列表顺序即优先级，第一个命中即用；与 flows.pickGroup 的定位逻辑一致），
+// 全都不命中则退化为成员数最多的 select 组。
 func mainGroupName(config, customize map[string]any) string {
 	var selects []map[string]any
 	for _, g := range groupsOf(config) {
@@ -63,16 +58,13 @@ func mainGroupName(config, customize map[string]any) string {
 	if len(selects) == 0 {
 		return ""
 	}
-	keywords := append([]string(nil), mainGroupKeywords...)
 	for _, kw := range strListOf(customize["main_group_keywords"]) {
-		if kw != "" {
-			keywords = append(keywords, strings.ToLower(kw))
+		kw = strings.ToLower(kw)
+		if kw == "" {
+			continue
 		}
-	}
-	for _, g := range selects {
-		lower := strings.ToLower(anyToStr(g["name"]))
-		for _, kw := range keywords {
-			if strings.Contains(lower, kw) {
+		for _, g := range selects {
+			if strings.Contains(strings.ToLower(anyToStr(g["name"])), kw) {
 				return anyToStr(g["name"])
 			}
 		}

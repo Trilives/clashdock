@@ -13,7 +13,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/Trilives/clashdock/internal/config"
 	"github.com/Trilives/clashdock/internal/errs"
@@ -39,9 +38,8 @@ var modifyConfigOptions = []string{
 var modifyRuntimeOptions = []string{
 	"节点切换",
 	"固定节点",
-	"服务设置（重启 / 状态）",
-	"更新 内核 / UI / geo 数据",
-	"更新 clashdock 自身",
+	"服务设置",
+	"更新",
 	"网络自愈设置",
 	"每周更新定时器",
 }
@@ -67,8 +65,7 @@ func ModifyRuntime(p paths.Paths, currentVersion string) error {
 		func() error { return NodeSwitchLive(p, p.ConfigFile, "") },
 		func() error { return NodeSelect(p, p.ConfigFile, "") },
 		func() error { return serviceSettings(p) },
-		func() error { return updateCoreFlow(p) },
-		func() error { return SelfUpdateFlow(p, currentVersion) },
+		func() error { return updateMenuFlow(p, currentVersion) },
 		func() error { return resilienceMenuFlow() },
 		func() error { return timerMenuFlow() },
 	})
@@ -299,24 +296,57 @@ func editFieldGroupFlow(p paths.Paths, title string, fields []string) error {
 	return nil
 }
 
-func updateCoreFlow(p paths.Paths) error {
-	ok, err := tui.Confirm(i18n.T("更新 内核 / UI / geo 数据？"), true)
-	if err != nil || !ok {
-		return err
+// updateMenuFlow 聚合内核 / Web UI / geo 数据 / clashdock 自身四个独立更新入口，
+// 各自单独触发、互不牵连（不再像过去那样内核/geo/UI 捆绑一次问完）。
+func updateMenuFlow(p paths.Paths, currentVersion string) error {
+	options := []string{i18n.T("内核"), i18n.T("Web UI"), i18n.T("geo 数据"), i18n.T("clashdock 自身")}
+	handlers := []func() error{
+		func() error { return updateCoreOnly(p) },
+		func() error { return updateUIOnly(p) },
+		func() error { return updateGeoOnly(p) },
+		func() error { return SelfUpdateFlow(p, currentVersion) },
 	}
-	// 是否下载 Web UI 显式询问，而不是只在已下载过时才刷新——否则初始化时跳过了
-	// UI 下载的用户，后面永远没有入口能补下载。mihomo 内置控制器会直接从
-	// state/ui 提供服务（http://host:9090/ui/），下载后无需额外部署步骤。
-	_, hasUIErr := os.Stat(filepath.Join(p.UI, "index.html"))
-	hasUI := hasUIErr == nil
-	wantUI, err := tui.Confirm(i18n.T("同时下载 / 更新 Web UI？"), hasUI)
-	if err != nil {
-		return err
+	idx := 0
+	for {
+		i, err := tui.Select(i18n.T("更新"), options, tui.SelectOpts{BackLabel: i18n.T("返回上层"), Initial: idx})
+		if err != nil {
+			return nil
+		}
+		idx = i
+		if err := handlers[i](); err != nil {
+			if errors.Is(err, errs.ErrCancelled) {
+				continue
+			}
+			execx.Error(err.Error())
+		}
 	}
+}
+
+func updateCoreOnly(p paths.Paths) error {
 	ensureGithubToken(p)
-	if _, err := kernel.DownloadAll(p, kernel.Options{Force: true, WithUI: wantUI}); err != nil {
+	f, s := kernel.NewFetcher(p)
+	if _, err := kernel.UpdateCore(p, f, s, false, true); err != nil {
 		return err
 	}
+	return syncRestartIfInstalled(p)
+}
+
+func updateGeoOnly(p paths.Paths) error {
+	ensureGithubToken(p)
+	f, s := kernel.NewFetcher(p)
+	if err := kernel.UpdateGeodata(p, f, s, true); err != nil {
+		return err
+	}
+	return syncRestartIfInstalled(p)
+}
+
+func updateUIOnly(p paths.Paths) error {
+	ensureGithubToken(p)
+	f, s := kernel.NewFetcher(p)
+	return kernel.UpdateUI(p, f, s, true)
+}
+
+func syncRestartIfInstalled(p paths.Paths) error {
 	if fileExists(p.ConfigFile) && sysd.IsInstalled(sysd.DefaultName) {
 		return sysd.SyncAndRestart(p, sysd.DefaultName)
 	}

@@ -15,8 +15,13 @@
 // 更新流程：下载发行包 → 校验 SHA-256 → 解压到独立版本目录 → 试跑新二进制确认
 // 能正常执行 → 原子切换 current 符号链接 → 再次试跑确认成功；若启动校验失败，
 // 回退 current 指向。mihomo 内核是完全独立的另一个二进制，不受影响，本流程
-// 不涉及任何 systemd 单元的停止/启动。仅保留 current 指向的版本与紧邻的上一
-// 个版本，其余版本目录清理掉。
+// 不涉及任何 systemd 单元的停止/启动。仅保留 current 指向的版本、紧邻的上一
+// 个版本、以及 last-stable 记录的稳定版（如果三者不同），其余版本目录清理掉。
+//
+// 更新渠道（Channel）：稳定版走 GitHub /releases/latest（排除 prerelease），
+// 预览版走 /releases 列表最新一项（不论是否标 prerelease）。每次稳定渠道更新
+// 成功都会把 current 同时记到 <state>/clashdock-versions/last-stable，供切到
+// 预览版之后想回退的用户一键切回。
 package selfupdate
 
 import (
@@ -45,15 +50,37 @@ import (
 // Repo clashdock 自身的发行仓库（.goreleaser.yaml 里的项目/归属一致）。
 const Repo = "Trilives/clashdock"
 
+// Channel 自更新渠道：稳定版只看 GitHub 的 /releases/latest（该接口本身就
+// 排除 prerelease/draft，语义上等价于"最新正式版"）；预览版看 /releases 列表
+// 第一项，即仓库里创建时间最新的发行版，不论是否标了 prerelease，供想尝鲜的
+// 用户提前用上还没转正的版本。
+type Channel string
+
+const (
+	Stable  Channel = "stable"
+	Preview Channel = "preview"
+)
+
 type ghRelease struct {
-	TagName string `json:"tag_name"`
-	Assets  []struct {
+	TagName    string `json:"tag_name"`
+	Prerelease bool   `json:"prerelease"`
+	Assets     []struct {
 		Name               string `json:"name"`
 		BrowserDownloadURL string `json:"browser_download_url"`
 	} `json:"assets"`
 }
 
-func fetchRelease(f *fetchx.Fetcher) (ghRelease, error) {
+func fetchRelease(f *fetchx.Fetcher, channel Channel) (ghRelease, error) {
+	if channel == Preview {
+		var rels []ghRelease
+		if err := f.ReadJSON("https://api.github.com/repos/"+Repo+"/releases?per_page=1", &rels); err != nil {
+			return ghRelease{}, err
+		}
+		if len(rels) == 0 {
+			return ghRelease{}, fmt.Errorf("%s", i18n.T("仓库还没有任何发行版"))
+		}
+		return rels[0], nil
+	}
 	var rel ghRelease
 	err := f.ReadJSON("https://api.github.com/repos/"+Repo+"/releases/latest", &rel)
 	return rel, err
@@ -72,27 +99,57 @@ func findAssetURL(rel ghRelease, name string) string {
 	return ""
 }
 
-func versionsDir(p paths.Paths) string { return filepath.Join(p.State, "clashdock-versions") }
-func currentLink(p paths.Paths) string { return filepath.Join(versionsDir(p), "current") }
+func versionsDir(p paths.Paths) string    { return filepath.Join(p.State, "clashdock-versions") }
+func currentLink(p paths.Paths) string    { return filepath.Join(versionsDir(p), "current") }
+func lastStableLink(p paths.Paths) string { return filepath.Join(versionsDir(p), "last-stable") }
 func versionBin(p paths.Paths, version string) string {
 	return filepath.Join(versionsDir(p), version, "clashdock")
 }
 
 // LatestVersion 只查询最新版本号（不下载），供菜单展示"当前 vX，最新 vY"。
-func LatestVersion(p paths.Paths) (string, error) {
+func LatestVersion(p paths.Paths, channel Channel) (string, error) {
 	f, _ := kernel.NewFetcher(p)
-	rel, err := fetchRelease(f)
+	rel, err := fetchRelease(f, channel)
 	if err != nil {
 		return "", err
 	}
 	return strings.TrimPrefix(rel.TagName, "v"), nil
 }
 
+// LastStableVersion 返回记录的"上一个稳定版"版本号（每次稳定渠道更新成功后都会
+// 刷新）；尚未记录过（从未在这台机器上完成过一次稳定渠道更新）则 ok=false。
+func LastStableVersion(p paths.Paths) (string, bool) {
+	target, err := os.Readlink(lastStableLink(p))
+	if err != nil {
+		return "", false
+	}
+	return filepath.Base(filepath.Dir(target)), true
+}
+
+// RollbackToStable 把 current 切回 last-stable 记录的稳定版（试跑校验通过才
+// 切换），供切到预览版后想回退的用户使用。返回切回的版本号。
+func RollbackToStable(p paths.Paths) (string, error) {
+	target, err := os.Readlink(lastStableLink(p))
+	if err != nil {
+		return "", fmt.Errorf("%s", i18n.T("尚未记录过稳定版，无法回退"))
+	}
+	if err := probeBinary(target); err != nil {
+		return "", fmt.Errorf(i18n.T("记录的稳定版二进制无法正常运行：%w"), err)
+	}
+	if err := swapCurrentLink(p, target); err != nil {
+		return "", err
+	}
+	if err := probeBinary(currentLink(p)); err != nil {
+		return "", fmt.Errorf(i18n.T("回退后校验失败：%w"), err)
+	}
+	return filepath.Base(filepath.Dir(target)), nil
+}
+
 // Update 把 clashdock 自身更新到最新版本；currentVersion 是当前运行版本号
 // （main.version，"dev" 视为无基线）。返回 (最新版本号, 是否已是最新, error)。
-func Update(p paths.Paths, currentVersion string) (string, bool, error) {
+func Update(p paths.Paths, currentVersion string, channel Channel) (string, bool, error) {
 	f, s := kernel.NewFetcher(p)
-	rel, err := fetchRelease(f)
+	rel, err := fetchRelease(f, channel)
 	if err != nil {
 		return "", false, err
 	}
@@ -177,6 +234,12 @@ func Update(p paths.Paths, currentVersion string) (string, bool, error) {
 			swapCurrentLink(p, prevTarget) //nolint:errcheck // 回退已在出错路径，尽力而为
 		}
 		return "", false, fmt.Errorf(i18n.T("已回退到原版本：%w"), err)
+	}
+
+	if channel == Stable {
+		// 记录本次稳定版，供之后切到预览版的用户一键回退；失败不影响本次更新
+		// 结果本身，下次稳定渠道更新时会自然覆盖重试。
+		atomicSymlink(newBin, lastStableLink(p)) //nolint:errcheck
 	}
 
 	pruneOldVersions(p, version)
@@ -278,7 +341,8 @@ func probeBinary(path string) error {
 	return nil
 }
 
-// pruneOldVersions 只保留 current 指向的版本与紧邻上一个版本，其余版本目录删除。
+// pruneOldVersions 只保留 current 指向的版本、紧邻上一个版本、以及 last-stable
+// 记录的稳定版（如果三者不同的话），其余版本目录删除。
 func pruneOldVersions(p paths.Paths, keepVersion string) {
 	entries, err := os.ReadDir(versionsDir(p))
 	if err != nil {
@@ -294,6 +358,9 @@ func pruneOldVersions(p paths.Paths, keepVersion string) {
 	keep := map[string]bool{keepVersion: true}
 	if idx := sort.SearchStrings(versions, keepVersion); idx > 0 {
 		keep[versions[idx-1]] = true
+	}
+	if target, err := os.Readlink(lastStableLink(p)); err == nil {
+		keep[filepath.Base(filepath.Dir(target))] = true
 	}
 	for _, v := range versions {
 		if !keep[v] {

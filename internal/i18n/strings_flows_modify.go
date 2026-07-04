@@ -8,13 +8,17 @@ func init() {
 
 		"订阅管理（增 / 删 / 改名 / 切换 / 刷新）": "Subscription management (add / remove / rename / switch / refresh)",
 
-		"节点切换":                "Node switch",
-		"固定节点":                "Pin node",
-		"更新 内核 / UI / geo 数据": "Update core / UI / geo data",
-		"更新 clashdock 自身":     "Update clashdock itself",
-		"服务设置（重启 / 状态）":       "Service settings (restart / status)",
-		"网络自愈设置":              "Network self-healing settings",
-		"每周更新定时器":             "Weekly update timer",
+		"节点切换":    "Node switch",
+		"固定节点":    "Pin node",
+		"服务设置":    "Service settings",
+		"更新":      "Update",
+		"网络自愈设置":  "Network self-healing settings",
+		"每周更新定时器": "Weekly update timer",
+
+		"内核":           "Core",
+		"Web UI":       "Web UI",
+		"geo 数据":       "Geo data",
+		"clashdock 自身": "clashdock itself",
 
 		"订阅管理":            "Subscription Management",
 		"  • （暂无订阅）":      "  • (no subscriptions yet)",

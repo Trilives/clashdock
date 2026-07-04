@@ -146,3 +146,86 @@ func TestAssetName(t *testing.T) {
 		t.Errorf("unexpected asset name: %s", name)
 	}
 }
+
+func fakeExecutable(t *testing.T, path string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("#!/bin/sh\necho ok\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPruneOldVersionsPreservesLastStable(t *testing.T) {
+	dir := t.TempDir()
+	p := paths.Paths{State: dir}
+	for _, v := range []string{"0.1.0", "0.1.1", "0.1.2", "0.1.3"} {
+		os.MkdirAll(filepath.Join(versionsDir(p), v), 0o755)
+	}
+	// last-stable 记录的是 0.1.0——本应被"只留当前+上一版本"规则清理掉的版本，
+	// 但因为有 last-stable 指着它，必须保留。
+	if err := atomicSymlink(versionBin(p, "0.1.0"), lastStableLink(p)); err != nil {
+		t.Fatal(err)
+	}
+	pruneOldVersions(p, "0.1.3")
+
+	entries, _ := os.ReadDir(versionsDir(p))
+	remaining := map[string]bool{}
+	for _, e := range entries {
+		remaining[e.Name()] = true
+	}
+	for _, want := range []string{"0.1.0", "0.1.2", "0.1.3"} {
+		if !remaining[want] {
+			t.Errorf("expected %s to survive pruning, remaining=%v", want, remaining)
+		}
+	}
+	if remaining["0.1.1"] {
+		t.Errorf("0.1.1 should have been pruned, remaining=%v", remaining)
+	}
+}
+
+func TestLastStableVersionAndRollback(t *testing.T) {
+	dir := t.TempDir()
+	p := paths.Paths{State: dir}
+
+	if _, ok := LastStableVersion(p); ok {
+		t.Fatal("expected no last-stable recorded initially")
+	}
+
+	stableBin := versionBin(p, "0.1.0")
+	fakeExecutable(t, stableBin)
+	if err := atomicSymlink(stableBin, lastStableLink(p)); err != nil {
+		t.Fatal(err)
+	}
+
+	v, ok := LastStableVersion(p)
+	if !ok || v != "0.1.0" {
+		t.Fatalf("LastStableVersion() = (%q, %v), want (0.1.0, true)", v, ok)
+	}
+
+	previewBin := versionBin(p, "0.1.1-beta.1")
+	fakeExecutable(t, previewBin)
+	if err := atomicSymlink(previewBin, currentLink(p)); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := RollbackToStable(p)
+	if err != nil {
+		t.Fatalf("RollbackToStable: %v", err)
+	}
+	if got != "0.1.0" {
+		t.Errorf("RollbackToStable() = %q, want 0.1.0", got)
+	}
+	if target, _ := os.Readlink(currentLink(p)); target != stableBin {
+		t.Errorf("current -> %s, want %s", target, stableBin)
+	}
+}
+
+func TestRollbackToStableWithoutRecordFails(t *testing.T) {
+	dir := t.TempDir()
+	p := paths.Paths{State: dir}
+	if _, err := RollbackToStable(p); err == nil {
+		t.Error("expected error when no stable version has been recorded")
+	}
+}

@@ -41,6 +41,14 @@ var StreamingDomainSuffixes = []string{
 // https 则正常」——直连可绕开这个问题。
 var DefaultDirectPorts = []int{22}
 
+// DefaultMainGroupKeywords 主选择组识别关键词的默认内容：按顺序逐个尝试，第一个
+// 命中 select 分组名的关键词即采用该分组（先到先得）。用户可在编辑器里增删/排序，
+// 新增项默认插到最前面（优先级最高），故不需要另设"内置兜底 + 用户追加"两层。
+var DefaultMainGroupKeywords = []string{
+	"proxy", "节点选择", "节点", "选择", "select", "🚀", "手动",
+	"代理", "代理选择", "手动选择", "选择节点",
+}
+
 var DefaultPreferKeywords = []string{"Singapore", "SG", "新加坡", "狮城"}
 var DefaultHKPreferKeywords = []string{"Hong Kong", "HongKong", "HK", "香港"}
 
@@ -86,7 +94,7 @@ func Defaults() map[string]any {
 		"tun_stack":                 "gvisor",
 		"tun_route_exclude_cidrs":   append([]string(nil), DefaultTunRouteExclude...),
 		"tun_exclude_uids":          []int{},
-		"main_group_keywords":       []string{},
+		"main_group_keywords":       append([]string(nil), DefaultMainGroupKeywords...),
 		"lan_proxy":                 false,
 		"lan_panel":                 false,
 		"secret":                    "",
@@ -191,7 +199,7 @@ func marshalNoEscape(v any, prefix, indent string) ([]byte, error) {
 var ListFields = map[string]string{
 	"tun_route_exclude_cidrs":   "TUN 排除网段",
 	"tun_exclude_uids":          "TUN 排除 UID",
-	"main_group_keywords":       "主选择组识别关键词（追加，用于定位节点切换的分组）",
+	"main_group_keywords":       "主选择组识别关键词（按顺序匹配，新增项插最前）",
 	"ai_domain_suffixes":        "AI 域名后缀（叠加）",
 	"streaming_domain_suffixes": "流媒体域名后缀（叠加）",
 	"direct_domain_suffixes":    "直连域名后缀（叠加）",

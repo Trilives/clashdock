@@ -104,6 +104,10 @@ func syncLogging(p paths.Paths, cfg map[string]any) {
 
 func editList(cfg map[string]any, key, label string) bool {
 	isInt := key == "tun_exclude_uids" || key == "direct_ports"
+	// main_group_keywords 是「第一个命中即用」的顺序匹配列表：新增关键词若追加到
+	// 末尾会天然被排在内置关键词之后，永远抢不过它们，等于形同虚设——所以这里插到
+	// 最前，让用户新增的关键词优先命中。
+	prependNew := key == "main_group_keywords"
 	changed := false
 	act := 0
 	for {
@@ -129,7 +133,11 @@ func editList(cfg map[string]any, key, label string) bool {
 				ok = false
 				break
 			}
-			items = append(items, val)
+			if prependNew {
+				items = append([]string{val}, items...)
+			} else {
+				items = append(items, val)
+			}
 		case 1:
 			if len(items) == 0 {
 				continue
