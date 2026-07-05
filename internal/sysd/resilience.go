@@ -23,8 +23,6 @@ const (
 	dispatcherDir = "/etc/NetworkManager/dispatcher.d"
 )
 
-func legacyHealthcheckDest() string { return filepath.Join(paths.RuntimeDir, "healthcheck.sh") }
-
 func dispatcherFile(name string) string {
 	return filepath.Join(dispatcherDir, "90-"+name+"-restart")
 }
@@ -156,17 +154,28 @@ func RemoveResilience(name string) error {
 	if err := execx.EnsureSudo(i18n.T("卸载网络自愈")); err != nil {
 		return err
 	}
-	execx.RunRoot([]string{"rm", "-f", dispatcherFile(name)}, "", nil)
-	execx.RunRoot([]string{"rm", "-f", legacyHealthcheckDest()}, "", nil)
 	quiet := &execx.Opt{Capture: true}
-	for _, unit := range []string{WatchdogName + ".timer", WatchdogName + ".service"} {
-		execx.RunRoot([]string{"systemctl", "stop", unit}, "", quiet)
-		execx.RunRoot([]string{"systemctl", "disable", unit}, "", quiet)
+	for _, cmd := range removeResilienceRootCommands(name) {
+		opt := (*execx.Opt)(nil)
+		if len(cmd) > 0 && cmd[0] == "systemctl" {
+			opt = quiet
+		}
+		execx.RunRoot(cmd, "", opt)
 	}
-	execx.RunRoot([]string{"rm", "-f", wdTimer(), wdService()}, "", nil)
 	execx.RunRoot([]string{"systemctl", "daemon-reload"}, "", nil)
 	execx.Ok(i18n.T("网络自愈已卸载。"))
 	return nil
+}
+
+func removeResilienceRootCommands(name string) [][]string {
+	commands := [][]string{{"rm", "-f", dispatcherFile(name)}}
+	for _, unit := range []string{WatchdogName + ".timer", WatchdogName + ".service"} {
+		commands = append(commands,
+			[]string{"systemctl", "stop", unit},
+			[]string{"systemctl", "disable", unit},
+		)
+	}
+	return append(commands, []string{"rm", "-f", wdTimer(), wdService()})
 }
 
 func ResilienceInstalled() bool {
