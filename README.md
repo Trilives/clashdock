@@ -2,7 +2,7 @@
 
 在 Linux 上交互式部署 / 管理 **mihomo（Clash.Meta）** 的终端应用。单个静态二进制，
 全流程交互完成：**初始化 / 更改配置 / 暂停启动 / 网络测试 / 卸载**。
-> [!tip] 如果想体验sing-box内核，可以参考[sboxkit](https://github.com/Trilives/sboxkit)
+> 如果想体验sing-box内核，可以参考[sboxkit](https://github.com/Trilives/sboxkit)
 
 - **直用机场订阅**：mihomo 原生吃 Clash 配置，clashdock **直接消费机场的 Clash/mihomo
   订阅**，只最小改写部署必需字段（端口 / 局域网 / 外部控制器 / TUN / 面板），机场自带的
