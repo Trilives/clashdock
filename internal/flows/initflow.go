@@ -99,9 +99,14 @@ func Init(p paths.Paths) error {
 		}
 
 		// 3. 注册并启动 systemd 服务。deb 安装已内置内核与基础规则，优先直接使用；
-		// 非 deb / 资源缺失场景才在启动前下载兜底。
+		// 非 deb / 资源缺失场景才在启动前自动下载兜底。下载失败不再回滚本次会话
+		// 已完成的设置与订阅——保留它们，提示稍后在「运行时管理 → 更新」补下载，
+		// 再重新执行初始化即可（会检测到已有订阅并跳过重新添加，直接重试服务注册）。
 		if err := ensureStartupResources(p); err != nil {
-			return err
+			execx.Warn(i18n.T("资源下载失败，本次暂不注册/启动服务：") + err.Error())
+			execx.Info(i18n.T("已保留本次配置与订阅；可在「运行时管理 → 更新」下载内核/geo 数据后重新执行初始化完成服务注册。"))
+			t.Commit()
+			return nil
 		}
 		t.AddUndo(i18n.T("卸载服务 mihomo"), func() error { return sysd.Remove(p, sysd.DefaultName, true) })
 		if err := sysd.Install(p, sysd.DefaultName, true); err != nil {
@@ -110,10 +115,8 @@ func Init(p paths.Paths) error {
 		// 主服务已运行就是持久边界；后续可选模块失败时不应反向卸载它。
 		t.Commit()
 
-		// 4. 服务先跑起来；再询问是否在线下载/更新内核、geo 与可选 Web UI。
-		if err := optionalPostStartUpdate(p); err != nil {
-			return err
-		}
+		// 4. 服务先跑起来；再自动下载/更新内核、geo 与 Web UI（失败不影响已启动的服务）。
+		optionalPostStartUpdate(p)
 		t.Commit()
 
 		// 5. 可选增强：网络自愈 / 每周更新
@@ -172,14 +175,14 @@ func initialConfigSource(p paths.Paths, t *txn.Transaction) (bool, error) {
 		}
 	}
 
-	info, err := askNewSubscription()
+	info, err := askNewSubscription(p)
 	if err != nil {
 		return false, err
 	}
 	if info == nil {
 		return false, nil
 	}
-	sub, err := subscription.Add(p, info.Name, info.URL, info.SourceType, info.ApplyOverlay, true, info.FetchViaProxy)
+	sub, err := subscription.Add(p, info.Name, info.URL, info.SourceType, info.ApplyOverlay, true, info.FetchViaProxy, info.PauseForDirect)
 	if err != nil {
 		return false, err
 	}
@@ -203,19 +206,15 @@ func startupResourcesReady(p paths.Paths) bool {
 	return false
 }
 
+// ensureStartupResources 服务启动前的资源兜底：deb 种子已就绪则直接用；否则自动
+// 下载（不再询问），失败即返回错误——调用方（Init）会把这当作软失败处理，不回滚
+// 已完成的设置与订阅。
 func ensureStartupResources(p paths.Paths) error {
 	if startupResourcesReady(p) {
 		execx.Info(i18n.T("使用本地内核与基础规则启动服务（系统包种子或既有资源）。"))
 		return nil
 	}
-	execx.Warn(i18n.T("未找到本地内核或基础规则；非 .deb 安装/种子缺失时需要先下载才能启动服务。"))
-	ok, err := tui.Confirm(i18n.T("现在下载内核和基础规则以便启动服务？"), true)
-	if err != nil {
-		return err
-	}
-	if !ok {
-		return fmt.Errorf("%s", i18n.T("缺少 mihomo 内核或基础规则，无法注册并启动服务"))
-	}
+	execx.Info(i18n.T("未找到本地内核或基础规则；自动下载中…"))
 	ensureGithubToken(p)
 	if _, err := kernel.DownloadAll(p, kernel.Options{WithUI: false}); err != nil {
 		return err
@@ -223,26 +222,22 @@ func ensureStartupResources(p paths.Paths) error {
 	return nil
 }
 
-func optionalPostStartUpdate(p paths.Paths) error {
-	ok, err := tui.Confirm(i18n.T("服务已启动。现在下载/更新内核、geo 数据和可选 Web 管理面板？"), false)
-	if err != nil || !ok {
-		return err
-	}
-	wantUI, err := tui.Confirm(i18n.T("同时下载 Web UI（浏览器访问 http://host:9090/ui/ 查看 / 切换节点）？"), true)
-	if err != nil {
-		return err
-	}
-	suffix := ""
-	if wantUI {
-		suffix = " / Web UI"
-	}
-	execx.Info(i18n.T("下载/更新 内核 / geo 数据") + suffix + i18n.T("（出海慢时会用上面的代理）…"))
+// optionalPostStartUpdate 服务已启动后自动下载/更新内核、geo 数据与 Web UI
+// （不再询问）；服务已运行，优先走本机 mixed-port 下载（出海更稳），失败回退
+// download_proxy、最后直连。失败只警告，不影响已启动的服务。
+func optionalPostStartUpdate(p paths.Paths) {
+	execx.Info(i18n.T("服务已启动，自动下载/更新内核 / geo 数据 / Web UI…"))
 	ensureGithubToken(p)
-	if _, err := kernel.DownloadAll(p, kernel.Options{Force: true, WithUI: wantUI}); err != nil {
-		return err
+	if _, err := kernel.DownloadAll(p, kernel.Options{Force: true, WithUI: true, LocalProxyFirst: true}); err != nil {
+		execx.Warn(i18n.T("资源更新失败：") + err.Error())
+		execx.Info(i18n.T("可稍后在「运行时管理 → 更新」重试。"))
+		return
 	}
 	execx.Info(i18n.T("已更新资源，重新部署运行时并重启服务…"))
-	return sysd.Install(p, sysd.DefaultName, true)
+	if err := sysd.Install(p, sysd.DefaultName, true); err != nil {
+		execx.Warn(i18n.T("重新部署运行时失败：") + err.Error())
+		execx.Info(i18n.T("可稍后在「运行时管理 → 更新」重试。"))
+	}
 }
 
 func optionalExtras(t *txn.Transaction) error {

@@ -63,13 +63,24 @@ func TestMetaRoundtripPythonCompatible(t *testing.T) {
 	}
 }
 
-func TestFetchProxyForChoiceDefaultsToDirect(t *testing.T) {
-	cfg := map[string]any{"download_proxy": "http://127.0.0.1:7890"}
+func TestFetchProxyCandidatesDefaultsToDirect(t *testing.T) {
+	cfg := map[string]any{"download_proxy": "http://192.168.1.10:7890"}
 
-	if got := fetchProxyForChoice(cfg, false); got != "" {
-		t.Fatalf("default no-proxy choice should fetch directly, got %q", got)
+	if got := fetchProxyCandidates(cfg, false); got != nil {
+		t.Fatalf("default no-proxy choice should fetch directly, got %v", got)
 	}
-	if got := fetchProxyForChoice(cfg, true); got != "http://127.0.0.1:7890" {
-		t.Fatalf("opt-in proxy choice should use configured proxy, got %q", got)
+	got := fetchProxyCandidates(cfg, true)
+	want := []string{"http://127.0.0.1:7890", "http://192.168.1.10:7890"}
+	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Fatalf("opt-in proxy choice should try local mixed-port then download_proxy, got %v", got)
+	}
+}
+
+func TestPrimaryProxy(t *testing.T) {
+	if got := primaryProxy(nil); got != "" {
+		t.Fatalf("primaryProxy(nil) = %q, want empty", got)
+	}
+	if got := primaryProxy([]string{"", "http://x:1"}); got != "http://x:1" {
+		t.Fatalf("primaryProxy should skip empty candidates, got %q", got)
 	}
 }

@@ -1,7 +1,9 @@
 // 拉取订阅原始内容（对应 fetch.py，net/http 取代 curl）。
 //
 // 机场常按 User-Agent 决定返回的订阅格式，故按来源类型设置合适的 UA。
-// 可选经局域网 download_proxy 下载（覆盖出海慢的机场）。
+// 可按序尝试多个代理候选（本机 mixed-port / download_proxy），空字符串候选
+// 代表直连；直连是"尽力而为"的绕过——TUN 模式下仍可能被路由劫持，调用方
+// （subscription.manager）按需另行暂停服务以确保真正直连。
 package subscription
 
 import (
@@ -32,12 +34,34 @@ const (
 	fetchTimeout = 30 * time.Second
 )
 
-// Fetch 下载订阅内容，返回原始字节。
-func Fetch(rawURL, sourceType, proxy string) ([]byte, error) {
+// Fetch 下载订阅内容，返回原始字节。proxies 为按序尝试的代理候选（空字符串=
+// 直连）；nil/空切片等价于只直连一次。每个候选各自重试 fetchRetries 次，
+// 耗尽后才换下一个候选。
+func Fetch(rawURL, sourceType string, proxies []string) ([]byte, error) {
 	ua, ok := userAgents[sourceType]
 	if !ok {
 		ua = "Mozilla/5.0"
 	}
+	if len(proxies) == 0 {
+		proxies = []string{""}
+	}
+
+	var lastErr error
+	for pi, proxy := range proxies {
+		data, err := fetchOnce(rawURL, ua, proxy)
+		if err == nil {
+			return data, nil
+		}
+		lastErr = err
+		if pi < len(proxies)-1 {
+			execx.Warn(fmt.Sprintf(i18n.T("  代理候选失败（%v），改下一候选重试…"), err))
+		}
+	}
+	return nil, fmt.Errorf(i18n.T("拉取订阅失败: %w"), lastErr)
+}
+
+// fetchOnce 用单个代理候选（空=直连）拉取，内部重试 fetchRetries 次。
+func fetchOnce(rawURL, ua, proxy string) ([]byte, error) {
 	tr := &http.Transport{
 		Proxy:               nil,
 		DialContext:         (&net.Dialer{Timeout: fetchDialTimeout}).DialContext,
@@ -79,5 +103,5 @@ func Fetch(rawURL, sourceType, proxy string) ([]byte, error) {
 		}
 		return data, nil
 	}
-	return nil, fmt.Errorf(i18n.T("拉取订阅失败: %w"), lastErr)
+	return nil, lastErr
 }

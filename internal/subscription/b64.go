@@ -91,7 +91,7 @@ func toClashViaSubconverter(rawText, backend, proxy string) (string, error) {
 	backend = strings.TrimRight(backend, "/")
 	payload := url.QueryEscape(strings.TrimSpace(rawText))
 	u := fmt.Sprintf("%s/sub?target=clash&list=false&url=%s", backend, payload)
-	data, err := Fetch(u, "clash", proxy)
+	data, err := Fetch(u, "clash", []string{proxy})
 	if err != nil {
 		return "", err
 	}

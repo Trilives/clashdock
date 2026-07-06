@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Trilives/clashdock/internal/execx"
@@ -27,19 +28,35 @@ type Fetcher struct {
 	Proxy    string // 兜底代理（直连不可用时才走）
 	Token    string // GitHub Token（仅 ReadJSON 的 API 请求附带）
 	directOK *bool
+
+	ordered []string // 非空时 do() 按此顺序尝试（空串=直连），跳过直连探测/兜底逻辑
 }
 
 func New(proxy, token string) *Fetcher {
 	return &Fetcher{Proxy: proxy, Token: token}
 }
 
-// clientFor 构造指定通道的 client：direct 显式绕过环境代理；proxy 走 f.Proxy。
-func clientFor(channel, proxy string) *http.Client {
+// NewOrdered 按给定顺序依次尝试代理候选（空字符串会被跳过），最后总以直连兜底；
+// 不做直连可达性探测——调用方已经决定了"优先走代理"，不需要 New() 那套
+// 直连优先、不可达才代理的判断。
+func NewOrdered(candidates []string, token string) *Fetcher {
+	ordered := make([]string, 0, len(candidates)+1)
+	for _, c := range candidates {
+		if strings.TrimSpace(c) != "" {
+			ordered = append(ordered, c)
+		}
+	}
+	ordered = append(ordered, "") // 直连兜底
+	return &Fetcher{Token: token, ordered: ordered}
+}
+
+// clientFor 构造指定代理的 client（proxy 为空即 direct，显式绕过环境代理）。
+func clientFor(proxy string) *http.Client {
 	tr := &http.Transport{
 		Proxy:                 nil, // direct：绕过 http_proxy 等环境变量
 		ResponseHeaderTimeout: 30 * time.Second,
 	}
-	if channel == "proxy" {
+	if proxy != "" {
 		if u, err := url.Parse(proxy); err == nil {
 			tr.Proxy = http.ProxyURL(u)
 		}
@@ -50,7 +67,7 @@ func clientFor(channel, proxy string) *http.Client {
 // DirectReachable 探测直连是否可用（结果缓存于本 Fetcher 生命周期）。
 func (f *Fetcher) DirectReachable() bool {
 	if f.directOK == nil {
-		c := clientFor("direct", "")
+		c := clientFor("")
 		c.Timeout = 10 * time.Second
 		resp, err := c.Get(ProbeURL)
 		ok := err == nil && resp.StatusCode < 400
@@ -65,26 +82,35 @@ func (f *Fetcher) DirectReachable() bool {
 	return *f.directOK
 }
 
-func (f *Fetcher) channels() []string {
+// attempts 返回本次 do() 依次尝试的代理候选（""=直连）。ordered 非空时按其顺序
+// 尝试（NewOrdered 构造，跳过直连探测）；否则沿用直连优先、不可达才代理兜底。
+func (f *Fetcher) attempts() []string {
+	if f.ordered != nil {
+		return f.ordered
+	}
 	noProxy := os.Getenv("MIHOMO_NO_PROXY") == "1"
 	if f.Proxy != "" && !noProxy && !f.DirectReachable() {
-		return []string{"proxy", "direct"}
+		return []string{f.Proxy, ""}
 	}
-	return []string{"direct"}
+	return []string{""}
 }
 
-// do 按通道顺序执行 fn，首个成功即返回；全失败返回最后一个错误。
+// do 按候选顺序执行 fn，首个成功即返回；全失败返回最后一个错误。
 func (f *Fetcher) do(fn func(c *http.Client) error) error {
-	chs := f.channels()
+	tries := f.attempts()
 	var last error
-	for i, ch := range chs {
-		err := withRetry(func() error { return fn(clientFor(ch, f.Proxy)) })
+	for i, proxy := range tries {
+		err := withRetry(func() error { return fn(clientFor(proxy)) })
 		if err == nil {
 			return nil
 		}
 		last = err
-		if i < len(chs)-1 {
-			execx.Warn(fmt.Sprintf(i18n.T("  %s 通道失败（%v），改直连重试…"), ch, err))
+		if i < len(tries)-1 {
+			label := proxy
+			if label == "" {
+				label = i18n.T("直连")
+			}
+			execx.Warn(fmt.Sprintf(i18n.T("  %s 失败（%v），改下一通道重试…"), label, err))
 		}
 	}
 	return last

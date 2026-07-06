@@ -198,6 +198,9 @@ func Install(p paths.Paths, name string, start bool) error {
 	} else {
 		execx.Ok(i18n.T("服务已设为开机自启（未启动）: ") + name + ".service")
 	}
+	if err := RecordDeployedAssets(p); err != nil {
+		execx.Warn(i18n.T("记录资源部署指纹失败（不影响服务本身）：") + err.Error())
+	}
 	return nil
 }
 

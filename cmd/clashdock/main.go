@@ -134,6 +134,25 @@ func defaultFirstRunDeps() firstRunDeps {
 	}
 }
 
+// maybeOfferAssetRedeploy 每次进入交互式主菜单都检查一次：内核/geo 数据是否
+// 在 state/ 侧被下载更新过，但运行中的服务还没有跟着重新部署（sysd.AssetsStale）。
+// 是则询问是否现在重启应用；否则不打扰。
+func maybeOfferAssetRedeploy(p paths.Paths) {
+	if !sysd.IsInstalled(sysd.DefaultName) || !sysd.AssetsStale(p) {
+		return
+	}
+	ok, err := tui.Confirm(
+		i18n.T("检测到本地内核/geo 数据已更新，但运行中的服务尚未使用最新版本，是否现在重启应用？"), true)
+	if err != nil || !ok {
+		return
+	}
+	if err := sysd.Install(p, sysd.DefaultName, true); err != nil {
+		execx.Error(err.Error())
+		return
+	}
+	execx.Ok(i18n.T("已应用最新内核/geo 数据并重启服务。"))
+}
+
 func maybeOfferFirstRunInit(p paths.Paths, deps firstRunDeps) {
 	if deps.isInstalled(sysd.DefaultName) {
 		return
@@ -154,6 +173,7 @@ func interactive(p paths.Paths) int {
 	// 服务单元不存在时，先让用户选择语言，再询问是否现在进入初始化。
 	// 已停止但仍注册的服务不算首次运行；此处只看单元文件是否存在。
 	maybeOfferFirstRunInit(p, defaultFirstRunDeps())
+	maybeOfferAssetRedeploy(p)
 	idx := 0
 	for {
 		// 顺序按常用程度排列：运行时管理/配置变更/网络测试等日常操作在前，
@@ -194,14 +214,15 @@ func interactive(p paths.Paths) int {
 }
 
 // runUpdate 非交互全量更新（每周定时器的执行目标）：内核+geo+UI 强制更新 →
-// 服务同步重启。
+// 完整重新部署运行时并重启（SyncAndRestart 只同步 config.yaml，不会重新拷贝
+// 新下载的二进制/geo 文件，这里必须用完整 Install 才能让更新真正生效）。
 func runUpdate(p paths.Paths) int {
 	if _, err := kernel.DownloadAll(p, kernel.Options{Force: true, WithUI: true}); err != nil {
 		execx.Error(err.Error())
 		return 1
 	}
 	if sysd.IsInstalled(sysd.DefaultName) {
-		if err := sysd.SyncAndRestart(p, sysd.DefaultName); err != nil {
+		if err := sysd.Install(p, sysd.DefaultName, true); err != nil {
 			execx.Error(err.Error())
 			return 1
 		}

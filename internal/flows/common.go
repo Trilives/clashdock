@@ -17,6 +17,7 @@ import (
 	"github.com/Trilives/clashdock/internal/i18n"
 	"github.com/Trilives/clashdock/internal/kernel"
 	"github.com/Trilives/clashdock/internal/paths"
+	"github.com/Trilives/clashdock/internal/sysd"
 	"github.com/Trilives/clashdock/internal/tui"
 )
 
@@ -56,10 +57,13 @@ type newSub struct {
 	SourceType    string
 	ApplyOverlay  bool
 	FetchViaProxy bool
+	// PauseForDirect 仅在 !FetchViaProxy 时有意义：TUN 模式下最好而为之的直连
+	// （Proxy: nil）仍可能被路由劫持，用户可选择临时暂停服务保证这次拉取真正直连。
+	PauseForDirect bool
 }
 
 // askNewSubscription 交互收集新订阅信息；订阅链接留空 → (nil, nil) 表示「暂不配置」。
-func askNewSubscription() (*newSub, error) {
+func askNewSubscription(p paths.Paths) (*newSub, error) {
 	defaultName := time.Now().Format("sub-20060102-150405")
 	name, err := tui.Ask(i18n.T("订阅名称，留空=时间戳"), tui.AskOpts{Default: defaultName})
 	if err != nil {
@@ -92,19 +96,42 @@ func askNewSubscription() (*newSub, error) {
 		}
 	}
 	fetchViaProxy := false
+	pauseForDirect := false
 	if sourceType != "local" {
-		use, err := tui.Confirm(i18n.T("使用下载代理拉取此订阅？默认否＝直连"), false)
+		fetchViaProxy, pauseForDirect, err = askProxyChoice(p)
 		if err != nil {
 			return nil, err
 		}
-		fetchViaProxy = use
 	}
 	// 默认直用机场自带分流；叠加自定义分流为可选高级项
 	overlay, err := tui.Confirm(i18n.T("是否叠加自定义分流（AI / 流媒体 / 地区组）？默认否＝直接沿用机场订阅自带的策略组与规则（推荐）。"), false)
 	if err != nil {
 		return nil, err
 	}
-	return &newSub{Name: name, URL: subURL, SourceType: sourceType, ApplyOverlay: overlay, FetchViaProxy: fetchViaProxy}, nil
+	return &newSub{
+		Name: name, URL: subURL, SourceType: sourceType, ApplyOverlay: overlay,
+		FetchViaProxy: fetchViaProxy, PauseForDirect: pauseForDirect,
+	}, nil
+}
+
+// askProxyChoice 订阅拉取的代理选择：默认直连（尽力而为，Proxy: nil）；选代理时
+// 优先本机 mixed-port（走已生效订阅节点），失败回退 download_proxy。TUN 模式下
+// 纯直连仍可能被路由劫持，选直连且服务在跑时额外问一次是否临时暂停服务保证
+// 这次真正直连（拉取完成后自动恢复），用于「添加订阅」与「刷新订阅」共用。
+func askProxyChoice(p paths.Paths) (fetchViaProxy, pauseForDirect bool, err error) {
+	fetchViaProxy, err = tui.Confirm(
+		i18n.T("使用下载代理拉取此订阅？默认否＝直连（优先本机代理端口，失败再回退下载代理）"), false)
+	if err != nil {
+		return false, false, err
+	}
+	if !fetchViaProxy && config.Bool(config.Load(p), "enable_tun") && sysd.IsActive(sysd.DefaultName) {
+		pauseForDirect, err = tui.Confirm(
+			i18n.T("TUN 模式下直连可能仍被路由劫持；是否临时暂停服务以确保本次直连成功？（拉取完成后自动恢复）"), true)
+		if err != nil {
+			return fetchViaProxy, false, err
+		}
+	}
+	return fetchViaProxy, pauseForDirect, nil
 }
 
 // EnsureStateRoot 确保固定数据目录存在且当前用户可写：能直接建则直接建，

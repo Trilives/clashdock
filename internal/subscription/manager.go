@@ -118,8 +118,9 @@ func GetActive(p paths.Paths) *Subscription {
 // 增 / 改
 // --------------------------------------------------------------------------
 
-// Add 新增订阅（拉取 → 生成配置）；setActive 时切换生效。
-func Add(p paths.Paths, name, subURL, sourceType string, applyOverlay, setActive, fetchViaProxy bool) (*Subscription, error) {
+// Add 新增订阅（拉取 → 生成配置）；setActive 时切换生效。pauseForDirect 仅在
+// !fetchViaProxy 时生效：直连仍可能被 TUN 路由劫持，临时暂停服务保证真正直连。
+func Add(p paths.Paths, name, subURL, sourceType string, applyOverlay, setActive, fetchViaProxy, pauseForDirect bool) (*Subscription, error) {
 	name = Slug(name)
 	if _, err := os.Stat(metaFile(p, name)); err == nil {
 		return nil, fmt.Errorf(i18n.T("订阅「%s」已存在，请改名或先删除"), name)
@@ -128,7 +129,8 @@ func Add(p paths.Paths, name, subURL, sourceType string, applyOverlay, setActive
 		Name: name, URL: subURL, SourceType: sourceType, ApplyOverlay: applyOverlay,
 		CreatedAt: now(), UpdatedAt: now(),
 	}
-	if err := buildWithFetchProxy(p, sub, fetchProxyForChoice(config.Load(p), fetchViaProxy)); err != nil {
+	candidates := fetchProxyCandidates(config.Load(p), fetchViaProxy)
+	if err := buildWithFetchProxy(p, sub, candidates, !fetchViaProxy && pauseForDirect); err != nil {
 		return nil, err
 	}
 	if setActive {
@@ -140,13 +142,14 @@ func Add(p paths.Paths, name, subURL, sourceType string, applyOverlay, setActive
 }
 
 // Refresh 联网重新拉取订阅原文并重建（用于「刷新订阅」/ 定时更新）。
-func Refresh(p paths.Paths, name string) (*Subscription, error) {
+func Refresh(p paths.Paths, name string, fetchViaProxy, pauseForDirect bool) (*Subscription, error) {
 	sub := Get(p, name)
 	if sub == nil {
 		return nil, fmt.Errorf(i18n.T("订阅不存在: %s"), name)
 	}
 	sub.UpdatedAt = now()
-	if err := build(p, sub); err != nil {
+	candidates := fetchProxyCandidates(config.Load(p), fetchViaProxy)
+	if err := buildWithFetchProxy(p, sub, candidates, !fetchViaProxy && pauseForDirect); err != nil {
 		return nil, err
 	}
 	if active := GetActive(p); active != nil && active.Name == name {
@@ -167,7 +170,7 @@ func Rebuild(p paths.Paths, name string) (*Subscription, error) {
 	raw, err := os.ReadFile(rawFile(p, sub))
 	if err != nil {
 		execx.Warn(i18n.T("本地缺少订阅原文，改为联网刷新。"))
-		return Refresh(p, name)
+		return Refresh(p, name, false, false)
 	}
 	sub.UpdatedAt = now()
 	execx.Info(fmt.Sprintf(i18n.T("用本地原文重新生成「%s」（不重新拉取）…"), sub.Name))
@@ -183,13 +186,11 @@ func Rebuild(p paths.Paths, name string) (*Subscription, error) {
 	return sub, nil
 }
 
-// build 拉取（或读本地文件）→ 写 raw → 生成配置写盘。
-func build(p paths.Paths, sub *Subscription) error {
-	cfg := config.Load(p)
-	return buildWithFetchProxy(p, sub, config.Str(cfg, "download_proxy"))
-}
-
-func buildWithFetchProxy(p paths.Paths, sub *Subscription, fetchProxy string) error {
+// buildWithFetchProxy 拉取（或读本地文件）→ 写 raw → 生成配置写盘。proxies 为
+// 按序尝试的代理候选（nil/空=直连）；pauseForDirect 仅在直连场景下有意义——
+// TUN 模式下纯粹的 Proxy:nil 仍可能被路由劫持，临时暂停服务保证这次拉取真正
+// 走物理链路，拉取结束后（无论成败）恢复。
+func buildWithFetchProxy(p paths.Paths, sub *Subscription, proxies []string, pauseForDirect bool) error {
 	cfg := config.Load(p)
 	var raw []byte
 	var err error
@@ -204,7 +205,12 @@ func buildWithFetchProxy(p paths.Paths, sub *Subscription, fetchProxy string) er
 		}
 	} else {
 		execx.Info(fmt.Sprintf(i18n.T("拉取订阅「%s」…"), sub.Name))
-		raw, err = Fetch(sub.URL, sub.SourceType, fetchProxy)
+		if pauseForDirect && sysd.IsActive(sysd.DefaultName) {
+			execx.Info(i18n.T("临时暂停服务以确保本次直连不被 TUN 路由劫持…"))
+			sysd.Pause(sysd.DefaultName)
+			defer sysd.Resume(sysd.DefaultName)
+		}
+		raw, err = Fetch(sub.URL, sub.SourceType, proxies)
 		if err != nil {
 			return err
 		}
@@ -218,14 +224,28 @@ func buildWithFetchProxy(p paths.Paths, sub *Subscription, fetchProxy string) er
 	if err := os.WriteFile(rawFile(p, sub), raw, 0o644); err != nil {
 		return err
 	}
-	return convertAndWrite(p, sub, raw, cfgWithDownloadProxy(cfg, fetchProxy))
+	return convertAndWrite(p, sub, raw, cfgWithDownloadProxy(cfg, primaryProxy(proxies)))
 }
 
-func fetchProxyForChoice(cfg map[string]any, fetchViaProxy bool) string {
-	if !fetchViaProxy {
-		return ""
+// fetchProxyCandidates 按用户选择构造代理候选顺序：不使用代理=只直连；
+// 使用代理=优先本机 mixed-port（已生效订阅节点，出海更稳），失败回退
+// download_proxy。
+func fetchProxyCandidates(cfg map[string]any, useProxy bool) []string {
+	if !useProxy {
+		return nil
 	}
-	return config.Str(cfg, "download_proxy")
+	return []string{"http://127.0.0.1:7890", config.Str(cfg, "download_proxy")}
+}
+
+// primaryProxy 取候选列表里第一个非空项，供 subconverter（base64 来源）这类
+// 次要网络调用使用——不需要完整的按序重试语义，一个合理的默认值即可。
+func primaryProxy(proxies []string) string {
+	for _, p := range proxies {
+		if p != "" {
+			return p
+		}
+	}
+	return ""
 }
 
 func cfgWithDownloadProxy(cfg map[string]any, proxy string) map[string]any {

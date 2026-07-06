@@ -182,7 +182,7 @@ func maybeNodeSelect(p paths.Paths) error {
 }
 
 func subAdd(p paths.Paths) error {
-	info, err := askNewSubscription()
+	info, err := askNewSubscription(p)
 	if err != nil {
 		return err
 	}
@@ -197,7 +197,7 @@ func subAdd(p paths.Paths) error {
 			return err
 		}
 	}
-	if _, err := subscription.Add(p, info.Name, info.URL, info.SourceType, info.ApplyOverlay, setActive, info.FetchViaProxy); err != nil {
+	if _, err := subscription.Add(p, info.Name, info.URL, info.SourceType, info.ApplyOverlay, setActive, info.FetchViaProxy, info.PauseForDirect); err != nil {
 		return err
 	}
 	if setActive {
@@ -239,8 +239,12 @@ func subRefresh(p paths.Paths) error {
 	if err != nil || name == "" {
 		return err
 	}
+	fetchViaProxy, pauseForDirect, err := askProxyChoice(p)
+	if err != nil {
+		return err
+	}
 	active := subscription.GetActive(p)
-	if _, err := subscription.Refresh(p, name); err != nil {
+	if _, err := subscription.Refresh(p, name, fetchViaProxy, pauseForDirect); err != nil {
 		return err
 	}
 	if active != nil && active.Name == name {
@@ -328,7 +332,7 @@ func updateCoreOnly(p paths.Paths) error {
 	if _, err := kernel.UpdateCore(p, f, s, false, true); err != nil {
 		return err
 	}
-	return syncRestartIfInstalled(p)
+	return redeployIfInstalled(p)
 }
 
 func updateGeoOnly(p paths.Paths) error {
@@ -337,7 +341,7 @@ func updateGeoOnly(p paths.Paths) error {
 	if err := kernel.UpdateGeodata(p, f, s, true); err != nil {
 		return err
 	}
-	return syncRestartIfInstalled(p)
+	return redeployIfInstalled(p)
 }
 
 func updateUIOnly(p paths.Paths) error {
@@ -349,6 +353,16 @@ func updateUIOnly(p paths.Paths) error {
 func syncRestartIfInstalled(p paths.Paths) error {
 	if fileExists(p.ConfigFile) && sysd.IsInstalled(sysd.DefaultName) {
 		return sysd.SyncAndRestart(p, sysd.DefaultName)
+	}
+	return nil
+}
+
+// redeployIfInstalled 内核/geo 数据下载到 state/ 后必须走完整 sysd.Install 才会
+// 真正落到运行时目录（SyncAndRestart 只重新同步 config.yaml，不会重新拷贝
+// 二进制/geo 文件——之前这里错用它，导致下载"成功"但服务其实还在用旧文件）。
+func redeployIfInstalled(p paths.Paths) error {
+	if fileExists(p.ConfigFile) && sysd.IsInstalled(sysd.DefaultName) {
+		return sysd.Install(p, sysd.DefaultName, true)
 	}
 	return nil
 }

@@ -21,6 +21,7 @@ import (
 	"github.com/Trilives/clashdock/internal/config"
 	"github.com/Trilives/clashdock/internal/execx"
 	"github.com/Trilives/clashdock/internal/fetchx"
+	"github.com/Trilives/clashdock/internal/firewall"
 	"github.com/Trilives/clashdock/internal/i18n"
 	"github.com/Trilives/clashdock/internal/paths"
 )
@@ -498,16 +499,38 @@ func NewFetcher(p paths.Paths) (*fetchx.Fetcher, Settings) {
 	return fetchx.New(s.DownloadProxy, s.GithubToken), s
 }
 
+// localMixedPortProxy 本机 mihomo mixed-port 的 HTTP 代理地址（服务已启动时可用）。
+func localMixedPortProxy() string {
+	return fmt.Sprintf("http://127.0.0.1:%d", firewall.ProxyPort)
+}
+
+// newLocalProxyFirstFetcher 服务已启动场景专用：优先走本机 mixed-port（走已生效
+// 订阅的节点，出海更稳），失败再回退配置的 download_proxy，最后才直连。
+func newLocalProxyFirstFetcher(p paths.Paths) (*fetchx.Fetcher, Settings) {
+	s := LoadSettings(p)
+	return fetchx.NewOrdered([]string{localMixedPortProxy(), s.DownloadProxy}, s.GithubToken), s
+}
+
 // Options DownloadAll 的选项。
 type Options struct {
 	Compatible bool
 	Force      bool
 	WithUI     bool
+
+	// LocalProxyFirst 优先走本机 mixed-port（127.0.0.1:7890）下载，失败再回退
+	// download_proxy、最后直连——仅适用于主服务已启动之后的资源更新场景。
+	LocalProxyFirst bool
 }
 
 // DownloadAll 下载内核 + geo 数据（+ 可选 Web UI），返回内核版本。
 func DownloadAll(p paths.Paths, opts Options) (string, error) {
-	f, s := NewFetcher(p)
+	var f *fetchx.Fetcher
+	var s Settings
+	if opts.LocalProxyFirst {
+		f, s = newLocalProxyFirstFetcher(p)
+	} else {
+		f, s = NewFetcher(p)
+	}
 	version, err := UpdateCore(p, f, s, opts.Compatible, opts.Force)
 	if err != nil {
 		return "", err

@@ -79,6 +79,15 @@ release:
 
 changelog:
   sort: asc
+  groups:
+    - title: "Features"
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 0
+    - title: "Fixes"
+      regexp: '^.*?fix(\(.+\))??!?:.+$'
+      order: 1
+    - title: "Other"
+      order: 999
   filters:
     exclude:
       - "^docs:"
