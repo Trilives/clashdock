@@ -517,12 +517,17 @@ type Options struct {
 	Force      bool
 	WithUI     bool
 
+	// SkipCore 跳过内核下载，只更新 geo 数据（+ 可选 Web UI）。内核随安装包捆绑，
+	// 初始化不再下载内核；内核更新由用户在「运行时管理 → 更新内核」显式触发。
+	SkipCore bool
+
 	// LocalProxyFirst 优先走本机 mixed-port（127.0.0.1:7890）下载，失败再回退
 	// download_proxy、最后直连——仅适用于主服务已启动之后的资源更新场景。
 	LocalProxyFirst bool
 }
 
-// DownloadAll 下载内核 + geo 数据（+ 可选 Web UI），返回内核版本。
+// DownloadAll 下载内核 + geo 数据（+ 可选 Web UI），返回内核版本；SkipCore 时
+// 跳过内核，只更新 geo/UI，返回本地已记录的内核版本（best-effort）。
 func DownloadAll(p paths.Paths, opts Options) (string, error) {
 	var f *fetchx.Fetcher
 	var s Settings
@@ -531,9 +536,15 @@ func DownloadAll(p paths.Paths, opts Options) (string, error) {
 	} else {
 		f, s = NewFetcher(p)
 	}
-	version, err := UpdateCore(p, f, s, opts.Compatible, opts.Force)
-	if err != nil {
-		return "", err
+	var version string
+	if opts.SkipCore {
+		version = localCoreVersion(p)
+	} else {
+		v, err := UpdateCore(p, f, s, opts.Compatible, opts.Force)
+		if err != nil {
+			return "", err
+		}
+		version = v
 	}
 	if err := UpdateGeodata(p, f, s, opts.Force); err != nil {
 		return version, err
@@ -546,6 +557,16 @@ func DownloadAll(p paths.Paths, opts Options) (string, error) {
 		}
 	}
 	return version, nil
+}
+
+// localCoreVersion 读取本地记录的内核版本（<state>/.../mihomo.version），
+// 缺失时返回空串。仅用于 SkipCore 场景下的信息展示。
+func localCoreVersion(p paths.Paths) string {
+	b, err := os.ReadFile(p.MihomoVersion)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
 }
 
 // --------------------------------------------------------------------------

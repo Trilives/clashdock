@@ -26,16 +26,15 @@ func init() {
 		"检测到本地已有 %d 个订阅记录，是否直接使用现有订阅？": "Detected %d existing subscription(s) locally. Use the existing subscription directly?",
 		"已使用现有订阅：%s": "Using existing subscription: %s",
 
-		"使用本地内核与基础规则启动服务（系统包种子或既有资源）。":             "Starting the service with the local core and basic rules (system package seed or existing resources).",
-		"未找到本地内核或基础规则；非 .deb 安装/种子缺失时需要先下载才能启动服务。": "Local core or basic rules not found; for non-.deb installs or missing seeds, you need to download them first to start the service.",
-		"现在下载内核和基础规则以便启动服务？":                       "Download the core and basic rules now to start the service?",
-		"缺少 mihomo 内核或基础规则，无法注册并启动服务":              "Missing mihomo core or basic rules; cannot register and start the service",
+		"使用本地内核与基础规则启动服务（系统包种子或既有资源）。":                                               "Starting the service with the local core and basic rules (system package seed or existing resources).",
+		"未找到本地内核或基础规则：请通过安装包（deb 已内置，便携包运行 install.sh）安装内核，或在「运行时管理 → 更新内核」手动下载后重试。": "Local core or basic rules not found: install the core via the package (bundled in the .deb, or run install.sh from the portable archive), or download it manually via 'Runtime management → Update core', then retry.",
+		"缺少 mihomo 内核或基础规则，无法注册并启动服务":                                                "Missing mihomo core or basic rules; cannot register and start the service",
 
-		"服务已启动。现在下载/更新内核、geo 数据和可选 Web 管理面板？":                "Service started. Download/update the core, geo data, and optionally the web management panel now?",
-		"同时下载 Web UI（浏览器访问 http://host:9090/ui/ 查看 / 切换节点）？": "Also download the Web UI (browse http://host:9090/ui/ to view / switch nodes)?",
-		"下载/更新 内核 / geo 数据":                                  "Downloading/updating core / geo data",
-		"（出海慢时会用上面的代理）…":                                     " (will use the proxy above if overseas access is slow)…",
-		"已更新资源，重新部署运行时并重启服务…":                                "Resources updated; redeploying the runtime and restarting the service…",
+		"本地内核缺失，本次暂不注册/启动服务：": "Local core missing; skipping service registration/startup this time: ",
+		"已保留本次配置与订阅；补齐内核（重装安装包或「运行时管理 → 更新内核」）后重新执行初始化即可完成服务注册。": "Your configuration and subscriptions are kept; install the core (reinstall the package, or 'Runtime management → Update core'), then re-run initialization to finish service registration.",
+
+		"服务已启动，自动下载/更新 geo 数据 / Web UI…": "Service started; automatically downloading/updating geo data / Web UI…",
+		"已更新资源，重新部署运行时并重启服务…":            "Resources updated; redeploying the runtime and restarting the service…",
 
 		"安装网络切换自愈？":    "Install network self-healing?",
 		"卸载网络自愈":       "Uninstall network self-healing",

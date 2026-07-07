@@ -35,12 +35,22 @@ clashdock
 无需联网即可注册并启动服务。第三方资产的许可与归属见
 `/usr/share/doc/clashdock/copyright`。
 
-### 方式二：tar.gz（仅二进制）
+### 方式二：tar.gz 便携包（内置离线种子，自安装脚本）
+
+便携包同样自带 mihomo 内核与基础规则；`install.sh` 把它们连同本体二进制装入与
+`.deb` **完全一致**的系统路径，效果等同 `sudo apt install clashdock_*.deb`，
+装完离线即可初始化（初始化阶段不下载内核）：
 
 ```bash
 tar -xzf clashdock_*_linux_amd64.tar.gz    # 或 arm64 / armv7
-./clashdock    # 内核 / 规则 / UI 由程序内『下载』步骤在线获取
+cd clashdock_*_linux_amd64
+sudo ./install.sh     # 装入 /usr/bin、/usr/libexec/clashdock、/usr/share/clashdock
+clashdock
 ```
+
+不想装进系统、只想临时跑二进制也可以直接 `./clashdock`——但内核会缺失，需在
+「运行时管理 → 更新内核」手动下载后才能启动服务。卸载系统文件：`sudo ./uninstall.sh`
+（不动 `/var/lib/clashdock` 状态数据）。
 
 ### 方式三：源码构建
 
@@ -124,11 +134,12 @@ clashdock/
 │   ├── sysd/               # systemd 三组单元（服务/自愈/定时器，模板内嵌）
 │   ├── config/  txn/  …    # 定制层存取、事务回滚、路径、防火墙、代理环境变量
 ├── scripts/fetch-deb-deps.sh  # 打包前预下载 mihomo 内核与规则种子
-├── packaging/copyright     # .deb 第三方资产许可与归属
-└── .goreleaser.yaml        # tar.gz + .deb（amd64/arm64）发布流水线
+├── scripts/portable/       # 便携包 install.sh / uninstall.sh（自安装，等效 apt install）
+├── packaging/copyright     # 第三方资产许可与归属（.deb 与便携包共用）
+└── .goreleaser.yaml        # tar.gz 便携包 + .deb（amd64/arm64/armv7）发布流水线
 ```
 
-架构与设计细节见 [ARCHITECTURE.md](ARCHITECTURE.md)；后续改动需遵守
+架构与设计细节见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)；后续改动需遵守
 [docs/MODULARITY.md](docs/MODULARITY.md)，避免单个文件持续膨胀。
 
 ## 许可
