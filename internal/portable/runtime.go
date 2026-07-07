@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Trilives/clashdock/internal/configfile"
+	"github.com/Trilives/clashdock/internal/jsonx"
 	"github.com/Trilives/clashdock/internal/kernel"
 	"github.com/Trilives/clashdock/internal/paths"
 )
@@ -33,8 +35,26 @@ func StageRuntime(p paths.Paths) error {
 	if _, err := os.Stat(p.ConfigFile); err != nil {
 		return fmt.Errorf("missing config.yaml (add a subscription first): %w", err)
 	}
-	if err := kernel.CopyFile(p.ConfigFile, filepath.Join(rt, "config.yaml"), 0o644); err != nil {
-		return fmt.Errorf("stage config: %w", err)
+
+	// Web UI 可选：便携模式默认不携带 metacubexd；有就铺到运行时根级 ui/，没有就跳过
+	// （节点切换走 Clash API，不依赖面板静态资源）。是否铺成功决定 config 里怎么处理
+	// external-ui。
+	// 只有 UI 目录里确有内容才铺（EnsureStateDirs 会预建空的 ui/，便携模式默认不下载
+	// 面板资源，空目录不算有 UI）。
+	uiStaged := false
+	if dirHasContent(p.UI) {
+		if err := copyTree(p.UI, filepath.Join(rt, "ui")); err != nil {
+			return fmt.Errorf("stage ui: %w", err)
+		}
+		uiStaged = true
+	}
+
+	// 配置：mihomo 限制 external-ui 等文件路径必须落在工作目录（-d）之内，而生效
+	// 配置里的 external-ui 指向 state/ui（在 runtime 之外），直接搬会被拒。铺 UI 时
+	// 改写为运行时目录下的 ui/，未铺 UI 时移除该键（不开面板）——与 sysd 服务侧
+	// stageRuntimeConfig 的改写策略一致。
+	if err := stageConfig(p, rt, uiStaged); err != nil {
+		return err
 	}
 
 	// geo 数据：metadb / country.mmdb 有哪个装哪个（至少其一）；geosite.dat 必需。
@@ -50,15 +70,39 @@ func StageRuntime(p paths.Paths) error {
 	if err := kernel.CopyFile(p.GeositeDat, filepath.Join(rt, "geosite.dat"), 0o644); err != nil {
 		return fmt.Errorf("stage geosite.dat: %w", err)
 	}
+	return nil
+}
 
-	// Web UI 可选：便携模式默认不携带 metacubexd；有就铺，没有就跳过（节点切换走
-	// Clash API，不依赖面板静态资源）。
-	if _, err := os.Stat(p.UI); err == nil {
-		if err := copyTree(p.UI, filepath.Join(rt, "ui")); err != nil {
-			return fmt.Errorf("stage ui: %w", err)
-		}
+// stageConfig 把生效配置写进运行时目录，并按 UI 是否就绪改写 external-ui：铺了 UI
+// 就指向 <runtime>/ui（工作目录之内，mihomo 允许），否则删除该键。
+func stageConfig(p paths.Paths, rt string, uiStaged bool) error {
+	raw, err := os.ReadFile(p.ConfigFile)
+	if err != nil {
+		return fmt.Errorf("read config: %w", err)
+	}
+	data, err := configfile.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("parse config: %w", err)
+	}
+	if uiStaged {
+		data["external-ui"] = filepath.Join(rt, "ui")
+	} else {
+		delete(data, "external-ui")
+	}
+	out, err := jsonx.MarshalPretty(data)
+	if err != nil {
+		return fmt.Errorf("marshal config: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(rt, "config.yaml"), out, 0o644); err != nil {
+		return fmt.Errorf("write config: %w", err)
 	}
 	return nil
+}
+
+// dirHasContent 目录存在且至少含一个条目（空目录/不存在均视为无内容）。
+func dirHasContent(dir string) bool {
+	entries, err := os.ReadDir(dir)
+	return err == nil && len(entries) > 0
 }
 
 // copyIfExists 源存在才复制；不存在不报错（geo 兜底文件二选一）。

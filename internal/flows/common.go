@@ -120,7 +120,7 @@ func askNewSubscription(p paths.Paths) (*newSub, error) {
 // 这次真正直连（拉取完成后自动恢复），用于「添加订阅」与「刷新订阅」共用。
 func askProxyChoice(p paths.Paths) (fetchViaProxy, pauseForDirect bool, err error) {
 	fetchViaProxy, err = tui.Confirm(
-		i18n.T("使用下载代理拉取此订阅？默认否＝直连（优先本机代理端口，失败再回退下载代理）"), false)
+		i18n.T("使用代理拉取此订阅？默认否＝直连（优先本机代理端口，失败再回退下载代理）"), false)
 	if err != nil {
 		return false, false, err
 	}
