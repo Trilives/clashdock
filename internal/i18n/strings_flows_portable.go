@@ -27,6 +27,12 @@ func init() {
 		"查看内核日志":      "View core log",
 		"重启内核":        "Restart core",
 		"停止并退出":       "Stop and exit",
+		"How to Use":  "How to Use",
+		"轻量模式只提供本机代理；保持 clashdock 窗口运行，其他程序按需配置代理环境变量。": "Lightweight mode only provides a local proxy; keep the clashdock window running and configure proxy environment variables for other programs as needed.",
+		"当前终端临时生效：": "Temporary setup for the current terminal:",
+		"测试当前代理：":   "Test the current proxy:",
+		"启动方式：":     "Start commands:",
+		"退出 clashdock 后，轻量模式内核会同步停止。": "After clashdock exits, the lightweight-mode core stops with it.",
 
 		"暂无日志：":          "No log yet: ",
 		"内核已重启。":         "Core restarted.",

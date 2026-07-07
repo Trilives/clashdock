@@ -212,9 +212,9 @@ func Update(p paths.Paths, currentVersion string, channel Channel) (string, bool
 	if err := extractTarGz(archivePath, verDir); err != nil {
 		return "", false, err
 	}
-	newBin := versionBin(p, version)
-	if _, err := os.Stat(newBin); err != nil {
-		return "", false, fmt.Errorf("%s", i18n.T("解压后未找到 clashdock 可执行文件"))
+	newBin, err := prepareExtractedBinary(p, version)
+	if err != nil {
+		return "", false, err
 	}
 	if err := os.Chmod(newBin, 0o755); err != nil {
 		return "", false, err
@@ -339,6 +339,52 @@ func copyFileMode(src, dst string, mode os.FileMode) error {
 		return err
 	}
 	return out.Close()
+}
+
+// prepareExtractedBinary normalizes GoReleaser archives into the self-update
+// managed layout. Portable tarballs are wrapped in a top-level directory, while
+// self-update expects <versions>/<version>/clashdock for stable symlink targets.
+func prepareExtractedBinary(p paths.Paths, version string) (string, error) {
+	newBin := versionBin(p, version)
+	if st, err := os.Stat(newBin); err == nil && !st.IsDir() {
+		return newBin, nil
+	}
+	candidate, err := findExtractedBinary(filepath.Dir(newBin))
+	if err != nil {
+		return "", err
+	}
+	if err := copyFileMode(candidate, newBin, 0o755); err != nil {
+		return "", err
+	}
+	return newBin, nil
+}
+
+func findExtractedBinary(root string) (string, error) {
+	var matches []string
+	if err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() || filepath.Base(path) != "clashdock" {
+			return nil
+		}
+		if st, err := d.Info(); err == nil && st.Mode().IsRegular() {
+			matches = append(matches, path)
+		}
+		return nil
+	}); err != nil {
+		return "", err
+	}
+	if len(matches) == 0 {
+		return "", fmt.Errorf("%s", i18n.T("解压后未找到 clashdock 可执行文件"))
+	}
+	sort.Slice(matches, func(i, j int) bool {
+		if strings.Count(matches[i], string(os.PathSeparator)) == strings.Count(matches[j], string(os.PathSeparator)) {
+			return matches[i] < matches[j]
+		}
+		return strings.Count(matches[i], string(os.PathSeparator)) < strings.Count(matches[j], string(os.PathSeparator))
+	})
+	return matches[0], nil
 }
 
 // probeBinary 试跑新二进制，确认它能正常执行（"version" 子命令，无需 root/网络）。

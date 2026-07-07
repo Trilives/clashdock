@@ -16,6 +16,7 @@ import (
 	"github.com/Trilives/clashdock/internal/kernel"
 	"github.com/Trilives/clashdock/internal/paths"
 	"github.com/Trilives/clashdock/internal/portable"
+	"github.com/Trilives/clashdock/internal/proxyenv"
 	"github.com/Trilives/clashdock/internal/subscription"
 	"github.com/Trilives/clashdock/internal/tui"
 )
@@ -155,6 +156,7 @@ func portableSupervisorLoop(p paths.Paths, sup *portable.Supervisor) error {
 			i18n.T("切换节点"),
 			i18n.T("查看内核日志"),
 			i18n.T("重启内核"),
+			i18n.T("How to Use"),
 			i18n.T("停止并退出"),
 		}
 		i, err := tui.Select(status, options, tui.SelectOpts{BackLabel: i18n.T("停止并退出"), Initial: idx})
@@ -175,9 +177,45 @@ func portableSupervisorLoop(p paths.Paths, sup *portable.Supervisor) error {
 				execx.Warn(serr.Error())
 			}
 		case 3:
+			printPortableHowToUse(p)
+		case 4:
 			return nil
 		}
 	}
+}
+
+func printPortableHowToUse(p paths.Paths) {
+	fmt.Println(portableHowToUseText(p))
+}
+
+func portableHowToUseText(p paths.Paths) string {
+	httpURL := fmt.Sprintf("http://%s:%d", proxyenv.ProxyHost, proxyenv.ProxyPort)
+	socksURL := fmt.Sprintf("socks5://%s:%d", proxyenv.ProxyHost, proxyenv.ProxyPort)
+	return strings.Join([]string{
+		"",
+		i18n.T("How to Use"),
+		i18n.T("轻量模式只提供本机代理；保持 clashdock 窗口运行，其他程序按需配置代理环境变量。"),
+		"",
+		i18n.T("当前终端临时生效："),
+		fmt.Sprintf(`export http_proxy="%s"`, httpURL),
+		`export https_proxy="$http_proxy"`,
+		fmt.Sprintf(`export all_proxy="%s"`, socksURL),
+		`export HTTP_PROXY="$http_proxy"`,
+		`export HTTPS_PROXY="$https_proxy"`,
+		`export ALL_PROXY="$all_proxy"`,
+		`export no_proxy="localhost,127.0.0.1,::1"`,
+		`export NO_PROXY="$no_proxy"`,
+		"",
+		i18n.T("测试当前代理："),
+		fmt.Sprintf("curl -x %s https://www.google.com/generate_204", httpURL),
+		"",
+		i18n.T("启动方式："),
+		"./clashdock",
+		"./clashdock run",
+		"",
+		fmt.Sprintf(i18n.T("工作目录：%s"), p.State),
+		i18n.T("退出 clashdock 后，轻量模式内核会同步停止。"),
+	}, "\n")
 }
 
 // restartPortableKernel 重新铺运行时配置并重启内核（套用固定节点等改动）。

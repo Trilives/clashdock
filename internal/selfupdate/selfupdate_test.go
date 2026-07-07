@@ -56,6 +56,27 @@ func TestExtractTarGz(t *testing.T) {
 	}
 }
 
+func TestPrepareExtractedBinaryPromotesWrappedPortableArchive(t *testing.T) {
+	dir := t.TempDir()
+	p := paths.Paths{State: dir}
+	verDir := filepath.Join(versionsDir(p), "1.2.3")
+	wrappedBin := filepath.Join(verDir, "clashdock_1.2.3_linux_amd64", "clashdock")
+	fakeExecutable(t, wrappedBin)
+
+	got, err := prepareExtractedBinary(p, "1.2.3")
+	if err != nil {
+		t.Fatalf("prepareExtractedBinary: %v", err)
+	}
+
+	want := versionBin(p, "1.2.3")
+	if got != want {
+		t.Fatalf("prepareExtractedBinary() = %q, want %q", got, want)
+	}
+	if _, err := os.Stat(want); err != nil {
+		t.Fatalf("promoted clashdock binary missing at managed path: %v", err)
+	}
+}
+
 func TestExtractTarGzRejectsPathTraversal(t *testing.T) {
 	dir := t.TempDir()
 	archive := writeTarGz(t, dir, map[string]string{"../evil": "x"})
