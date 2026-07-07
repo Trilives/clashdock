@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/Trilives/clashdock/internal/execx"
 	"github.com/Trilives/clashdock/internal/i18n"
@@ -140,6 +141,22 @@ func Load(p paths.Paths) map[string]any {
 		}
 	}
 	return merged
+}
+
+// LanguageConfigured 报告 customize.json 里是否**显式**设置过界面语言（区别于
+// Load 的默认补全值 "en"）。启动时据此决定要不要先弹语言选择：文件缺失、解析失败
+// 或没有非空的 language 键都视为「未设置」。
+func LanguageConfigured(p paths.Paths) bool {
+	data, err := os.ReadFile(p.CustomizeFile)
+	if err != nil {
+		return false
+	}
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return false
+	}
+	lang, ok := raw["language"].(string)
+	return ok && strings.TrimSpace(lang) != ""
 }
 
 // Save 按固定键序写盘（2 空格缩进、非 ASCII 不转义，与 Python 版输出习惯一致）。

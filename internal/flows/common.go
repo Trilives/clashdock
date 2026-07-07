@@ -174,6 +174,19 @@ func ensureGithubToken(p paths.Paths) {
 	execx.Ok(i18n.T("GitHub Token 已保存到 customize.json。"))
 }
 
+// EnsureLanguage 启动第一步（完整模式与便携模式共用）：配置文件里未显式设置过
+// 界面语言、且未用 CLASHDOCK_LANG 环境变量显式指定时，先弹出语言选择并写回。
+// 已设置或已用环境变量指定则原样跳过，不打扰。
+func EnsureLanguage(p paths.Paths) error {
+	if strings.TrimSpace(os.Getenv("CLASHDOCK_LANG")) != "" {
+		return nil
+	}
+	if config.LanguageConfigured(p) {
+		return nil
+	}
+	return PickLanguage(p)
+}
+
 // PickLanguage 语言选择器（首次运行入口与主菜单「语言 / Language」共用）：
 // 标题与选项本身直接写死双语字面量（不经过 i18n.T），因为这是语言选择器自身——
 // 用户在任何当前语言状态下都要能看懂两个选项各自对应哪种语言。esc/^R 取消，
