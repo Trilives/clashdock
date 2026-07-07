@@ -13,6 +13,7 @@ import (
 	"github.com/Trilives/clashdock/internal/i18n"
 	"github.com/Trilives/clashdock/internal/kernel"
 	"github.com/Trilives/clashdock/internal/paths"
+	"github.com/Trilives/clashdock/internal/portable"
 	"github.com/Trilives/clashdock/internal/sysd"
 	"github.com/Trilives/clashdock/internal/tui"
 )
@@ -21,14 +22,34 @@ import (
 var version = "dev"
 
 func usageText() string {
-	return i18n.T("用法: clashdock [init|modify|nettest|uninstall|update|pause|resume|version]\n不带参数则进入交互式主菜单。")
+	return i18n.T("用法: clashdock [run|init|modify|nettest|uninstall|update|pause|resume|version]\n不带参数则进入交互式主菜单（从解压的便携包目录启动时自动进入便携模式）。")
+}
+
+// portableRequested 用户显式请求便携模式：`clashdock run` 或 `clashdock --portable`。
+func portableRequested(args []string) bool {
+	return len(args) > 0 && (args[0] == "run" || args[0] == "--portable")
 }
 
 func main() {
+	args := os.Args[1:]
+
+	// 便携/轻量模式判定：显式 `run`/`--portable`，或无参数时从解压便携包目录启动
+	// （旁有 deps/mihomo、未安装系统服务）。命中则把工作目录指向 ./clashdock-data
+	// 并走前台监护流程，不注册服务、不改系统路径。见 internal/portable。
+	pInfo := portable.Detect(sysd.IsInstalled(sysd.DefaultName))
+	if runPortable := portableRequested(args) || (len(args) == 0 && pInfo.Mode == portable.Portable); runPortable {
+		if os.Getenv("CLASHDOCK_HOME") == "" {
+			os.Setenv("CLASHDOCK_HOME", portable.DefaultWorkdir())
+		}
+		p := paths.Detect()
+		setupLanguage(p)
+		setupLogging(p)
+		exitFlow(flows.PortableRun(p, pInfo))
+	}
+
 	p := paths.Detect()
 	setupLanguage(p)
 	setupLogging(p)
-	args := os.Args[1:]
 	if len(args) == 0 {
 		exitIfErr(flows.EnsureStateRoot(p))
 		os.Exit(interactive(p))
@@ -117,20 +138,18 @@ func switchLabel() string {
 }
 
 type firstRunDeps struct {
-	isInstalled  func(string) bool
-	pickLanguage func(paths.Paths) error
-	confirm      func(string, bool) (bool, error)
-	initFlow     func(paths.Paths) error
-	reportError  func(string)
+	isInstalled func(string) bool
+	confirm     func(string, bool) (bool, error)
+	initFlow    func(paths.Paths) error
+	reportError func(string)
 }
 
 func defaultFirstRunDeps() firstRunDeps {
 	return firstRunDeps{
-		isInstalled:  sysd.IsInstalled,
-		pickLanguage: flows.PickLanguage,
-		confirm:      tui.Confirm,
-		initFlow:     flows.Init,
-		reportError:  execx.Error,
+		isInstalled: sysd.IsInstalled,
+		confirm:     tui.Confirm,
+		initFlow:    flows.Init,
+		reportError: execx.Error,
 	}
 }
 
@@ -157,10 +176,6 @@ func maybeOfferFirstRunInit(p paths.Paths, deps firstRunDeps) {
 	if deps.isInstalled(sysd.DefaultName) {
 		return
 	}
-	if err := deps.pickLanguage(p); err != nil {
-		deps.reportError(err.Error())
-		return
-	}
 	ok, err := deps.confirm(i18n.T("未检测到已注册的服务，是否现在进行初始化？"), true)
 	if err == nil && ok {
 		if ierr := deps.initFlow(p); ierr != nil && !errors.Is(ierr, errs.ErrCancelled) {
@@ -170,8 +185,12 @@ func maybeOfferFirstRunInit(p paths.Paths, deps firstRunDeps) {
 }
 
 func interactive(p paths.Paths) int {
-	// 服务单元不存在时，先让用户选择语言，再询问是否现在进入初始化。
-	// 已停止但仍注册的服务不算首次运行；此处只看单元文件是否存在。
+	// 启动第一步：配置文件里没设置过语言（且未用 CLASHDOCK_LANG 指定）才弹语言选择。
+	if err := flows.EnsureLanguage(p); err != nil {
+		execx.Error(err.Error())
+	}
+	// 服务单元不存在时询问是否现在进入初始化。已停止但仍注册的服务不算首次运行；
+	// 此处只看单元文件是否存在。
 	maybeOfferFirstRunInit(p, defaultFirstRunDeps())
 	maybeOfferAssetRedeploy(p)
 	idx := 0

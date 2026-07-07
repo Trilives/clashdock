@@ -313,7 +313,7 @@ func UpdateGeodata(p paths.Paths, f *fetchx.Fetcher, s Settings, force bool) err
 		if err := downloadTo(f, Mirror(item.url, s.GithubMirror), cache, force); err != nil {
 			return err
 		}
-		if err := copyFile(cache, item.dest, 0o644); err != nil {
+		if err := CopyFile(cache, item.dest, 0o644); err != nil {
 			return err
 		}
 	}
@@ -577,14 +577,21 @@ func localCoreVersion(p paths.Paths) string {
 // state（仅当 state 对应文件缺失时），使 apt 安装后无需联网即可启动。
 // 返回实际接管的文件列表。
 func SeedFromSystem(p paths.Paths) ([]string, error) {
+	return SeedFrom(p, SeedBinDir, SeedRulesetDir)
+}
+
+// SeedFrom 通用种子接管：从给定的内核目录与规则目录把 mihomo + 基础规则复制到
+// state（仅当 state 对应文件缺失时）。deb 走 /usr 下的种子目录（SeedFromSystem），
+// 便携模式走解压目录里的 deps/ 兄弟目录（见 internal/portable）。
+func SeedFrom(p paths.Paths, binDir, rulesetDir string) ([]string, error) {
 	var seeded []string
 	if err := p.EnsureStateDirs(); err != nil {
 		return nil, err
 	}
-	seedBin := filepath.Join(SeedBinDir, "mihomo")
+	seedBin := filepath.Join(binDir, "mihomo")
 	if _, err := os.Stat(p.MihomoBin); os.IsNotExist(err) {
 		if _, err := os.Stat(seedBin); err == nil {
-			if err := copyFile(seedBin, p.MihomoBin, 0o755); err != nil {
+			if err := CopyFile(seedBin, p.MihomoBin, 0o755); err != nil {
 				return seeded, err
 			}
 			os.WriteFile(p.MihomoVersion, []byte("bundled\n"), 0o644)
@@ -593,14 +600,14 @@ func SeedFromSystem(p paths.Paths) ([]string, error) {
 	}
 	for _, name := range []string{"geosite.dat", "geoip.metadb", "country.mmdb"} {
 		dest := filepath.Join(p.Ruleset, name)
-		src := filepath.Join(SeedRulesetDir, name)
+		src := filepath.Join(rulesetDir, name)
 		if _, err := os.Stat(dest); !os.IsNotExist(err) {
 			continue
 		}
 		if _, err := os.Stat(src); err != nil {
 			continue
 		}
-		if err := copyFile(src, dest, 0o644); err != nil {
+		if err := CopyFile(src, dest, 0o644); err != nil {
 			return seeded, err
 		}
 		seeded = append(seeded, dest)
@@ -611,7 +618,8 @@ func SeedFromSystem(p paths.Paths) ([]string, error) {
 	return seeded, nil
 }
 
-func copyFile(src, dst string, mode os.FileMode) error {
+// CopyFile 复制单个文件并按 mode 设置权限，必要时创建父目录。
+func CopyFile(src, dst string, mode os.FileMode) error {
 	in, err := os.Open(src)
 	if err != nil {
 		return err
@@ -644,6 +652,6 @@ func copyTreeDir(src, dst string) error {
 		if d.IsDir() {
 			return os.MkdirAll(target, 0o755)
 		}
-		return copyFile(path, target, 0o644)
+		return CopyFile(path, target, 0o644)
 	})
 }

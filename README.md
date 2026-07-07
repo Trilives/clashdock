@@ -48,9 +48,24 @@ sudo ./install.sh     # 装入 /usr/bin、/usr/libexec/clashdock、/usr/share/cl
 clashdock
 ```
 
-不想装进系统、只想临时跑二进制也可以直接 `./clashdock`——但内核会缺失，需在
-「运行时管理 → 更新内核」手动下载后才能启动服务。卸载系统文件：`sudo ./uninstall.sh`
-（不动 `/var/lib/clashdock` 状态数据）。
+卸载系统文件：`sudo ./uninstall.sh`（不动 `/var/lib/clashdock` 状态数据）。
+
+#### 便携/轻量模式（免安装、免 root、原地直接跑）
+
+不想装进系统，就在解压目录里**直接运行**——从便携包目录启动会自动进入便携模式
+（也可显式 `./clashdock run`）：
+
+```bash
+tar -xzf clashdock_*_linux_amd64.tar.gz
+cd clashdock_*_linux_amd64
+./clashdock            # 轻量模式：不装服务、不改系统、不需 root
+```
+
+便携模式下 clashdock 停在前台充当监护进程：提示当前为轻量模式（需完整服务再跑
+`install.sh`）→ 在当前目录建 `./clashdock-data` 工作目录 → 引导添加订阅 → 用便携包
+自带的内核在该目录内直接启动（纯代理，本机 `127.0.0.1:7890`）。菜单可切换节点 /
+看日志 / 重启 / 停止退出；**退出 clashdock 内核随之停止**（不留后台进程）。需要开机
+自启 / TUN / 局域网代理等完整能力时，改用上面的 `install.sh`。
 
 ### 方式三：源码构建
 
@@ -132,6 +147,7 @@ clashdock/
 │   ├── kernel/  fetchx/    # 内核·UI·geo 下载（直连优先→代理兜底）与 deb 种子接管
 │   ├── selfupdate/         # clashdock 自更新：版本化目录 + 原子符号链接切换
 │   ├── sysd/               # systemd 三组单元（服务/自愈/定时器，模板内嵌）
+│   ├── portable/           # 便携/轻量模式：模式判定 + 本地运行时 + 内核子进程监护
 │   ├── config/  txn/  …    # 定制层存取、事务回滚、路径、防火墙、代理环境变量
 ├── scripts/fetch-deb-deps.sh  # 打包前预下载 mihomo 内核与规则种子
 ├── scripts/portable/       # 便携包 install.sh / uninstall.sh（自安装，等效 apt install）

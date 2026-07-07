@@ -9,31 +9,25 @@ import (
 	"github.com/Trilives/clashdock/internal/paths"
 )
 
-func TestMaybeOfferFirstRunInitPicksLanguageBeforePrompt(t *testing.T) {
-	origLang := i18n.Current()
-	t.Cleanup(func() { i18n.SetLang(origLang) })
-	i18n.SetLang(i18n.EN)
+// 语言选择已从首次运行提示中拆出，改为启动第一步 flows.EnsureLanguage（仅当配置
+// 文件未设置过语言时触发）。maybeOfferFirstRunInit 现在只负责「未注册服务时是否初始化」。
 
+func TestMaybeOfferFirstRunInitOffersInitWhenNotInstalled(t *testing.T) {
 	var calls []string
 	deps := firstRunDeps{
 		isInstalled: func(name string) bool {
 			calls = append(calls, "is-installed:"+name)
 			return false
 		},
-		pickLanguage: func(paths.Paths) error {
-			calls = append(calls, "pick-language")
-			i18n.SetLang(i18n.ZH)
-			return nil
-		},
 		confirm: func(prompt string, def bool) (bool, error) {
 			calls = append(calls, "confirm")
-			if prompt != "未检测到已注册的服务，是否现在进行初始化？" {
-				t.Fatalf("confirmation prompt should use language chosen first, got %q", prompt)
+			if prompt != i18n.T("未检测到已注册的服务，是否现在进行初始化？") {
+				t.Fatalf("unexpected init prompt: %q", prompt)
 			}
 			if !def {
 				t.Fatal("first-run initialization prompt should default to yes")
 			}
-			return false, nil
+			return true, nil
 		},
 		initFlow: func(paths.Paths) error {
 			calls = append(calls, "init")
@@ -44,22 +38,18 @@ func TestMaybeOfferFirstRunInitPicksLanguageBeforePrompt(t *testing.T) {
 
 	maybeOfferFirstRunInit(paths.Paths{}, deps)
 
-	want := []string{"is-installed:mihomo", "pick-language", "confirm"}
+	want := []string{"is-installed:mihomo", "confirm", "init"}
 	if !reflect.DeepEqual(calls, want) {
 		t.Fatalf("call order mismatch:\nwant %#v\n got %#v", want, calls)
 	}
 }
 
-func TestMaybeOfferFirstRunInitStopsWhenLanguageSelectionFails(t *testing.T) {
+func TestMaybeOfferFirstRunInitSkipsWhenInstalled(t *testing.T) {
 	var calls []string
 	deps := firstRunDeps{
 		isInstalled: func(string) bool {
 			calls = append(calls, "is-installed")
-			return false
-		},
-		pickLanguage: func(paths.Paths) error {
-			calls = append(calls, "pick-language")
-			return errors.New("save language")
+			return true
 		},
 		confirm: func(string, bool) (bool, error) {
 			calls = append(calls, "confirm")
@@ -69,15 +59,28 @@ func TestMaybeOfferFirstRunInitStopsWhenLanguageSelectionFails(t *testing.T) {
 			calls = append(calls, "init")
 			return nil
 		},
-		reportError: func(msg string) {
-			calls = append(calls, "error:"+msg)
-		},
+		reportError: func(string) {},
 	}
 
 	maybeOfferFirstRunInit(paths.Paths{}, deps)
 
-	want := []string{"is-installed", "pick-language", "error:save language"}
-	if !reflect.DeepEqual(calls, want) {
-		t.Fatalf("call order mismatch:\nwant %#v\n got %#v", want, calls)
+	if want := []string{"is-installed"}; !reflect.DeepEqual(calls, want) {
+		t.Fatalf("installed machine should skip init offer: want %#v, got %#v", want, calls)
+	}
+}
+
+func TestMaybeOfferFirstRunInitReportsInitError(t *testing.T) {
+	var reported string
+	deps := firstRunDeps{
+		isInstalled: func(string) bool { return false },
+		confirm:     func(string, bool) (bool, error) { return true, nil },
+		initFlow:    func(paths.Paths) error { return errors.New("init boom") },
+		reportError: func(msg string) { reported = msg },
+	}
+
+	maybeOfferFirstRunInit(paths.Paths{}, deps)
+
+	if reported != "init boom" {
+		t.Fatalf("expected init error reported, got %q", reported)
 	}
 }

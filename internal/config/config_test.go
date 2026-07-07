@@ -164,3 +164,33 @@ func TestFieldMetadataConsistency(t *testing.T) {
 		}
 	}
 }
+
+func TestLanguageConfigured(t *testing.T) {
+	t.Run("missing file is not configured", func(t *testing.T) {
+		p := testPaths(t)
+		if LanguageConfigured(p) {
+			t.Fatal("missing customize.json should report not configured")
+		}
+	})
+	t.Run("file without language key is not configured", func(t *testing.T) {
+		p := testPaths(t)
+		os.WriteFile(p.CustomizeFile, []byte(`{"enable_tun": false}`), 0o644)
+		if LanguageConfigured(p) {
+			t.Fatal("absent language key should report not configured")
+		}
+	})
+	t.Run("empty language is not configured", func(t *testing.T) {
+		p := testPaths(t)
+		os.WriteFile(p.CustomizeFile, []byte(`{"language": "  "}`), 0o644)
+		if LanguageConfigured(p) {
+			t.Fatal("blank language should report not configured")
+		}
+	})
+	t.Run("explicit language is configured", func(t *testing.T) {
+		p := testPaths(t)
+		os.WriteFile(p.CustomizeFile, []byte(`{"language": "zh"}`), 0o644)
+		if !LanguageConfigured(p) {
+			t.Fatal("explicit language should report configured")
+		}
+	})
+}
