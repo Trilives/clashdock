@@ -13,6 +13,10 @@ func init() {
 		"写入定制层失败（继续）：":  "Failed to write customization layer (continuing): ",
 		"未提供订阅，无法启动内核。": "No subscription provided; cannot start the core.",
 
+		"选择订阅":    "Select subscription",
+		"（当前）":    " (current)",
+		"＋ 添加新订阅": "+ Add a new subscription",
+
 		"配置校验失败，未启动内核。":                              "Config validation failed; core not started.",
 		"内核已启动（本机代理 127.0.0.1:7890）。":                "Core started (local proxy 127.0.0.1:7890).",
 		"Web 面板（若便携包含 UI）：http://127.0.0.1:9090/ui/": "Web panel (if the portable archive bundles a UI): http://127.0.0.1:9090/ui/",

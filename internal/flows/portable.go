@@ -87,27 +87,48 @@ func forcePureProxy(p paths.Paths) {
 	}
 }
 
-// ensurePortableSubscription 复用已有订阅或引导添加首个订阅（走既有 Add 路径）。
+// ensurePortableSubscription 已有订阅时直接进入「选择订阅」界面（列出现有订阅，末项
+// 是「添加新订阅」）；没有任何订阅则直接引导添加首个订阅（走既有 Add 路径）。
 func ensurePortableSubscription(p paths.Paths) error {
-	if existing := subscription.ListAll(p); len(existing) > 0 {
-		target := existing[0].Name
-		if active := subscription.GetActive(p); active != nil {
-			target = active.Name
-		}
-		reuse, err := tui.Confirm(
-			fmt.Sprintf(i18n.T("检测到本地已有 %d 个订阅记录，是否直接使用现有订阅？"), len(existing)), true)
-		if err != nil {
-			return err
-		}
-		if reuse {
-			if err := subscription.Switch(p, target); err != nil {
-				return err
-			}
-			execx.Ok(fmt.Sprintf(i18n.T("已使用现有订阅：%s"), target))
-			return nil
-		}
+	existing := subscription.ListAll(p)
+	if len(existing) == 0 {
+		return addPortableSubscription(p)
 	}
 
+	activeName := ""
+	if active := subscription.GetActive(p); active != nil {
+		activeName = active.Name
+	}
+	options := make([]string, 0, len(existing)+1)
+	initial := 0
+	for idx, s := range existing {
+		label := s.Name
+		if s.Name == activeName {
+			label += i18n.T("（当前）")
+			initial = idx
+		}
+		options = append(options, label)
+	}
+	addIdx := len(options)
+	options = append(options, i18n.T("＋ 添加新订阅"))
+
+	sel, err := tui.Select(i18n.T("选择订阅"), options, tui.SelectOpts{Initial: initial})
+	if err != nil {
+		return err
+	}
+	if sel == addIdx {
+		return addPortableSubscription(p)
+	}
+	target := existing[sel].Name
+	if err := subscription.Switch(p, target); err != nil {
+		return err
+	}
+	execx.Ok(fmt.Sprintf(i18n.T("已使用现有订阅：%s"), target))
+	return nil
+}
+
+// addPortableSubscription 引导添加一个新订阅并设为 active（走既有 Add 路径）。
+func addPortableSubscription(p paths.Paths) error {
 	info, err := askNewSubscription(p)
 	if err != nil {
 		return err
