@@ -98,13 +98,13 @@ func Init(p paths.Paths) error {
 			return nil // 正常返回 → 事务提交，保留步骤 1-2 成果
 		}
 
-		// 3. 注册并启动 systemd 服务。deb 安装已内置内核与基础规则，优先直接使用；
-		// 非 deb / 资源缺失场景才在启动前自动下载兜底。下载失败不再回滚本次会话
-		// 已完成的设置与订阅——保留它们，提示稍后在「运行时管理 → 更新」补下载，
-		// 再重新执行初始化即可（会检测到已有订阅并跳过重新添加，直接重试服务注册）。
+		// 3. 注册并启动 systemd 服务。内核与基础规则由安装包提供（deb 种子接管，或
+		// 便携包 install.sh 装入系统路径），初始化不再下载内核。资源缺失时不回滚本次
+		// 会话已完成的设置与订阅——保留它们，提示先补齐内核后重新执行初始化即可（会
+		// 检测到已有订阅并跳过重新添加，直接重试服务注册）。
 		if err := ensureStartupResources(p); err != nil {
-			execx.Warn(i18n.T("资源下载失败，本次暂不注册/启动服务：") + err.Error())
-			execx.Info(i18n.T("已保留本次配置与订阅；可在「运行时管理 → 更新」下载内核/geo 数据后重新执行初始化完成服务注册。"))
+			execx.Warn(i18n.T("本地内核缺失，本次暂不注册/启动服务：") + err.Error())
+			execx.Info(i18n.T("已保留本次配置与订阅；补齐内核（重装安装包或「运行时管理 → 更新内核」）后重新执行初始化即可完成服务注册。"))
 			t.Commit()
 			return nil
 		}
@@ -115,7 +115,8 @@ func Init(p paths.Paths) error {
 		// 主服务已运行就是持久边界；后续可选模块失败时不应反向卸载它。
 		t.Commit()
 
-		// 4. 服务先跑起来；再自动下载/更新内核、geo 与 Web UI（失败不影响已启动的服务）。
+		// 4. 服务先跑起来；再自动下载/更新 geo 与 Web UI（内核不下载，随包捆绑；
+		// 失败不影响已启动的服务）。
 		optionalPostStartUpdate(p)
 		t.Commit()
 
@@ -206,29 +207,26 @@ func startupResourcesReady(p paths.Paths) bool {
 	return false
 }
 
-// ensureStartupResources 服务启动前的资源兜底：deb 种子已就绪则直接用；否则自动
-// 下载（不再询问），失败即返回错误——调用方（Init）会把这当作软失败处理，不回滚
-// 已完成的设置与订阅。
+// ensureStartupResources 服务启动前检查本地内核与基础规则是否就绪。内核与基础规则
+// 现由安装包提供——deb 种子接管，或便携包 install.sh 装入系统路径——初始化不再
+// 下载内核。缺失即返回错误，由调用方（Init）软失败处理：不回滚已完成的设置与订阅，
+// 提示用户先补齐内核（重装安装包或「运行时管理 → 更新内核」）后重试。
 func ensureStartupResources(p paths.Paths) error {
 	if startupResourcesReady(p) {
 		execx.Info(i18n.T("使用本地内核与基础规则启动服务（系统包种子或既有资源）。"))
 		return nil
 	}
-	execx.Info(i18n.T("未找到本地内核或基础规则；自动下载中…"))
-	ensureGithubToken(p)
-	if _, err := kernel.DownloadAll(p, kernel.Options{WithUI: false}); err != nil {
-		return err
-	}
-	return nil
+	return fmt.Errorf("%s", i18n.T("未找到本地内核或基础规则：请通过安装包（deb 已内置，便携包运行 install.sh）安装内核，或在「运行时管理 → 更新内核」手动下载后重试。"))
 }
 
-// optionalPostStartUpdate 服务已启动后自动下载/更新内核、geo 数据与 Web UI
-// （不再询问）；服务已运行，优先走本机 mixed-port 下载（出海更稳），失败回退
-// download_proxy、最后直连。失败只警告，不影响已启动的服务。
+// optionalPostStartUpdate 服务已启动后自动下载/更新 geo 数据与 Web UI（不再下载
+// 内核——内核随安装包捆绑，更新由用户在「运行时管理 → 更新内核」显式触发）；服务
+// 已运行，优先走本机 mixed-port 下载（出海更稳），失败回退 download_proxy、最后
+// 直连。失败只警告，不影响已启动的服务。
 func optionalPostStartUpdate(p paths.Paths) {
-	execx.Info(i18n.T("服务已启动，自动下载/更新内核 / geo 数据 / Web UI…"))
+	execx.Info(i18n.T("服务已启动，自动下载/更新 geo 数据 / Web UI…"))
 	ensureGithubToken(p)
-	if _, err := kernel.DownloadAll(p, kernel.Options{Force: true, WithUI: true, LocalProxyFirst: true}); err != nil {
+	if _, err := kernel.DownloadAll(p, kernel.Options{Force: true, WithUI: true, LocalProxyFirst: true, SkipCore: true}); err != nil {
 		execx.Warn(i18n.T("资源更新失败：") + err.Error())
 		execx.Info(i18n.T("可稍后在「运行时管理 → 更新」重试。"))
 		return

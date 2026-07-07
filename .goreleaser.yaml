@@ -28,9 +28,35 @@ archives:
   - id: default
     formats: [tar.gz]
     name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{- if eq .Arch "arm" -}}armv{{ .Arm }}{{- else -}}{{ .Arch }}{{- end -}}'
+    # 便携包内含内核 + 规则 + 脚本多个文件，包成顶层目录避免解压时污染当前目录。
+    wrap_in_directory: true
     files:
       - LICENSE
       - README.md
+      # 自安装脚本（等效 sudo apt install clashdock_*.deb）
+      - src: scripts/portable/install.sh
+        dst: install.sh
+        info:
+          mode: 0755
+      - src: scripts/portable/uninstall.sh
+        dst: uninstall.sh
+        info:
+          mode: 0755
+      # mihomo 内核（按架构选取；MIT，见 deps/copyright / deps/LICENSE.mihomo）
+      - src: 'packaging/deps/{{- if eq .Arch "arm" -}}armv{{ .Arm }}{{- else -}}{{ .Arch }}{{- end -}}/mihomo'
+        dst: deps/mihomo
+        info:
+          mode: 0755
+      # 基础规则种子：离线启动够用，之后可在线更新更大的规则文件
+      - src: packaging/deps/rules/geosite.dat
+        dst: deps/rules/geosite.dat
+      - src: packaging/deps/rules/country.mmdb
+        dst: deps/rules/country.mmdb
+      # 许可与归属（与 deb 一致）
+      - src: packaging/copyright
+        dst: deps/copyright
+      - src: packaging/deps/LICENSE.mihomo
+        dst: deps/LICENSE.mihomo
 
 nfpms:
   - id: deb
