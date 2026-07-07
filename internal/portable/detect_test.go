@@ -63,6 +63,28 @@ func TestSiblingDeps(t *testing.T) {
 	}
 }
 
+func TestDirWritable(t *testing.T) {
+	if !dirWritable(t.TempDir()) {
+		t.Fatal("temp dir should be writable")
+	}
+	ro := filepath.Join(t.TempDir(), "ro")
+	if err := os.Mkdir(ro, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	if os.Geteuid() != 0 && dirWritable(ro) {
+		t.Fatal("0500 dir should not be writable for non-root")
+	}
+}
+
+func TestDefaultWorkdirUnderExecDir(t *testing.T) {
+	// 可执行文件所在目录可写时，工作目录应放在其旁（而非启动 cwd）。
+	got := DefaultWorkdir()
+	execDir := filepath.Dir(resolveExec())
+	if want := filepath.Join(execDir, DefaultWorkdirName); got != want {
+		t.Fatalf("DefaultWorkdir() = %q, want %q (next to binary)", got, want)
+	}
+}
+
 func TestInSystemBinDir(t *testing.T) {
 	tests := map[string]bool{
 		"/usr/bin/clashdock":                       true,

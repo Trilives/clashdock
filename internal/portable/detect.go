@@ -84,13 +84,30 @@ func classify(exec, kernel string, installed bool, envMode string) Mode {
 	return Service
 }
 
-// DefaultWorkdir 便携模式默认工作目录：当前工作目录下的 ./clashdock-data。
+// DefaultWorkdir 便携模式默认工作目录：优先放在**可执行文件所在目录**（便携包解压
+// 目录，与 deps/ 同级），使整包自包含、可整体移动/删除，且不随启动时的当前目录变化
+// ——从任意位置运行同一个便携二进制都用同一份数据，订阅得以复用。该目录不可写时
+// （如解压到只读位置）回退到当前工作目录。
 func DefaultWorkdir() string {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return DefaultWorkdirName
+	if dir := filepath.Dir(resolveExec()); dir != "" && dirWritable(dir) {
+		return filepath.Join(dir, DefaultWorkdirName)
 	}
-	return filepath.Join(cwd, DefaultWorkdirName)
+	if cwd, err := os.Getwd(); err == nil {
+		return filepath.Join(cwd, DefaultWorkdirName)
+	}
+	return DefaultWorkdirName
+}
+
+// dirWritable 探测目录是否可创建文件（据此决定工作目录能否放在可执行文件旁）。
+func dirWritable(dir string) bool {
+	f, err := os.CreateTemp(dir, ".clashdock-wtest-*")
+	if err != nil {
+		return false
+	}
+	name := f.Name()
+	f.Close()
+	os.Remove(name)
+	return true
 }
 
 // resolveExec 解析当前可执行文件的真实路径（跟随符号链接），失败回退 os.Args[0]。
