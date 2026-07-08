@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -50,6 +51,11 @@ func PortableRun(p paths.Paths, info portable.Info) error {
 		return fmt.Errorf("%s", i18n.T("便携包内未找到 mihomo 内核（deps/mihomo）；请使用完整便携包，或在完整服务模式下下载内核。"))
 	}
 
+	// 便携模式无需初始化，但仍可按需调整本地代理端口 / 下载代理（端口被占用时用）。
+	if err := maybePortableProxySettings(p); err != nil {
+		return err
+	}
+
 	// 便携模式只做纯代理（无 root 无法开 TUN / 改防火墙）：强制关掉 TUN 与局域网代理，
 	// 使订阅改写生成的 config.yaml 监听本机 mixed-port。
 	forcePureProxy(p)
@@ -76,6 +82,38 @@ func PortableRun(p paths.Paths, info portable.Info) error {
 	execx.Ok(i18n.T("内核已启动（本机代理 127.0.0.1:7890）。"))
 	execx.Info(i18n.T("Web 面板（若便携包含 UI）：http://127.0.0.1:9090/ui/"))
 	return portableSupervisorLoop(p, sup)
+}
+
+// maybePortableProxySettings 便携模式可选调整：本地代理端口（默认 7890，被占用时可改）
+// 与下载代理。默认不打扰（Confirm 默认否），确认后弹单屏表单收集并落盘。
+func maybePortableProxySettings(p paths.Paths) error {
+	adjust, err := tui.Confirm(i18n.T("调整本地代理端口 / 下载代理？（默认端口 7890，通常无需修改）"), false)
+	if err != nil {
+		return err
+	}
+	if !adjust {
+		return nil
+	}
+	cfg := config.Load(p)
+	res, err := tui.Form(i18n.T("便携设置"), []tui.Field{
+		{Key: "proxy_port", Kind: tui.FieldText,
+			Label: i18n.T("本地代理端口（默认 7890，被占用可改）"), Text: strconv.Itoa(config.ProxyPort(cfg))},
+		{Key: "download_proxy", Kind: tui.FieldText, AllowEmpty: true,
+			Label: i18n.T("下载代理（IP:端口，留空=直连）"), Text: stripScheme(config.Str(cfg, "download_proxy")),
+			Placeholder: "192.168.1.10:7890"},
+	}, tui.FormOpts{SubmitLabel: i18n.T("保存"), CancelLabel: i18n.T("使用默认")})
+	if err != nil {
+		return err
+	}
+	if !res.Submitted {
+		return nil
+	}
+	cfg["proxy_port"] = portFromText(res.Text("proxy_port"), config.ProxyPort(cfg))
+	cfg["download_proxy"] = normalizeProxy(res.Text("download_proxy"))
+	if err := config.Save(p, cfg); err != nil {
+		execx.Warn(i18n.T("写入定制层失败（继续）：") + err.Error())
+	}
+	return nil
 }
 
 // forcePureProxy 便携模式落盘纯代理定制层：关闭 TUN / 局域网代理。
@@ -154,7 +192,7 @@ func portableSupervisorLoop(p paths.Paths, sup *portable.Supervisor) error {
 		}
 		options := []string{
 			i18n.T("切换节点"),
-			i18n.T("查看内核日志"),
+			i18n.T("最新日志"),
 			i18n.T("重启内核"),
 			i18n.T("How to Use"),
 			i18n.T("停止并退出"),
@@ -172,12 +210,14 @@ func portableSupervisorLoop(p paths.Paths, sup *portable.Supervisor) error {
 			}
 		case 1:
 			printLogTail(sup.LogPath())
+			tui.Pause(i18n.T("按回车返回菜单… "))
 		case 2:
 			if serr := restartPortableKernel(p, sup); serr != nil {
 				execx.Warn(serr.Error())
 			}
 		case 3:
 			printPortableHowToUse(p)
+			tui.Pause(i18n.T("按回车返回菜单… "))
 		case 4:
 			return nil
 		}
@@ -189,8 +229,9 @@ func printPortableHowToUse(p paths.Paths) {
 }
 
 func portableHowToUseText(p paths.Paths) string {
-	httpURL := fmt.Sprintf("http://%s:%d", proxyenv.ProxyHost, proxyenv.ProxyPort)
-	socksURL := fmt.Sprintf("socks5://%s:%d", proxyenv.ProxyHost, proxyenv.ProxyPort)
+	port := config.ProxyPort(config.Load(p))
+	httpURL := fmt.Sprintf("http://%s:%d", proxyenv.ProxyHost, port)
+	socksURL := fmt.Sprintf("socks5://%s:%d", proxyenv.ProxyHost, port)
 	return strings.Join([]string{
 		"",
 		i18n.T("How to Use"),

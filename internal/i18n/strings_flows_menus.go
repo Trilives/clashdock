@@ -32,6 +32,12 @@ func init() {
 		"重启服务":      "Restart service",
 		"同步当前配置并重启": "Sync current config and restart",
 
+		"重载服务（删除并重建）": "Reload service (delete & rebuild)",
+		"将删除并重建服务（重新生成订阅配置、重装运行时并重启），确认继续？": "This will delete and rebuild the service (regenerate the subscription config, redeploy the runtime, and restart). Continue?",
+		"重建订阅配置失败（继续用现有 config.yaml）：":      "Failed to rebuild subscription config (continuing with the existing config.yaml): ",
+		"已重建生效订阅配置：%s":                      "Rebuilt active subscription config: %s",
+		"服务已重载（已删除并重建）。":                    "Service reloaded (deleted and rebuilt).",
+
 		"Web UI（mihomo 内置路径）: http://%s:9090/ui/":                     "Web UI (mihomo built-in path): http://%s:9090/ui/",
 		"远程查看建议用 SSH 端口转发： ssh -N -L 9090:127.0.0.1:9090 user@server": "For remote viewing, use SSH port forwarding: ssh -N -L 9090:127.0.0.1:9090 user@server",
 		"局域网代理已开启：其他主机可设置 http/socks 代理为 本机IP:7890":                   "LAN proxy is enabled: other hosts can set their http/socks proxy to this machine's IP:7890",

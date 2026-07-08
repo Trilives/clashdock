@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/Trilives/clashdock/internal/config"
+	"github.com/Trilives/clashdock/internal/errs"
 	"github.com/Trilives/clashdock/internal/execx"
 	"github.com/Trilives/clashdock/internal/firewall"
 	"github.com/Trilives/clashdock/internal/i18n"
@@ -30,28 +31,34 @@ func Init(p paths.Paths) error {
 			execx.Warn(i18n.T("种子接管失败（不影响后续下载）：") + err.Error())
 		}
 
-		// 1. 局域网下载代理 / TUN / 局域网代理
+		// 1. 若本地已有订阅记录（如 migrate 后重新初始化），先问是否直接复用；
+		// 复用时表单只收集基础设置，不再重复填订阅。
+		existing := subscription.ListAll(p)
+		reuse := false
+		if len(existing) > 0 {
+			useLocal, err := tui.Confirm(
+				fmt.Sprintf(i18n.T("检测到本地已有 %d 个订阅记录，是否直接使用现有订阅？"), len(existing)), true)
+			if err != nil {
+				return err
+			}
+			reuse = useLocal
+		}
+
+		// 2. 单屏表单一次性收集基础设置（+ 首个订阅）。取消 → 回退整个事务。
+		s, ok, err := runInitForm(p, !reuse)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return errs.ErrCancelled
+		}
+
+		// 3. 落盘基础设置。
 		cfg := config.Load(p)
-		proxy, err := tui.Ask(
-			i18n.T("订阅/资源下载代理 IP:端口（出海慢时走它，如 192.168.1.10:7890），留空=保留当前/无则直连"),
-			tui.AskOpts{Default: stripScheme(config.Str(cfg, "download_proxy")), AllowEmpty: true})
-		if err != nil {
-			return err
-		}
-		cfg["download_proxy"] = normalizeProxy(proxy)
-		// TUN 模式：全局透明代理；关则纯代理，需各 App 自设代理
-		enableTun, err := tui.Confirm(i18n.T("启用 TUN 模式？（整机流量自动走代理；否=纯代理，需各 App 手动设代理）"),
-			config.Bool(cfg, "enable_tun"))
-		if err != nil {
-			return err
-		}
-		cfg["enable_tun"] = enableTun
-		lanProxy, err := tui.Confirm(i18n.T("开启局域网代理？（让局域网其他主机可用本机作为代理，监听 0.0.0.0:7890）"),
-			config.Bool(cfg, "lan_proxy"))
-		if err != nil {
-			return err
-		}
-		cfg["lan_proxy"] = lanProxy
+		cfg["download_proxy"] = s.downloadProxy
+		cfg["proxy_port"] = s.proxyPort
+		cfg["enable_tun"] = s.enableTun
+		cfg["lan_proxy"] = s.lanProxy
 		if err := t.BackupFile(p.CustomizeFile); err != nil {
 			return err
 		}
@@ -59,36 +66,25 @@ func Init(p paths.Paths) error {
 			return err
 		}
 
-		// TUN 关闭=纯代理：可选把代理变量写入 bashrc
-		if !enableTun {
-			ok, err := tui.Confirm(i18n.T("把代理环境变量写入 ~/.bashrc？（新开终端自动走 127.0.0.1:7890）"), true)
-			if err != nil {
+		// TUN 关闭=纯代理：按表单选择把代理变量写入 bashrc。
+		if !s.enableTun && s.writeBashrc {
+			if err := t.BackupFile(proxyenv.TargetBashrc()); err != nil {
 				return err
 			}
-			if ok {
-				if err := t.BackupFile(proxyenv.TargetBashrc()); err != nil {
-					return err
-				}
-				if _, err := proxyenv.Write(); err != nil {
-					return err
-				}
+			if _, err := proxyenv.Write(config.ProxyPort(cfg)); err != nil {
+				return err
 			}
 		}
 
-		// 局域网代理需放行防火墙端口
-		if lanProxy {
-			ok, err := tui.Confirm(i18n.T("更新防火墙放行 7890 端口？"), true)
-			if err != nil {
-				return err
-			}
-			if ok {
-				t.AddUndo(i18n.T("撤销防火墙放行 7890"), func() error { firewall.Revoke(firewall.ProxyPort); return nil })
-				firewall.Allow(firewall.ProxyPort)
-			}
+		// 局域网代理按表单选择放行防火墙端口（端口取 proxy_port，默认 7890）。
+		if s.lanProxy && s.allowPort {
+			port := config.ProxyPort(cfg)
+			t.AddUndo(i18n.T("撤销防火墙放行代理端口"), func() error { firewall.Revoke(port); return nil })
+			firewall.Allow(port)
 		}
 
-		// 2. 添加首个订阅（Clash / base64 / 本地 YAML 文件三选一）。
-		ready, err := initialConfigSource(p, t)
+		// 4. 添加首个订阅（或复用现有）。
+		ready, err := applyInitSubscription(p, t, s, reuse, existing)
 		if err != nil {
 			return err
 		}
@@ -127,7 +123,7 @@ func Init(p paths.Paths) error {
 		t.Commit()
 
 		// 6. 提示切换 / 固定节点
-		ok, err := tui.Confirm(i18n.T("配置已就绪，是否现在切换 / 固定节点？"), false)
+		ok, err = tui.Confirm(i18n.T("配置已就绪，是否现在切换 / 固定节点？"), false)
 		if err != nil {
 			return err
 		}
@@ -143,13 +139,10 @@ func Init(p paths.Paths) error {
 	})
 }
 
-// initialConfigSource 添加首个订阅。若状态目录（/var/lib/clashdock）里已有
-// 订阅记录——典型场景是运行 migrate-runtime-dir.sh 后重新初始化，订阅数据本
-// 就没被清理过——询问是否直接复用现有订阅，跳过重新添加。否则与「配置变更 →
-// 添加订阅」共用同一个三选一来源选择器（Clash / base64 / 本地 YAML 文件），
-// 本地文件此时也是作为一个真正的订阅条目创建，而不是走单独的「本地文件覆盖」
-// 直接改写路径。
-func initialConfigSource(p paths.Paths, t *txn.Transaction) (bool, error) {
+// applyInitSubscription 应用初始化表单收集到的订阅设置：reuse=true 时直接切到现有
+// 订阅；否则用表单填的信息新建首个订阅（链接留空则跳过，返回 ready=false 表示不注册
+// 服务）。本地 YAML 也是作为一个真正的订阅条目创建，而不是走单独的「本地文件覆盖」。
+func applyInitSubscription(p paths.Paths, t *txn.Transaction, s *initSettings, reuse bool, existing []subscription.Subscription) (bool, error) {
 	if err := t.BackupFile(p.ConfigFile); err != nil {
 		return false, err
 	}
@@ -157,33 +150,22 @@ func initialConfigSource(p paths.Paths, t *txn.Transaction) (bool, error) {
 		return false, err
 	}
 
-	if existing := subscription.ListAll(p); len(existing) > 0 {
-		useLocal, err := tui.Confirm(
-			fmt.Sprintf(i18n.T("检测到本地已有 %d 个订阅记录，是否直接使用现有订阅？"), len(existing)), true)
-		if err != nil {
+	if reuse {
+		target := existing[0].Name
+		if active := subscription.GetActive(p); active != nil {
+			target = active.Name
+		}
+		if err := subscription.Switch(p, target); err != nil {
 			return false, err
 		}
-		if useLocal {
-			target := existing[0].Name
-			if active := subscription.GetActive(p); active != nil {
-				target = active.Name
-			}
-			if err := subscription.Switch(p, target); err != nil {
-				return false, err
-			}
-			execx.Ok(fmt.Sprintf(i18n.T("已使用现有订阅：%s"), target))
-			return true, nil
-		}
+		execx.Ok(fmt.Sprintf(i18n.T("已使用现有订阅：%s"), target))
+		return true, nil
 	}
 
-	info, err := askNewSubscription(p)
-	if err != nil {
-		return false, err
-	}
-	if info == nil {
+	if !s.hasSub {
 		return false, nil
 	}
-	sub, err := subscription.Add(p, info.Name, info.URL, info.SourceType, info.ApplyOverlay, true, info.FetchViaProxy, info.PauseForDirect)
+	sub, err := subscription.Add(p, s.sub.Name, s.sub.URL, s.sub.SourceType, s.sub.ApplyOverlay, true, s.sub.FetchViaProxy, s.sub.PauseForDirect)
 	if err != nil {
 		return false, err
 	}

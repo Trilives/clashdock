@@ -19,6 +19,7 @@ import (
 
 	"golang.org/x/term"
 
+	"github.com/Trilives/clashdock/internal/config"
 	"github.com/Trilives/clashdock/internal/execx"
 	"github.com/Trilives/clashdock/internal/i18n"
 	"github.com/Trilives/clashdock/internal/paths"
@@ -28,7 +29,6 @@ import (
 
 const (
 	nettestProxyHost = "127.0.0.1"
-	nettestProxyPort = 7890
 	nettestUA        = "Mozilla/5.0 (X11; Linux x86_64) mihomo-nettest"
 	nettestTimeout   = 10 * time.Second
 )
@@ -64,8 +64,8 @@ type latResult struct {
 	code string
 }
 
-func proxyUp() bool {
-	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", nettestProxyHost, nettestProxyPort), time.Second)
+func proxyUp(port int) bool {
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", nettestProxyHost, port), time.Second)
 	if err != nil {
 		return false
 	}
@@ -73,10 +73,10 @@ func proxyUp() bool {
 	return true
 }
 
-func nettestClient(viaProxy bool) *http.Client {
+func nettestClient(viaProxy bool, port int) *http.Client {
 	tr := &http.Transport{Proxy: nil}
 	if viaProxy {
-		u, _ := url.Parse(fmt.Sprintf("http://%s:%d", nettestProxyHost, nettestProxyPort))
+		u, _ := url.Parse(fmt.Sprintf("http://%s:%d", nettestProxyHost, port))
 		tr.Proxy = http.ProxyURL(u)
 	}
 	return &http.Client{Transport: tr, Timeout: nettestTimeout}
@@ -184,6 +184,7 @@ func fileLocations(p paths.Paths) []struct{ label, path string } {
 		{i18n.T("基础规则目录"), p.Ruleset},
 		{i18n.T("Web UI 目录"), p.UI},
 		{i18n.T("下载缓存目录"), p.Downloads},
+		{i18n.T("日志文件"), execx.LogPath(p.State)},
 		{i18n.T("systemd 单元"), "/etc/systemd/system/" + sysd.DefaultName + ".service"},
 	}
 }
@@ -199,11 +200,13 @@ func FileLocationsTool(p paths.Paths) error {
 	return nil
 }
 
-// ToolsMenu 「工具」菜单：网络测试 / 主要文件位置 / 信息，未来可继续添加其它排障工具。
-func ToolsMenu(p paths.Paths) error {
+// ToolsMenu 「工具」菜单：网络测试 / 最新日志 / 更新 / 主要文件位置 / 信息。
+// 「更新」（内核 / Web UI / geo / clashdock 自身）原属「运行时管理」，移到这里，
+// 使「运行时管理」聚焦服务本身的即时操作。currentVersion 供 clashdock 自更新使用。
+func ToolsMenu(p paths.Paths, currentVersion string) error {
 	idx := 0
 	for {
-		options := []string{i18n.T("网络测试"), i18n.T("主要文件位置"), i18n.T("信息")}
+		options := []string{i18n.T("网络测试"), i18n.T("最新日志"), i18n.T("更新"), i18n.T("主要文件位置"), i18n.T("信息")}
 		i, err := tui.Select(i18n.T("工具"), options, tui.SelectOpts{BackLabel: i18n.T("返回上层"), Initial: idx})
 		if err != nil {
 			return nil
@@ -212,10 +215,14 @@ func ToolsMenu(p paths.Paths) error {
 		var terr error
 		switch i {
 		case 0:
-			terr = Nettest()
+			terr = Nettest(config.ProxyPort(config.Load(p)))
 		case 1:
-			terr = FileLocationsTool(p)
+			terr = LatestLogTool(p)
 		case 2:
+			terr = updateMenuFlow(p, currentVersion)
+		case 3:
+			terr = FileLocationsTool(p)
+		case 4:
 			terr = InfoTool(p)
 		}
 		if terr != nil {
@@ -224,17 +231,17 @@ func ToolsMenu(p paths.Paths) error {
 	}
 }
 
-// Nettest 网络测试全流程：延迟测试 + 出口 IP。
-func Nettest() error {
+// Nettest 网络测试全流程：延迟测试 + 出口 IP。port 为本地代理端口（proxy_port，默认 7890）。
+func Nettest(port int) error {
 	execx.Header(i18n.T("网络测试"))
-	viaProxy := proxyUp()
-	proxyURL := fmt.Sprintf("http://%s:%d", nettestProxyHost, nettestProxyPort)
+	viaProxy := proxyUp(port)
+	proxyURL := fmt.Sprintf("http://%s:%d", nettestProxyHost, port)
 	if viaProxy {
 		execx.Info(fmt.Sprintf(i18n.T("经本地代理 %s 测试（走 mihomo 出口）。"), proxyURL))
 	} else {
 		execx.Warn(fmt.Sprintf(i18n.T("本地代理 %s 未监听，改用直连测试（结果不代表代理体验）。"), proxyURL))
 	}
-	client := nettestClient(viaProxy)
+	client := nettestClient(viaProxy, port)
 
 	// 1. 延迟
 	lat := make([]latResult, len(latencyTargets))

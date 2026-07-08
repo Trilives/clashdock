@@ -41,6 +41,22 @@ type PatchError struct{ Msg string }
 
 func (e *PatchError) Error() string { return e.Msg }
 
+// mixedPortOf 从 customize 读本地代理端口（proxy_port），越界（非 1-65535）回退
+// 默认 MixedPort。值可能是 int（默认补全）或 float64（JSON 解析）两种形态。
+func mixedPortOf(customize map[string]any) int {
+	var port int
+	switch v := customize["proxy_port"].(type) {
+	case int:
+		port = v
+	case float64:
+		port = int(v)
+	}
+	if port >= 1 && port <= 65535 {
+		return port
+	}
+	return MixedPort
+}
+
 // buildTun 按 enable_tun 构造 tun 段。关闭时仅 enable:false（纯代理模式）。
 func buildTun(customize map[string]any) map[string]any {
 	if !truthy(customize, "enable_tun", true) {
@@ -109,12 +125,13 @@ func Apply(clash map[string]any, customize map[string]any, uiDir string) (map[st
 		cfg[k] = v
 	}
 
-	// 1. 本地代理端口：统一 mixed-port，删除会冲突的其它入站端口
+	// 1. 本地代理端口：统一 mixed-port，删除会冲突的其它入站端口。端口可由
+	// customize 的 proxy_port 覆写（默认 7890；端口被占用时可改），越界回退默认。
 	delete(cfg, "port")
 	delete(cfg, "socks-port")
 	delete(cfg, "redir-port")
 	delete(cfg, "tproxy-port")
-	cfg["mixed-port"] = MixedPort
+	cfg["mixed-port"] = mixedPortOf(customize)
 
 	// 2. 局域网代理
 	lanProxy := truthy(customize, "lan_proxy", false)

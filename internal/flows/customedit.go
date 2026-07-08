@@ -83,10 +83,11 @@ func syncLanProxyFirewall(original, cfg map[string]any) error {
 	if err != nil || !ok {
 		return nil
 	}
+	port := config.ProxyPort(cfg)
 	if after {
-		firewall.Allow(firewall.ProxyPort)
+		firewall.Allow(port)
 	} else {
-		firewall.Revoke(firewall.ProxyPort)
+		firewall.Revoke(port)
 	}
 	return nil
 }

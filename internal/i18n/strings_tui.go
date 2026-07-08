@@ -10,6 +10,10 @@ func init() {
 
 		"↑/↓ 移动   空格 勾选   ⏎ 确认   esc 取消": "↑/↓ move   space toggle   ⏎ confirm   esc cancel",
 
+		"↑/↓ 移动   空格 切换/勾选   ←/→ 选项   ⏎ 下一项/确认   esc 取消": "↑/↓ move   space toggle   ←/→ option   ⏎ next/confirm   esc cancel",
+		"提交": "Submit",
+		"取消": "Cancel",
+
 		"  回车) %s    r) %s\n": "  enter) %s    r) %s\n",
 		"请选择: ":               "Select: ",
 		"无效选择，请重输。":           "Invalid choice, please try again.",

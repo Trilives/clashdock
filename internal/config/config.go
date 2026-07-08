@@ -59,6 +59,7 @@ const DefaultSubconverterBackend = "https://sub.v1.mk"
 var defaultsOrder = []string{
 	// —— 部署字段（始终生效）——
 	"enable_tun",
+	"proxy_port",
 	"tun_stack",
 	"tun_route_exclude_cidrs",
 	"tun_exclude_uids",
@@ -96,6 +97,7 @@ func Defaults() map[string]any {
 		"tun_route_exclude_cidrs":   append([]string(nil), DefaultTunRouteExclude...),
 		"tun_exclude_uids":          []int{},
 		"main_group_keywords":       append([]string(nil), DefaultMainGroupKeywords...),
+		"proxy_port":                DefaultProxyPort,
 		"lan_proxy":                 false,
 		"lan_panel":                 false,
 		"secret":                    "",
@@ -237,6 +239,7 @@ var BoolFields = map[string]string{
 }
 
 var ScalarFields = map[string]string{
+	"proxy_port":           "本地代理端口（默认 7890，端口被占用时可改）",
 	"tun_stack":            "TUN 协议栈（gvisor/system/mixed）",
 	"secret":               "面板密钥 secret",
 	"bootstrap_dns_server": "引导 DNS 服务器",
@@ -250,6 +253,7 @@ var ScalarFields = map[string]string{
 // DeploymentFields 部署字段编辑分组（始终生效：TUN / 网络 / 面板 / 下载设置）。
 var DeploymentFields = []string{
 	"enable_tun",
+	"proxy_port",
 	"tun_stack",
 	"lan_proxy",
 	"lan_panel",
@@ -363,6 +367,18 @@ func Str(cfg map[string]any, key string) string {
 		return ""
 	}
 	return toString(v)
+}
+
+// DefaultProxyPort 本地 mixed 入站默认端口（HTTP + SOCKS5 共用）。与
+// subscription.MixedPort 一致，但按现有约定刻意不互相引用。
+const DefaultProxyPort = 7890
+
+// ProxyPort 本地代理端口：读 customize 的 proxy_port，越界（非 1-65535）回退默认 7890。
+func ProxyPort(cfg map[string]any) int {
+	if p := Int(cfg, "proxy_port"); p >= 1 && p <= 65535 {
+		return p
+	}
+	return DefaultProxyPort
 }
 
 func Int(cfg map[string]any, key string) int {

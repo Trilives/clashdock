@@ -20,7 +20,16 @@ func init() {
 		"基础规则目录":     "Base ruleset directory",
 		"Web UI 目录":  "Web UI directory",
 		"下载缓存目录":     "Download cache directory",
+		"日志文件":       "Log file",
 		"systemd 单元": "systemd unit",
+
+		"更新": "Update",
+
+		"【mihomo 服务日志】":            "[mihomo service log]",
+		"未找到 journalctl，无法读取服务日志。": "journalctl not found; cannot read the service log.",
+		"暂无服务日志（服务未运行或无读取权限，可尝试 sudo journalctl -u mihomo）。": "No service log yet (the service is not running or you lack read permission; try sudo journalctl -u mihomo).",
+		"【clashdock 日志】%s\n": "[clashdock log] %s\n",
+		"应用日志未启用或暂无内容（可在「配置变更 → 部署设置」开启日志）。": "The application log is disabled or empty (enable it under Configuration → Deployment Settings).",
 
 		"延迟测试": "Latency test",
 		"出口探测": "Egress probe",

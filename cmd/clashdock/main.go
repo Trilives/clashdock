@@ -68,7 +68,7 @@ func main() {
 	case "modify":
 		exitFlow(flows.ModifyConfig(p))
 	case "nettest":
-		exitFlow(flows.Nettest())
+		exitFlow(flows.Nettest(config.ProxyPort(config.Load(p))))
 	case "uninstall":
 		exitFlow(flows.Uninstall(p))
 	case "update":
@@ -214,11 +214,11 @@ func interactive(p paths.Paths) int {
 		var aerr error
 		switch i {
 		case 0:
-			aerr = flows.ModifyRuntime(p, version)
+			aerr = flows.ModifyRuntime(p)
 		case 1:
 			aerr = flows.ModifyConfig(p)
 		case 2:
-			aerr = flows.ToolsMenu(p)
+			aerr = flows.ToolsMenu(p, version)
 		case 3:
 			aerr = flows.ServiceToggleFlow(p)
 		case 4:

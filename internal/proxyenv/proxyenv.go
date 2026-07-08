@@ -24,9 +24,9 @@ const (
 	endMark   = "# <<< mihomo proxy env <<<"
 )
 
-func block() string {
-	httpURL := fmt.Sprintf("http://%s:%d", ProxyHost, ProxyPort)
-	socksURL := fmt.Sprintf("socks5://%s:%d", ProxyHost, ProxyPort)
+func block(port int) string {
+	httpURL := fmt.Sprintf("http://%s:%d", ProxyHost, port)
+	socksURL := fmt.Sprintf("socks5://%s:%d", ProxyHost, port)
 	return strings.Join([]string{
 		beginMark,
 		fmt.Sprintf(`export http_proxy="%s"`, httpURL),
@@ -74,8 +74,11 @@ func stripBlock(text string) string {
 	return strings.Join(out, "\n")
 }
 
-// Write 幂等写入代理块到 bashrc；返回写入的文件路径。
-func Write() (string, error) {
+// Write 幂等写入代理块到 bashrc（端口由调用方传入，默认 ProxyPort=7890）；返回写入的文件路径。
+func Write(port int) (string, error) {
+	if port <= 0 {
+		port = ProxyPort
+	}
 	path := TargetBashrc()
 	old := ""
 	existed := false
@@ -84,7 +87,7 @@ func Write() (string, error) {
 		existed = true
 	}
 	body := strings.TrimRight(stripBlock(old), "\n")
-	content := block() + "\n"
+	content := block(port) + "\n"
 	if body != "" {
 		content = body + "\n\n" + content
 	}
