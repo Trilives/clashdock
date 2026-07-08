@@ -30,6 +30,7 @@ var modifyConfigOptions = []string{
 	"订阅管理（增 / 删 / 改名 / 切换 / 刷新）",
 	"部署设置（TUN / 面板 / 下载）",
 	"自定义分流叠加（AI / 流媒体 / 地区组）",
+	"重新初始化（删除服务并重走初始化）",
 }
 
 // 顺序按常用程度排列：切节点/查看服务状态是日常操作，自愈/定时器属一次性
@@ -55,7 +56,27 @@ func ModifyConfig(p paths.Paths) error {
 		func() error {
 			return editFieldGroupFlow(p, "自定义分流叠加（AI / 流媒体 / 地区组）", config.OverlayFields)
 		},
+		func() error { return reinitialize(p) },
 	})
+}
+
+// reinitialize 「重新初始化」：一次交互确认后删除现有服务，再走完整初始化流程
+// （Init 有自己的事务与单屏表单，本地订阅数据保留）。成功后返回 ErrSaveExit，提交并
+// 退出当前「配置变更」会话回主菜单，避免会话快照与重建后的配置不一致。
+func reinitialize(p paths.Paths) error {
+	ok, err := tui.Confirm(i18n.T("确认重新初始化？将删除现有服务并重新执行初始化流程（本地订阅数据保留）。"), false)
+	if err != nil || !ok {
+		return err
+	}
+	if sysd.IsInstalled(sysd.DefaultName) {
+		if err := sysd.Remove(p, sysd.DefaultName, true); err != nil {
+			return err
+		}
+	}
+	if err := Init(p); err != nil {
+		return err
+	}
+	return errs.ErrSaveExit
 }
 
 // ModifyRuntime 运行时管理会话（即时生效）：节点切换 / 服务设置（含重载服务）/
