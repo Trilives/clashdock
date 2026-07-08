@@ -96,12 +96,18 @@ checksum:
 # 接口返回——self-update 的稳定渠道天然只看得到正式版，预览渠道另走 /releases
 # 列表读取最新一项（见 internal/selfupdate）。
 #
-# extra_files 额外把运行时目录迁移脚本作为独立 release 资产上传（不进 tar.gz/deb），
-# 供从 /etc/mihomo 旧路径升级的用户下载单独运行，见 scripts/migrate-runtime-dir.sh。
+# header 给出本预览线相较上一个稳定版的要点摘要（changelog 只列本次 tag 增量），
+# 让预览版说明既准确又简短。
 release:
   prerelease: auto
-  extra_files:
-    - glob: ./scripts/migrate-runtime-dir.sh
+  header: |
+    Preview build (prerelease).
+
+    Highlights of the 0.2.4 preview line (vs v0.2.3):
+    - Initialization is now a single-screen form with dynamic fields.
+    - Configurable local proxy port (Config Changes → Deployment Settings; default 7890).
+    - New "Reinitialize" (Config Changes) and "Reload Service · delete & rebuild" (Service Settings).
+    - "Update" moved into the Tools menu; new "Latest Log" viewer (portable + full mode).
 
 changelog:
   sort: asc
