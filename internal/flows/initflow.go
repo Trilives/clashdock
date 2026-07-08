@@ -59,6 +59,11 @@ func Init(p paths.Paths) error {
 		cfg["proxy_port"] = s.proxyPort
 		cfg["enable_tun"] = s.enableTun
 		cfg["lan_proxy"] = s.lanProxy
+		// TUN 直连白名单仅在 TUN 模式下有意义（纯代理模式不改路由，无需放行）。
+		if s.enableTun {
+			cfg["tun_exclude_uids"] = s.excludeUIDs
+			cfg["tun_exclude_process"] = s.excludeProcess
+		}
 		if err := t.BackupFile(p.CustomizeFile); err != nil {
 			return err
 		}

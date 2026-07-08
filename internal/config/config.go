@@ -63,6 +63,7 @@ var defaultsOrder = []string{
 	"tun_stack",
 	"tun_route_exclude_cidrs",
 	"tun_exclude_uids",
+	"tun_exclude_process",
 	"main_group_keywords",
 	"lan_proxy",
 	"lan_panel",
@@ -96,6 +97,7 @@ func Defaults() map[string]any {
 		"tun_stack":                 "gvisor",
 		"tun_route_exclude_cidrs":   append([]string(nil), DefaultTunRouteExclude...),
 		"tun_exclude_uids":          []int{},
+		"tun_exclude_process":       []string{},
 		"main_group_keywords":       append([]string(nil), DefaultMainGroupKeywords...),
 		"proxy_port":                DefaultProxyPort,
 		"lan_proxy":                 false,
@@ -217,7 +219,8 @@ func marshalNoEscape(v any, prefix, indent string) ([]byte, error) {
 
 var ListFields = map[string]string{
 	"tun_route_exclude_cidrs":   "TUN 排除网段",
-	"tun_exclude_uids":          "TUN 排除 UID",
+	"tun_exclude_uids":          "TUN 直连 UID（防 SSH 断连）",
+	"tun_exclude_process":       "TUN 直连进程名（防 SSH 断连，如 sshd）",
 	"main_group_keywords":       "主选择组识别关键词（按顺序匹配，新增项插最前）",
 	"ai_domain_suffixes":        "AI 域名后缀（叠加）",
 	"streaming_domain_suffixes": "流媒体域名后缀（叠加）",
@@ -266,6 +269,7 @@ var DeploymentFields = []string{
 	"bootstrap_dns_port",
 	"tun_route_exclude_cidrs",
 	"tun_exclude_uids",
+	"tun_exclude_process",
 	"main_group_keywords",
 	"base64_local_fallback",
 	"enable_log",

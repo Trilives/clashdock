@@ -25,10 +25,11 @@ func init() {
 
 		"更新": "Update",
 
-		"【mihomo 服务日志】":            "[mihomo service log]",
-		"未找到 journalctl，无法读取服务日志。": "journalctl not found; cannot read the service log.",
+		"mihomo 服务日志":  "mihomo service log",
+		"clashdock 日志": "clashdock log",
+		"未找到 journalctl，无法读取服务日志。":                           "journalctl not found; cannot read the service log.",
 		"暂无服务日志（服务未运行或无读取权限，可尝试 sudo journalctl -u mihomo）。": "No service log yet (the service is not running or you lack read permission; try sudo journalctl -u mihomo).",
-		"【clashdock 日志】%s\n": "[clashdock log] %s\n",
+		"日志文件：%s\n": "Log file: %s\n",
 		"应用日志未启用或暂无内容（可在「配置变更 → 部署设置」开启日志）。": "The application log is disabled or empty (enable it under Configuration → Deployment Settings).",
 
 		"延迟测试": "Latency test",
@@ -44,7 +45,7 @@ func init() {
 		"  ✗ %-12s 探测失败\n":          "  ✗ %-12s probe failed\n",
 		"  ✓ %-12s %-22s 落地 %s%s\n": "  ✓ %-12s %-22s location %s%s\n",
 
-		"网络测试完成。":   "Network test complete.",
-		"回车返回主菜单… ": "Press Enter to return to the main menu… ",
+		"网络测试完成。": "Network test complete.",
+		"回车返回… ":  "Press Enter to return… ",
 	})
 }

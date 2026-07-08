@@ -27,9 +27,13 @@ func (m *formModel) View() string {
 	// 3. 计算盒宽：主体所有行 + 标题 + 按钮 + 页脚里最宽的一行。
 	footer := truncate("  "+i18n.T("↑/↓ 移动   空格 切换/勾选   ←/→ 选项   ⏎ 下一项/确认   esc 取消"), maxW)
 	buttons := m.buttonsLine(ss, maxW)
+	noteLines := m.noteLines(maxW)
 	label := truncate(fmt.Sprintf("─ %s ", m.title), maxW)
 	widths := []int{dispWidth(label), dispWidth(footer), dispWidth(stripAnsi(buttons))}
 	for _, l := range bodyLines {
+		widths = append(widths, dispWidth(stripAnsi(l)))
+	}
+	for _, l := range noteLines {
 		widths = append(widths, dispWidth(stripAnsi(l)))
 	}
 	w := min(maxOf(widths)+2, maxW)
@@ -50,10 +54,25 @@ func (m *formModel) View() string {
 		rows = append(rows, "│"+rowPad("", w)+"│")
 	}
 	rows = append(rows, "│"+rowPad("", w)+"│")
+	for _, l := range noteLines {
+		rows = append(rows, "│"+dim(rowPad(l, w))+"│")
+	}
 	rows = append(rows, "│"+rowPad(buttons, w)+"│")
 	rows = append(rows, "│"+dim(rowPad(footer, w))+"│")
 	rows = append(rows, "└"+strings.Repeat("─", w)+"┘")
 	return strings.Join(rows, "\n") + "\n"
+}
+
+// noteLines 把固定提示（FormOpts.Note）按盒宽换行成若干灰色行；无提示则返回 nil。
+func (m *formModel) noteLines(maxW int) []string {
+	if m.note == "" {
+		return nil
+	}
+	var out []string
+	for _, l := range wrapText(m.note, maxW-2) {
+		out = append(out, "  "+l)
+	}
+	return out
 }
 
 // labelWidth 标签列宽 = 可见字段标签里最宽的显示宽度（上限盒宽的一半）。
@@ -117,23 +136,20 @@ func (m *formModel) widget(f *Field, focused bool) string {
 		}
 		return "[ ]"
 	case FieldChoice:
-		parts := make([]string, len(f.Choices))
-		for i, c := range f.Choices {
-			if i == f.ChoiceIdx {
-				parts[i] = "[" + c + "]" // 当前项加方括号，无色终端也能区分
-			} else {
-				parts[i] = c
-			}
+		// 只显示当前选中项（用 ‹ › 提示可左右切换），不再平铺全部选项——平铺时
+		// 选中项虽有方括号但整行看起来像多选，观感不专业。
+		cur := ""
+		if f.ChoiceIdx >= 0 && f.ChoiceIdx < len(f.Choices) {
+			cur = f.Choices[f.ChoiceIdx]
 		}
-		return "< " + strings.Join(parts, " / ") + " >"
+		return "‹ " + cur + " ›"
 	case FieldText:
 		val := m.inputs[f.Key].Value()
-		if val == "" && !focused {
-			val = f.Placeholder
-		}
 		if focused {
-			val += "▏" // 简易光标指示（textinput 仍负责实际编辑）
+			return "[ " + val + "▏ ]" // 简易光标指示（textinput 仍负责实际编辑）
 		}
+		// 非焦点态：只显示真实值。留空即空白，不再回填示例占位符——否则空字段
+		// 看起来像已填了那个示例值（例如下载代理留空却显示 192.168.1.10:7890）。
 		return "[ " + val + " ]"
 	}
 	return ""

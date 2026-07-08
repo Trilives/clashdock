@@ -16,6 +16,7 @@ package subscription
 
 import (
 	"fmt"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 
@@ -84,6 +85,24 @@ func buildTun(customize map[string]any) map[string]any {
 		tun["exclude-uid"] = list
 	}
 	return tun
+}
+
+// prependProcessDirect 在既有规则列表最前面插入 PROCESS-NAME,<name>,DIRECT 规则
+// （去空白、跳过空项）。names 为空时原样返回 rules，不做任何改动。
+func prependProcessDirect(rules any, names []string) any {
+	existing, _ := rules.([]any)
+	head := make([]any, 0, len(names))
+	for _, n := range names {
+		n = strings.TrimSpace(n)
+		if n == "" {
+			continue
+		}
+		head = append(head, "PROCESS-NAME,"+n+",DIRECT")
+	}
+	if len(head) == 0 {
+		return rules
+	}
+	return append(head, existing...)
 }
 
 // defaultDNS 订阅无 dns 段时注入的最小可用默认（fake-ip，配合 TUN）。
@@ -180,6 +199,13 @@ func Apply(clash map[string]any, customize map[string]any, uiDir string) (map[st
 
 	// 6. TUN：由本部署层整段覆写
 	cfg["tun"] = buildTun(customize)
+
+	// 6.5 直连进程名：在订阅自带规则最前面插入 PROCESS-NAME,<name>,DIRECT，让 sshd
+	// 等进程流量绕过代理，避免开 TUN 后 SSH 会话被劫持断连（UID 直连见 buildTun 的
+	// exclude-uid）。仅 TUN 开启且配置了进程名时插入；空列表不改动订阅规则。
+	if truthy(customize, "enable_tun", true) {
+		cfg["rules"] = prependProcessDirect(cfg["rules"], strListOf(customize["tun_exclude_process"]))
+	}
 
 	// 7. DNS：订阅自带则保留；缺失才注入默认（TUN 模式需要可用 DNS）
 	if m, ok := cfg["dns"].(map[string]any); !ok || len(m) == 0 {

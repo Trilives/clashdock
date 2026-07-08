@@ -13,10 +13,13 @@ import (
 	"github.com/Trilives/clashdock/internal/i18n"
 )
 
-// FormOpts Form 的可选项：提交 / 取消按钮文案（留空取默认）。
+// FormOpts Form 的可选项：提交 / 取消按钮文案（留空取默认）。Note 为一段固定提示，
+// 渲染在按钮上方（灰色、随宽度自动换行），不参与焦点导航——用于「详细配置请启动后设置」
+// 这类说明性文字。
 type FormOpts struct {
 	SubmitLabel string
 	CancelLabel string
+	Note        string
 }
 
 // FieldKind 字段类型。

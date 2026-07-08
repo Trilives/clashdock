@@ -1,6 +1,7 @@
-// 「最新日志」工具（完整模式）：查看 mihomo 服务（内核）运行日志与 clashdock 应用日志。
-// 便携模式的「最新日志」直接 tail 内核 stdout 文件（见 portable.go）；完整模式下内核
-// 由 systemd 托管，运行日志走 journald，故这里改用 journalctl 读取。
+// 「最新日志」工具（完整模式）：先让用户选择查看 mihomo 服务（内核）运行日志还是
+// clashdock 应用日志，再单独一屏展示所选那一份。便携模式的「最新日志」直接 tail 内核
+// stdout 文件（见 portable.go）；完整模式下内核由 systemd 托管，运行日志走 journald，
+// 故这里改用 journalctl 读取。
 package flows
 
 import (
@@ -15,29 +16,43 @@ import (
 	"github.com/Trilives/clashdock/internal/tui"
 )
 
-// LatestLogTool 完整模式「最新日志」（「工具」菜单的一项）：先展示 mihomo 服务近
-// 若干行运行日志（journald），再展示 clashdock 应用日志文件（enable_log 时才有）。
-// 查看后按回车返回，避免日志一闪而过。
+// LatestLogTool 完整模式「最新日志」（「工具」菜单的一项）：先让用户选择要看哪一份
+// 日志——mihomo 内核运行日志（journald）或 clashdock 应用日志（enable_log 时才有）——
+// 再在单独一屏展示所选日志，看完按回车回到选择菜单。避免两份日志堆在一屏、互相淹没。
 func LatestLogTool(p paths.Paths) error {
-	execx.Header(i18n.T("最新日志"))
+	idx := 0
+	for {
+		options := []string{i18n.T("mihomo 服务日志"), i18n.T("clashdock 日志")}
+		i, err := tui.Select(i18n.T("最新日志"), options, tui.SelectOpts{BackLabel: i18n.T("返回上层"), Initial: idx})
+		if err != nil {
+			return nil
+		}
+		idx = i
+		execx.Header(options[i])
+		if i == 0 {
+			showMihomoLog()
+		} else {
+			showClashdockLog(p)
+		}
+		fmt.Println()
+		tui.Pause(i18n.T("回车返回… "))
+	}
+}
 
-	// 1. mihomo 内核运行日志：完整模式由 systemd 托管，走 journald。
-	fmt.Println(i18n.T("【mihomo 服务日志】"))
+// showMihomoLog 展示 mihomo 内核运行日志：完整模式由 systemd 托管，走 journald。
+func showMihomoLog() {
 	printServiceJournal(sysd.DefaultName)
+}
 
-	// 2. clashdock 应用日志文件（定制层 enable_log 打开时记录到此文件）。
+// showClashdockLog 展示 clashdock 应用日志文件（定制层 enable_log 打开时记录到此文件）。
+func showClashdockLog(p paths.Paths) {
 	logPath := execx.LogPath(p.State)
-	fmt.Println()
-	fmt.Printf(i18n.T("【clashdock 日志】%s\n"), logPath)
+	fmt.Printf(i18n.T("日志文件：%s\n"), logPath)
 	if _, err := os.Stat(logPath); err == nil {
 		printLogTail(logPath)
 	} else {
 		execx.Info(i18n.T("应用日志未启用或暂无内容（可在「配置变更 → 部署设置」开启日志）。"))
 	}
-
-	fmt.Println()
-	tui.Pause(i18n.T("回车返回主菜单… "))
-	return nil
 }
 
 // printServiceJournal 打印指定服务近 logTailLines 行 journald 日志（尽力而为：

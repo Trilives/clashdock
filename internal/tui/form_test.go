@@ -25,6 +25,40 @@ func TestFormViewRendersVisibleFieldsOnly(t *testing.T) {
 	}
 }
 
+func TestFormViewChoiceShowsOnlySelected(t *testing.T) {
+	state := buildState([]Field{
+		{Key: "type", Label: "Type", Kind: FieldChoice, Choices: []string{"clash", "base64", "local"}, ChoiceIdx: 1},
+	})
+	out := newFormModel("Init", state, FormOpts{SubmitLabel: "Start", CancelLabel: "Cancel"}).View()
+	if !strings.Contains(out, "base64") {
+		t.Fatalf("selected choice should render:\n%s", out)
+	}
+	if strings.Contains(out, "clash") || strings.Contains(out, "local") {
+		t.Fatalf("non-selected choices should not render:\n%s", out)
+	}
+}
+
+func TestFormViewHidesPlaceholderWhenUnfocusedEmpty(t *testing.T) {
+	state := buildState([]Field{
+		{Key: "toggle", Label: "T", Kind: FieldToggle},
+		{Key: "proxy", Label: "Proxy", Kind: FieldText, Placeholder: "192.168.1.10:7890"},
+	})
+	// 光标默认在首字段（toggle），proxy 文本为空且未聚焦 → 不应回填占位示例。
+	out := newFormModel("Init", state, FormOpts{SubmitLabel: "Start", CancelLabel: "Cancel"}).View()
+	if strings.Contains(out, "192.168.1.10:7890") {
+		t.Fatalf("empty unfocused text field should not show placeholder as a value:\n%s", out)
+	}
+}
+
+func TestFormViewRendersNote(t *testing.T) {
+	state := buildState([]Field{{Key: "toggle", Label: "T", Kind: FieldToggle}})
+	out := newFormModel("Init", state, FormOpts{SubmitLabel: "Start", CancelLabel: "Cancel",
+		Note: "Configure more later."}).View()
+	if !strings.Contains(out, "Configure more later.") {
+		t.Fatalf("note should render:\n%s", out)
+	}
+}
+
 // buildState 复刻 Form() 的字段拷贝逻辑，供纯逻辑测试用（不进 Bubble Tea 循环）。
 func buildState(fields []Field) *FormState {
 	fs := make([]*Field, len(fields))

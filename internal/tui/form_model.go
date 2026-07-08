@@ -27,6 +27,7 @@ type formModel struct {
 	inputs      map[string]*textinput.Model // 各文本字段的输入组件（按 Key）
 	submitLabel string
 	cancelLabel string
+	note        string
 	cursor      int
 	width       int
 	height      int
@@ -47,6 +48,7 @@ func newFormModel(title string, state *FormState, opts FormOpts) *formModel {
 	m := &formModel{
 		title: title, state: state, inputs: inputs,
 		submitLabel: opts.SubmitLabel, cancelLabel: opts.CancelLabel,
+		note:  opts.Note,
 		width: 80, height: 24,
 	}
 	m.syncFocus(m.slots())

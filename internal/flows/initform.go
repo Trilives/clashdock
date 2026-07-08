@@ -25,8 +25,44 @@ type initSettings struct {
 	writeBashrc   bool
 	allowPort     bool
 
+	excludeUIDs    []int
+	excludeProcess []string
+
 	hasSub bool
 	sub    newSub
+}
+
+// csvInts 把逗号/空格分隔的文本解析为去重后的正整数列表（用于 TUN 直连 UID）。
+func csvInts(s string) []int {
+	var out []int
+	seen := map[int]bool{}
+	for _, part := range strings.FieldsFunc(s, func(r rune) bool { return r == ',' || r == ' ' }) {
+		if n, err := strconv.Atoi(part); err == nil && n >= 0 && !seen[n] {
+			seen[n] = true
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
+// csvStrings 把逗号分隔的文本解析为去空白、去空项的字符串列表（用于 TUN 直连进程名）。
+func csvStrings(s string) []string {
+	var out []string
+	for _, part := range strings.Split(s, ",") {
+		if p := strings.TrimSpace(part); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// intsToText 把整数列表回填成逗号分隔文本（表单初值展示）。
+func intsToText(xs []int) string {
+	parts := make([]string, len(xs))
+	for i, x := range xs {
+		parts[i] = strconv.Itoa(x)
+	}
+	return strings.Join(parts, ",")
 }
 
 // portFromText 把端口文本解析为 1-65535 的端口号，非法/留空回退 def。
@@ -62,6 +98,15 @@ func runInitForm(p paths.Paths, includeSub bool) (*initSettings, bool, error) {
 		// 仅开启局域网代理时才需要放行防火墙端口 → 未开则隐藏。
 		{Key: "allow_port", Section: basic, Kind: tui.FieldToggle,
 			Label: i18n.T("放行防火墙 7890 端口"), Bool: true, Visible: lanOn},
+		// TUN 直连白名单：开 TUN 后 SSH 等会话可能被劫持断连，可按 UID / 进程名放行直连。
+		{Key: "tun_exclude_uids", Section: basic, Kind: tui.FieldText, AllowEmpty: true,
+			Label: i18n.T("直连 UID（逗号分隔，防 SSH 断连）"),
+			Text:  intsToText(config.IntList(cfg, "tun_exclude_uids")), Placeholder: "0,1000",
+			Visible: tunOn},
+		{Key: "tun_exclude_process", Section: basic, Kind: tui.FieldText, AllowEmpty: true,
+			Label: i18n.T("直连进程名（逗号分隔，防 SSH 断连）"),
+			Text:  strings.Join(config.StrList(cfg, "tun_exclude_process"), ","), Placeholder: "sshd",
+			Visible: tunOn},
 	}
 	if includeSub {
 		sub := i18n.T("订阅设置")
@@ -88,7 +133,8 @@ func runInitForm(p paths.Paths, includeSub bool) (*initSettings, bool, error) {
 	}
 
 	res, err := tui.Form(i18n.T("ClashDock 初始化"), fields,
-		tui.FormOpts{SubmitLabel: i18n.T("开始初始化"), CancelLabel: i18n.T("取消")})
+		tui.FormOpts{SubmitLabel: i18n.T("开始初始化"), CancelLabel: i18n.T("取消"),
+			Note: i18n.T("提示：更多细项可在启动后于「配置变更」中设置。")})
 	if err != nil {
 		return nil, false, err
 	}
@@ -97,12 +143,14 @@ func runInitForm(p paths.Paths, includeSub bool) (*initSettings, bool, error) {
 	}
 
 	s := &initSettings{
-		downloadProxy: normalizeProxy(res.Text("download_proxy")),
-		proxyPort:     portFromText(res.Text("proxy_port"), config.ProxyPort(cfg)),
-		enableTun:     res.Bool("enable_tun"),
-		lanProxy:      res.Bool("lan_proxy"),
-		writeBashrc:   res.Bool("write_bashrc"),
-		allowPort:     res.Bool("allow_port"),
+		downloadProxy:  normalizeProxy(res.Text("download_proxy")),
+		proxyPort:      portFromText(res.Text("proxy_port"), config.ProxyPort(cfg)),
+		enableTun:      res.Bool("enable_tun"),
+		lanProxy:       res.Bool("lan_proxy"),
+		writeBashrc:    res.Bool("write_bashrc"),
+		allowPort:      res.Bool("allow_port"),
+		excludeUIDs:    csvInts(res.Text("tun_exclude_uids")),
+		excludeProcess: csvStrings(res.Text("tun_exclude_process")),
 	}
 	if includeSub {
 		if err := fillSubSetting(s, res); err != nil {

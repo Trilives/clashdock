@@ -106,6 +106,38 @@ func TestTunToggle(t *testing.T) {
 	}
 }
 
+func TestTunExcludeUIDs(t *testing.T) {
+	cfg := mustApply(t, patchSample(t), map[string]any{"enable_tun": true, "tun_exclude_uids": []int{0, 1000}})
+	tun := cfg["tun"].(map[string]any)
+	if lenList(tun["exclude-uid"]) != 2 {
+		t.Fatalf("应写入 2 个 exclude-uid，实际 %v", tun["exclude-uid"])
+	}
+}
+
+func TestTunExcludeProcess(t *testing.T) {
+	cfg := mustApply(t, patchSample(t), map[string]any{
+		"enable_tun": true, "tun_exclude_process": []string{"sshd", " ", "mosh"}})
+	rules := cfg["rules"].([]any)
+	// 两条进程直连规则应插到订阅原有 2 条规则最前面（空项被跳过）。
+	if len(rules) != 4 {
+		t.Fatalf("期望 4 条规则，实际 %d：%v", len(rules), rules)
+	}
+	if rules[0] != "PROCESS-NAME,sshd,DIRECT" || rules[1] != "PROCESS-NAME,mosh,DIRECT" {
+		t.Errorf("进程直连规则应在最前，实际 %v", rules[:2])
+	}
+	if rules[2] != "GEOIP,CN,DIRECT" {
+		t.Errorf("原订阅规则应保留在其后，实际 %v", rules[2])
+	}
+}
+
+func TestTunExcludeProcessSkippedWhenTunOff(t *testing.T) {
+	cfg := mustApply(t, patchSample(t), map[string]any{
+		"enable_tun": false, "tun_exclude_process": []string{"sshd"}})
+	if lenList(cfg["rules"]) != 2 {
+		t.Errorf("关 TUN 时不应注入进程直连规则，实际 %v", cfg["rules"])
+	}
+}
+
 func TestLanPanelGuard(t *testing.T) {
 	_, err := Apply(patchSample(t), map[string]any{"lan_panel": true}, testUIDir)
 	var pe *PatchError

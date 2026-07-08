@@ -29,6 +29,9 @@ func formPlain(title string, state *FormState, opts FormOpts) (*FormResult, erro
 			return nil, err
 		}
 	}
+	if opts.Note != "" {
+		fmt.Println(opts.Note)
+	}
 	line, err := readPlainLine(fmt.Sprintf("%s? [Y/n]: ", opts.SubmitLabel))
 	if err != nil {
 		return &FormResult{state: state, Submitted: false}, nil
