@@ -40,6 +40,6 @@ func init() {
 
 		"Web UI（mihomo 内置路径）: http://%s:9090/ui/":                     "Web UI (mihomo built-in path): http://%s:9090/ui/",
 		"远程查看建议用 SSH 端口转发： ssh -N -L 9090:127.0.0.1:9090 user@server": "For remote viewing, use SSH port forwarding: ssh -N -L 9090:127.0.0.1:9090 user@server",
-		"局域网代理已开启：其他主机可设置 http/socks 代理为 本机IP:7890":                   "LAN proxy is enabled: other hosts can set their http/socks proxy to this machine's IP:7890",
+		"局域网代理已开启：其他主机可设置 http/socks 代理为 本机IP:%d":                     "LAN proxy is enabled: other hosts can set their http/socks proxy to this machine's IP:%d",
 	})
 }

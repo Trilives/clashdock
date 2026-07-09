@@ -161,6 +161,6 @@ func printAccessHint(p paths.Paths) {
 		execx.Info(i18n.T("远程查看建议用 SSH 端口转发： ssh -N -L 9090:127.0.0.1:9090 user@server"))
 	}
 	if config.Bool(cfg, "lan_proxy") {
-		execx.Info(i18n.T("局域网代理已开启：其他主机可设置 http/socks 代理为 本机IP:7890"))
+		execx.Info(fmt.Sprintf(i18n.T("局域网代理已开启：其他主机可设置 http/socks 代理为 本机IP:%d"), config.ProxyPort(cfg)))
 	}
 }

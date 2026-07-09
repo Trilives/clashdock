@@ -6,6 +6,7 @@
 package flows
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -79,6 +80,8 @@ func runInitForm(p paths.Paths, includeSub bool) (*initSettings, bool, error) {
 	cfg := config.Load(p)
 	tunOn := func(s *tui.FormState) bool { return s.Bool("enable_tun") }
 	lanOn := func(s *tui.FormState) bool { return s.Bool("lan_proxy") }
+	// 局域网/防火墙提示里的端口跟随「本地代理端口」字段的当前值，避免固定显示 7890 误导。
+	portOf := func(s *tui.FormState) int { return portFromText(s.Text("proxy_port"), config.ProxyPort(cfg)) }
 	basic := i18n.T("基础设置")
 
 	fields := []tui.Field{
@@ -90,14 +93,20 @@ func runInitForm(p paths.Paths, includeSub bool) (*initSettings, bool, error) {
 		{Key: "enable_tun", Section: basic, Kind: tui.FieldToggle,
 			Label: i18n.T("启用 TUN 模式（整机流量自动走代理）"), Bool: config.Bool(cfg, "enable_tun")},
 		{Key: "lan_proxy", Section: basic, Kind: tui.FieldToggle,
-			Label: i18n.T("开启局域网代理（监听 0.0.0.0:7890）"), Bool: config.Bool(cfg, "lan_proxy")},
+			LabelFn: func(s *tui.FormState) string {
+				return fmt.Sprintf(i18n.T("开启局域网代理（监听 0.0.0.0:%d）"), portOf(s))
+			},
+			Bool: config.Bool(cfg, "lan_proxy")},
 		// TUN 开启时整机流量已走代理，无需 bashrc 变量 → 隐藏。
 		{Key: "write_bashrc", Section: basic, Kind: tui.FieldToggle,
 			Label: i18n.T("把代理变量写入 ~/.bashrc"), Bool: true,
 			Visible: func(s *tui.FormState) bool { return !tunOn(s) }},
 		// 仅开启局域网代理时才需要放行防火墙端口 → 未开则隐藏。
 		{Key: "allow_port", Section: basic, Kind: tui.FieldToggle,
-			Label: i18n.T("放行防火墙 7890 端口"), Bool: true, Visible: lanOn},
+			LabelFn: func(s *tui.FormState) string {
+				return fmt.Sprintf(i18n.T("放行防火墙 %d 端口"), portOf(s))
+			},
+			Bool: true, Visible: lanOn},
 		// TUN 直连白名单：开 TUN 后 SSH 等会话可能被劫持断连，可按 UID / 进程名放行直连。
 		{Key: "tun_exclude_uids", Section: basic, Kind: tui.FieldText, AllowEmpty: true,
 			Label: i18n.T("直连 UID（逗号分隔，防 SSH 断连）"),
