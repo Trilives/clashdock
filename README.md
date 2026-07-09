@@ -26,13 +26,13 @@
 英文启动，可在「Language / 语言」里切成中文（部分终端无法正常显示中文字符）。初始化用
 单屏表单一次性收集基础设置与首个订阅，字段随选择动态显隐。
 
-| 初始化 | 主菜单 |
+| 初始化 | 便携模式 |
 |:---:|:---:|
-| ![初始化](./docs/Pictures/initialization.png) | ![主菜单](./docs/Pictures/main-menu.png) |
-| **配置变更** | **运行时管理** |
-| ![配置变更](./docs/Pictures/config-change.png) | ![运行时管理](./docs/Pictures/runtime-management.png) |
-| **工具** | **便携模式** |
-| ![工具](./docs/Pictures/tools.png) | ![便携模式](./docs/Pictures/portable-mode.png) |
+| ![初始化](./docs/Pictures/initialization.png) | ![便携模式](./docs/Pictures/portable-mode.png) |
+| **主菜单** | **配置变更** |
+| ![主菜单](./docs/Pictures/main-menu.png) | ![配置变更](./docs/Pictures/config-change.png) |
+| **运行时管理** | **工具** |
+| ![运行时管理](./docs/Pictures/runtime-management.png) | ![工具](./docs/Pictures/tools.png) |
 
 - **配置变更**：订阅管理（增/删/改名/切换/刷新，切换/刷新自动同步并重启服务）、部署设置
   与自定义分流叠加（AI / 流媒体 / 地区组）——两个定制层字段分组直接是平级项。
