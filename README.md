@@ -28,11 +28,11 @@
 
 | 初始化 | 主菜单 |
 |:---:|:---:|
-| ![初始化](./docs/Pictures/初始化.png) | ![主菜单](./docs/Pictures/主界面.png) |
+| ![初始化](./docs/Pictures/initialization.png) | ![主菜单](./docs/Pictures/main-menu.png) |
 | **配置变更** | **运行时管理** |
-| ![配置变更](./docs/Pictures/配置变更.png) | ![运行时管理](./docs/Pictures/运行时管理.png) |
+| ![配置变更](./docs/Pictures/config-change.png) | ![运行时管理](./docs/Pictures/runtime-management.png) |
 | **工具** | **便携模式** |
-| ![工具](./docs/Pictures/工具.png) | ![便携模式](./docs/Pictures/便携模式.png) |
+| ![工具](./docs/Pictures/tools.png) | ![便携模式](./docs/Pictures/portable-mode.png) |
 
 - **配置变更**：订阅管理（增/删/改名/切换/刷新，切换/刷新自动同步并重启服务）、部署设置
   与自定义分流叠加（AI / 流媒体 / 地区组）——两个定制层字段分组直接是平级项。
