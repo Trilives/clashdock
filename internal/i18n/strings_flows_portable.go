@@ -33,7 +33,11 @@ func init() {
 		"当前终端临时生效：": "Temporary setup for the current terminal:",
 		"测试当前代理：":   "Test the current proxy:",
 		"启动方式：":     "Start commands:",
-		"退出 clashdock 后，轻量模式内核会同步停止。": "After clashdock exits, the lightweight-mode core stops with it.",
+		"离线维护脚本（在解压目录内，无需 root）：":                                "Offline maintenance scripts (in the extracted directory, no root needed):",
+		"  ./tool/update.sh   更新 clashdock 本体 / mihomo 内核 / 规则集": "  ./tool/update.sh   Update the clashdock binary / mihomo core / rule set",
+		"  ./tool/nettest.sh  测试直连与本机代理的连通性和出口 IP":               "  ./tool/nettest.sh  Test direct vs. local-proxy connectivity and egress IP",
+		"图形面板：便携包不含 Web UI，需要请用完整版或在线面板。":                        "Web panel: the portable archive bundles no Web UI; use the full version or an online panel if you need one.",
+		"退出 clashdock 后，轻量模式内核会同步停止。":                            "After clashdock exits, the lightweight-mode core stops with it.",
 
 		"调整本地代理端口 / 下载代理？（默认端口 7890，通常无需修改）": "Adjust the local proxy port / download proxy? (default port 7890; usually no change needed)",
 		"便携设置": "Portable Settings",

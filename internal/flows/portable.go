@@ -254,6 +254,11 @@ func portableHowToUseText(p paths.Paths) string {
 		"./clashdock",
 		"./clashdock run",
 		"",
+		i18n.T("离线维护脚本（在解压目录内，无需 root）："),
+		i18n.T("  ./tool/update.sh   更新 clashdock 本体 / mihomo 内核 / 规则集"),
+		i18n.T("  ./tool/nettest.sh  测试直连与本机代理的连通性和出口 IP"),
+		i18n.T("图形面板：便携包不含 Web UI，需要请用完整版或在线面板。"),
+		"",
 		fmt.Sprintf(i18n.T("工作目录：%s"), p.State),
 		i18n.T("退出 clashdock 后，轻量模式内核会同步停止。"),
 	}, "\n")

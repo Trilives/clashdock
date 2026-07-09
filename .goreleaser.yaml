@@ -42,6 +42,17 @@ archives:
         dst: uninstall.sh
         info:
           mode: 0755
+      # tool/：无 root 的就地维护脚本（面向实验室等取不到 root 的环境）——
+      # 交互式更新 clashdock 本体 / mihomo 内核 / 规则集，以及本机代理网络自测。
+      # 刻意不含 Web UI：便携包不捆绑面板，需图形界面用完整版或在线面板。
+      - src: scripts/portable/tool/update.sh
+        dst: tool/update.sh
+        info:
+          mode: 0755
+      - src: scripts/portable/tool/nettest.sh
+        dst: tool/nettest.sh
+        info:
+          mode: 0755
       # mihomo 内核（按架构选取；MIT，见 deps/copyright / deps/LICENSE.mihomo）
       - src: 'packaging/deps/{{- if eq .Arch "arm" -}}armv{{ .Arm }}{{- else -}}{{ .Arch }}{{- end -}}/mihomo'
         dst: deps/mihomo
@@ -96,18 +107,17 @@ checksum:
 # 接口返回——self-update 的稳定渠道天然只看得到正式版，预览渠道另走 /releases
 # 列表读取最新一项（见 internal/selfupdate）。
 #
-# header 给出本预览线相较上一个稳定版的要点摘要（changelog 只列本次 tag 增量），
-# 让预览版说明既准确又简短。
+# header 给出本发行线相较上一个稳定版的要点摘要（changelog 只列本次 tag 增量），
+# 让发布说明既准确又简短。prerelease: auto 让带 -beta.N 后缀的 tag 自动标为预发布。
 release:
   prerelease: auto
   header: |
-    Preview build (prerelease).
-
-    Highlights of the 0.2.4 preview line (vs v0.2.3):
-    - Initialization is now a single-screen form with dynamic fields.
-    - Configurable local proxy port (Config Changes → Deployment Settings; default 7890).
+    Highlights of 0.2.4 (vs v0.2.3):
+    - Initialization is now a single-screen form with dynamic fields; local proxy port is configurable end-to-end (Config Changes → Deployment Settings; default 7890) and reflected in every LAN prompt/hint.
+    - TUN direct-connect allowlists (UID / process name) during init keep SSH-style sessions off the proxy.
+    - "Update" moved into the Tools menu; new "Latest Log" viewer split into mihomo service log and clashdock app log.
     - New "Reinitialize" (Config Changes) and "Reload Service · delete & rebuild" (Service Settings).
-    - "Update" moved into the Tools menu; new "Latest Log" viewer (portable + full mode).
+    - Portable archive adds a no-root `tool/` folder: `update.sh` (update binary / core / rules in place) and `nettest.sh`; still bundles no Web UI (use the full version or an online panel).
 
 changelog:
   sort: asc
