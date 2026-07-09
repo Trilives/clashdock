@@ -27,6 +27,7 @@
 
 ```bash
 sudo dpkg -i clashdock_*_linux_amd64.deb   # 或 arm64 / armv7
+# 也可以使用sudo apt install
 clashdock
 ```
 
