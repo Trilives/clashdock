@@ -71,6 +71,9 @@ func TestApplyInitSettingsPreservesTunExclusionsWhenTunDisabled(t *testing.T) {
 	if config.Bool(got, "enable_tun") {
 		t.Fatal("enable_tun=false 应生效")
 	}
+	if config.Str(got, "download_proxy") != "127.0.0.1:7890" {
+		t.Fatalf("普通初始化字段未更新：%q", config.Str(got, "download_proxy"))
+	}
 	if gotUIDs := config.IntList(got, "tun_exclude_uids"); len(gotUIDs) != 1 || gotUIDs[0] != 1000 {
 		t.Fatalf("TUN 关闭时应保留既有 UID，实际 %v", gotUIDs)
 	}
