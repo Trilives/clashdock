@@ -26,8 +26,9 @@ type initSettings struct {
 	writeBashrc   bool
 	allowPort     bool
 
-	excludeUIDs  []int
-	fakeIPFilter []string
+	excludeUIDs    []int
+	fakeIPFilter   []string
+	excludeProcess []string
 
 	hasSub bool
 	sub    newSub
@@ -91,14 +92,15 @@ func runInitForm(p paths.Paths, includeSub bool) (*initSettings, bool, error) {
 	}
 
 	s := &initSettings{
-		downloadProxy: normalizeProxy(res.Text("download_proxy")),
-		proxyPort:     portFromText(res.Text("proxy_port"), config.ProxyPort(cfg)),
-		enableTun:     res.Bool("enable_tun"),
-		lanProxy:      res.Bool("lan_proxy"),
-		writeBashrc:   res.Bool("write_bashrc"),
-		allowPort:     res.Bool("allow_port"),
-		excludeUIDs:   csvInts(res.Text("tun_exclude_uids")),
-		fakeIPFilter:  csvStrings(res.Text("fake_ip_filter")),
+		downloadProxy:  normalizeProxy(res.Text("download_proxy")),
+		proxyPort:      portFromText(res.Text("proxy_port"), config.ProxyPort(cfg)),
+		enableTun:      res.Bool("enable_tun"),
+		lanProxy:       res.Bool("lan_proxy"),
+		writeBashrc:    res.Bool("write_bashrc"),
+		allowPort:      res.Bool("allow_port"),
+		excludeUIDs:    csvInts(res.Text("tun_exclude_uids")),
+		fakeIPFilter:   csvStrings(res.Text("fake_ip_filter")),
+		excludeProcess: csvStrings(res.Text("tun_exclude_process")),
 	}
 	if includeSub {
 		if err := fillSubSetting(s, res); err != nil {
@@ -147,6 +149,10 @@ func initFormFields(cfg map[string]any, includeSub bool) []tui.Field {
 		{Key: "fake_ip_filter", Section: basic, Kind: tui.FieldText, AllowEmpty: true,
 			Label: i18n.T("Fake-IP 过滤规则（逗号分隔）"),
 			Text:  strings.Join(config.StrList(cfg, "fake_ip_filter"), ","), Placeholder: "*.lan,*.local"},
+		{Key: "tun_exclude_process", Section: basic, Kind: tui.FieldText, AllowEmpty: true,
+			Label: i18n.T("直连进程名（逗号分隔，防 SSH 断连）"),
+			Text:  strings.Join(config.StrList(cfg, "tun_exclude_process"), ","), Placeholder: "sshd,mosh-server",
+			Visible: tunOn},
 	}
 	if includeSub {
 		sub := i18n.T("订阅设置")

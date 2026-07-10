@@ -54,16 +54,7 @@ func Init(p paths.Paths) error {
 		}
 
 		// 3. 落盘基础设置。
-		cfg := config.Load(p)
-		cfg["download_proxy"] = s.downloadProxy
-		cfg["proxy_port"] = s.proxyPort
-		cfg["enable_tun"] = s.enableTun
-		cfg["lan_proxy"] = s.lanProxy
-		// TUN 直连白名单仅在 TUN 模式下有意义（纯代理模式不改路由，无需放行）。
-		if s.enableTun {
-			cfg["tun_exclude_uids"] = s.excludeUIDs
-		}
-		cfg["fake_ip_filter"] = s.fakeIPFilter
+		cfg := applyInitSettings(config.Load(p), s)
 		if err := t.BackupFile(p.CustomizeFile); err != nil {
 			return err
 		}
@@ -142,6 +133,25 @@ func Init(p paths.Paths) error {
 		printAccessHint(p)
 		return nil
 	})
+}
+
+// applyInitSettings 返回应用初始化表单值后的新配置，不修改调用方传入的原配置。
+func applyInitSettings(base map[string]any, s *initSettings) map[string]any {
+	cfg := make(map[string]any, len(base))
+	for key, value := range base {
+		cfg[key] = value
+	}
+	cfg["download_proxy"] = s.downloadProxy
+	cfg["proxy_port"] = s.proxyPort
+	cfg["enable_tun"] = s.enableTun
+	cfg["lan_proxy"] = s.lanProxy
+	cfg["fake_ip_filter"] = append([]string(nil), s.fakeIPFilter...)
+	// TUN 直连白名单仅在 TUN 模式下有意义（纯代理模式不改路由，无需放行）。
+	if s.enableTun {
+		cfg["tun_exclude_uids"] = append([]int(nil), s.excludeUIDs...)
+		cfg["tun_exclude_process"] = append([]string(nil), s.excludeProcess...)
+	}
+	return cfg
 }
 
 // applyInitSubscription 应用初始化表单收集到的订阅设置：reuse=true 时直接切到现有

@@ -56,3 +56,28 @@ func TestApplyInitSettingsPersistsDirectProcessNames(t *testing.T) {
 		t.Fatalf("不应原地修改原配置：%v", processes)
 	}
 }
+
+func TestApplyInitSettingsPreservesTunExclusionsWhenTunDisabled(t *testing.T) {
+	base := config.Defaults()
+	base["tun_exclude_uids"] = []int{1000}
+	base["tun_exclude_process"] = []string{"sshd"}
+
+	got := applyInitSettings(base, &initSettings{
+		downloadProxy:  "127.0.0.1:7890",
+		enableTun:      false,
+		excludeUIDs:    []int{2000},
+		excludeProcess: []string{"mosh-server"},
+	})
+	if config.Bool(got, "enable_tun") {
+		t.Fatal("enable_tun=false 应生效")
+	}
+	if gotUIDs := config.IntList(got, "tun_exclude_uids"); len(gotUIDs) != 1 || gotUIDs[0] != 1000 {
+		t.Fatalf("TUN 关闭时应保留既有 UID，实际 %v", gotUIDs)
+	}
+	if gotProcesses := config.StrList(got, "tun_exclude_process"); len(gotProcesses) != 1 || gotProcesses[0] != "sshd" {
+		t.Fatalf("TUN 关闭时应保留既有进程名，实际 %v", gotProcesses)
+	}
+	if config.Str(base, "download_proxy") != "" {
+		t.Fatal("不应原地修改原配置的普通字段")
+	}
+}
