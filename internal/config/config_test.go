@@ -36,6 +36,9 @@ func TestLoadMissingReturnsDefaults(t *testing.T) {
 	if got := StrList(cfg, "prefer_keywords"); len(got) != 4 || got[2] != "新加坡" {
 		t.Fatalf("默认 prefer_keywords = %v", got)
 	}
+	if got := StrList(cfg, "fake_ip_filter"); len(got) != 3 || got[0] != "*.lan" {
+		t.Fatalf("默认 fake_ip_filter = %v", got)
+	}
 }
 
 func TestLoadMergesKnownDropsUnknown(t *testing.T) {
@@ -162,6 +165,24 @@ func TestFieldMetadataConsistency(t *testing.T) {
 		if n != 1 {
 			t.Errorf("键 %s 应恰好属于一类字段元数据, 实际 %d 类", k, n)
 		}
+	}
+}
+
+func TestFakeIPFilterFollowsTunExcludeUIDs(t *testing.T) {
+	uidIndex, filterIndex := -1, -1
+	for i, key := range DeploymentFields {
+		switch key {
+		case "tun_exclude_uids":
+			uidIndex = i
+		case "fake_ip_filter":
+			filterIndex = i
+		}
+	}
+	if uidIndex < 0 || filterIndex != uidIndex+1 {
+		t.Fatalf("fake_ip_filter 应紧跟 tun_exclude_uids，实际 UID=%d filter=%d", uidIndex, filterIndex)
+	}
+	if got := ListFields["fake_ip_filter"]; got == "" {
+		t.Fatal("fake_ip_filter 应有列表字段元数据")
 	}
 }
 

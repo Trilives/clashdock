@@ -164,13 +164,35 @@ func TestLanProxy(t *testing.T) {
 func TestDefaultDNSWhenMissing(t *testing.T) {
 	sample := patchSample(t)
 	delete(sample, "dns")
-	cfg := mustApply(t, sample, map[string]any{"enable_tun": true})
+	cfg := mustApply(t, sample, map[string]any{
+		"enable_tun": true,
+		"fake_ip_filter": []string{"*.lan", "+.example.com"},
+	})
 	dns := cfg["dns"].(map[string]any)
 	if dns["enable"] != true {
 		t.Error("应注入默认 dns")
 	}
 	if dns["enhanced-mode"] != "fake-ip" {
 		t.Error("默认应为 fake-ip")
+	}
+	filters := strListOf(dns["fake-ip-filter"])
+	if len(filters) != 2 || filters[0] != "*.lan" || filters[1] != "+.example.com" {
+		t.Fatalf("默认 DNS 应使用定制 fake-ip-filter，实际 %v", filters)
+	}
+}
+
+func TestFakeIPFilterOverridesSubscriptionDNSFieldOnly(t *testing.T) {
+	cfg := mustApply(t, patchSample(t), map[string]any{
+		"enable_tun": true,
+		"fake_ip_filter": []string{"*.lan", "+.internal.example"},
+	})
+	dns := cfg["dns"].(map[string]any)
+	filters := strListOf(dns["fake-ip-filter"])
+	if len(filters) != 2 || filters[1] != "+.internal.example" {
+		t.Fatalf("应覆写订阅 fake-ip-filter，实际 %v", filters)
+	}
+	if nameservers := strListOf(dns["nameserver"]); len(nameservers) != 1 || nameservers[0] != "223.5.5.5" {
+		t.Fatalf("订阅 DNS 其它字段应保留，实际 %v", dns)
 	}
 }
 
