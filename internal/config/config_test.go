@@ -169,13 +169,15 @@ func TestFieldMetadataConsistency(t *testing.T) {
 }
 
 func TestFakeIPFilterFollowsTunExcludeUIDs(t *testing.T) {
-	uidIndex, filterIndex := -1, -1
+	uidIndex, filterIndex, processIndex := -1, -1, -1
 	for i, key := range DeploymentFields {
 		switch key {
 		case "tun_exclude_uids":
 			uidIndex = i
 		case "fake_ip_filter":
 			filterIndex = i
+		case "tun_exclude_process":
+			processIndex = i
 		}
 	}
 	if uidIndex < 0 || filterIndex != uidIndex+1 {
@@ -183,6 +185,9 @@ func TestFakeIPFilterFollowsTunExcludeUIDs(t *testing.T) {
 	}
 	if got := ListFields["fake_ip_filter"]; got == "" {
 		t.Fatal("fake_ip_filter 应有列表字段元数据")
+	}
+	if processIndex != filterIndex+1 || ListFields["tun_exclude_process"] == "" {
+		t.Fatalf("tun_exclude_process 应在配置层紧跟 fake_ip_filter，实际 filter=%d process=%d", filterIndex, processIndex)
 	}
 }
 
