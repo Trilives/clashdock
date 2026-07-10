@@ -18,8 +18,9 @@ func init() {
 		"%s：%s":  "%s: %s",
 
 		// ListFields
-		"TUN 排除网段":   "TUN excluded CIDRs",
-		"TUN 排除 UID": "TUN excluded UIDs",
+		"TUN 排除网段":     "TUN excluded CIDRs",
+		"TUN 排除 UID":   "TUN excluded UIDs",
+		"Fake-IP 过滤规则": "Fake-IP filter rules",
 		"主选择组识别关键词（按顺序匹配，新增项插最前）": "Main-group identification keywords (matched in order; new entries are inserted at the front)",
 		"AI 域名后缀（叠加）":             "AI domain suffixes (overlay)",
 		"流媒体域名后缀（叠加）":             "Streaming domain suffixes (overlay)",

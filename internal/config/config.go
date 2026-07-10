@@ -25,6 +25,10 @@ var DefaultTunRouteExclude = []string{
 	"169.254.0.0/16", "100.64.0.0/10", "::1/128", "fc00::/7", "fe80::/10",
 }
 
+// DefaultFakeIPFilter 是 mihomo fake-ip DNS 模式的最小过滤列表。部署层会把
+// fake_ip_filter 写入 dns.fake-ip-filter，同时保留订阅 DNS 的其它字段。
+var DefaultFakeIPFilter = []string{"*.lan", "*.local", "localhost.ptlogin2.qq.com"}
+
 var AIDomainSuffixes = []string{
 	"openai.com", "chatgpt.com", "oaistatic.com", "oaiusercontent.com",
 	"anthropic.com", "claude.ai", "gemini.google.com", "huggingface.co",
@@ -63,6 +67,7 @@ var defaultsOrder = []string{
 	"tun_stack",
 	"tun_route_exclude_cidrs",
 	"tun_exclude_uids",
+	"fake_ip_filter",
 	"tun_exclude_process",
 	"main_group_keywords",
 	"lan_proxy",
@@ -97,6 +102,7 @@ func Defaults() map[string]any {
 		"tun_stack":                 "gvisor",
 		"tun_route_exclude_cidrs":   append([]string(nil), DefaultTunRouteExclude...),
 		"tun_exclude_uids":          []int{},
+		"fake_ip_filter":            append([]string(nil), DefaultFakeIPFilter...),
 		"tun_exclude_process":       []string{},
 		"main_group_keywords":       append([]string(nil), DefaultMainGroupKeywords...),
 		"proxy_port":                DefaultProxyPort,
@@ -220,6 +226,7 @@ func marshalNoEscape(v any, prefix, indent string) ([]byte, error) {
 var ListFields = map[string]string{
 	"tun_route_exclude_cidrs":   "TUN 排除网段",
 	"tun_exclude_uids":          "TUN 直连 UID（防 SSH 断连）",
+	"fake_ip_filter":            "Fake-IP 过滤规则",
 	"tun_exclude_process":       "TUN 直连进程名（防 SSH 断连，如 sshd）",
 	"main_group_keywords":       "主选择组识别关键词（按顺序匹配，新增项插最前）",
 	"ai_domain_suffixes":        "AI 域名后缀（叠加）",
@@ -269,6 +276,7 @@ var DeploymentFields = []string{
 	"bootstrap_dns_port",
 	"tun_route_exclude_cidrs",
 	"tun_exclude_uids",
+	"fake_ip_filter",
 	"tun_exclude_process",
 	"main_group_keywords",
 	"base64_local_fallback",

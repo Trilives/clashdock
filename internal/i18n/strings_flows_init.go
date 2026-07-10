@@ -26,7 +26,7 @@ func init() {
 		"把代理变量写入 ~/.bashrc":       "Write proxy variables to ~/.bashrc",
 		"放行防火墙 %d 端口":             "Allow firewall port %d",
 		"直连 UID（逗号分隔，防 SSH 断连）":   "Direct-connect UIDs (comma-separated, avoids SSH drop)",
-		"直连进程名（逗号分隔，防 SSH 断连）":    "Direct-connect processes (comma-separated, avoids SSH drop)",
+		"Fake-IP 过滤规则（逗号分隔）":      "Fake-IP filter rules (comma-separated)",
 		"提示：更多细项可在启动后于「配置变更」中设置。": "Tip: configure more details later under Configuration Changes after startup.",
 		"订阅名称":                    "Subscription name",
 		"订阅类型":                    "Subscription type",

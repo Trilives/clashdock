@@ -25,4 +25,7 @@ func TestInitFormReplacesProcessNameWithFakeIPFilter(t *testing.T) {
 	if got := fields[filterIndex].Text; got != "*.lan,*.local,localhost.ptlogin2.qq.com" {
 		t.Fatalf("fake_ip_filter 初值 = %q", got)
 	}
+	if fields[filterIndex].Visible != nil {
+		t.Fatal("fake_ip_filter 不应随 TUN 关闭而隐藏")
+	}
 }

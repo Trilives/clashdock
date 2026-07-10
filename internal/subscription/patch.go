@@ -1,14 +1,14 @@
 // 直用订阅 + 最小改写：把机场原生 Clash/mihomo 订阅改写为可部署的运行时配置。
 //
 // 不做协议转换、不重建分流。订阅自带的 proxies / proxy-groups / rules /
-// rule-providers / proxy-providers / dns 全部原样保留，只覆写「部署/运行时」必需字段：
+// rule-providers / proxy-providers 原样保留，只覆写「部署/运行时」必需字段：
 //
 //   - 本地代理端口（统一 mixed-port=7890，删除冲突的 port/socks-port/redir-port）
 //   - 局域网开关（allow-lan / bind-address，由 lan_proxy 决定）
 //   - 外部控制器与面板（external-controller / external-ui / secret，由 lan_panel 决定）
 //   - TUN（按 enable_tun 整段覆写，由本部署层统一控制）
 //   - 选组持久化（profile.store-selected）
-//   - DNS（订阅自带则保留；缺失时注入可用的最小默认，TUN 模式需要）
+//   - DNS（订阅自带则仅覆写可配置的 fake-ip-filter；缺失时注入可用的最小默认）
 //
 // 输出为普通 map，由调用方以 JSON 写成 config.yaml（JSON 是合法 YAML，
 // mihomo 直接解析，省掉 YAML dumper）。
@@ -36,6 +36,8 @@ var defaultTunRouteExclude = []string{
 	"127.0.0.0/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16",
 	"169.254.0.0/16", "100.64.0.0/10", "::1/128", "fc00::/7", "fe80::/10",
 }
+
+var defaultFakeIPFilter = []string{"*.lan", "*.local", "localhost.ptlogin2.qq.com"}
 
 // PatchError 订阅无法改写为运行时配置。
 type PatchError struct{ Msg string }
@@ -114,11 +116,20 @@ func defaultDNS(customize map[string]any) map[string]any {
 		"ipv6":               false,
 		"enhanced-mode":      "fake-ip",
 		"fake-ip-range":      "198.18.0.1/16",
-		"fake-ip-filter":     []any{"*.lan", "*.local", "localhost.ptlogin2.qq.com"},
+		"fake-ip-filter":     toAnyList(fakeIPFilterOf(customize)),
 		"default-nameserver": []any{bootstrap},
 		"nameserver":         []any{bootstrap, "https://doh.pub/dns-query"},
 		"fallback":           []any{"https://1.1.1.1/dns-query", "https://dns.google/dns-query"},
 	}
+}
+
+// fakeIPFilterOf 区分“未提供配置”和“显式清空”：前者使用最小默认值，后者写入空列表。
+func fakeIPFilterOf(customize map[string]any) []string {
+	v, ok := customize["fake_ip_filter"]
+	if !ok {
+		return append([]string(nil), defaultFakeIPFilter...)
+	}
+	return strListOf(v)
 }
 
 func toAnyList(ss []string) []any {
@@ -207,9 +218,17 @@ func Apply(clash map[string]any, customize map[string]any, uiDir string) (map[st
 		cfg["rules"] = prependProcessDirect(cfg["rules"], strListOf(customize["tun_exclude_process"]))
 	}
 
-	// 7. DNS：订阅自带则保留；缺失才注入默认（TUN 模式需要可用 DNS）
+	// 7. DNS：缺失时注入默认；订阅自带时保留其余字段，仅在 customize 显式提供
+	// fake_ip_filter 时覆写对应的 mihomo fake-ip-filter。
 	if m, ok := cfg["dns"].(map[string]any); !ok || len(m) == 0 {
 		cfg["dns"] = defaultDNS(customize)
+	} else if _, configured := customize["fake_ip_filter"]; configured {
+		dns := make(map[string]any, len(m)+1)
+		for k, v := range m {
+			dns[k] = v
+		}
+		dns["fake-ip-filter"] = toAnyList(fakeIPFilterOf(customize))
+		cfg["dns"] = dns
 	}
 
 	return cfg, nil

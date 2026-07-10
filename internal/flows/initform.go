@@ -26,8 +26,8 @@ type initSettings struct {
 	writeBashrc   bool
 	allowPort     bool
 
-	excludeUIDs    []int
-	excludeProcess []string
+	excludeUIDs  []int
+	fakeIPFilter []string
 
 	hasSub bool
 	sub    newSub
@@ -46,7 +46,7 @@ func csvInts(s string) []int {
 	return out
 }
 
-// csvStrings 把逗号分隔的文本解析为去空白、去空项的字符串列表（用于 TUN 直连进程名）。
+// csvStrings 把逗号分隔的文本解析为去空白、去空项的字符串列表。
 func csvStrings(s string) []string {
 	var out []string
 	for _, part := range strings.Split(s, ",") {
@@ -78,6 +78,38 @@ func portFromText(s string, def int) int {
 // （复用现有订阅的重新初始化场景）。第二返回值为 false 表示用户取消。
 func runInitForm(p paths.Paths, includeSub bool) (*initSettings, bool, error) {
 	cfg := config.Load(p)
+	fields := initFormFields(cfg, includeSub)
+
+	res, err := tui.Form(i18n.T("ClashDock 初始化"), fields,
+		tui.FormOpts{SubmitLabel: i18n.T("开始初始化"), CancelLabel: i18n.T("取消"),
+			Note: i18n.T("提示：更多细项可在启动后于「配置变更」中设置。")})
+	if err != nil {
+		return nil, false, err
+	}
+	if !res.Submitted {
+		return nil, false, nil
+	}
+
+	s := &initSettings{
+		downloadProxy: normalizeProxy(res.Text("download_proxy")),
+		proxyPort:     portFromText(res.Text("proxy_port"), config.ProxyPort(cfg)),
+		enableTun:     res.Bool("enable_tun"),
+		lanProxy:      res.Bool("lan_proxy"),
+		writeBashrc:   res.Bool("write_bashrc"),
+		allowPort:     res.Bool("allow_port"),
+		excludeUIDs:   csvInts(res.Text("tun_exclude_uids")),
+		fakeIPFilter:  csvStrings(res.Text("fake_ip_filter")),
+	}
+	if includeSub {
+		if err := fillSubSetting(s, res); err != nil {
+			return nil, false, err
+		}
+	}
+	return s, true, nil
+}
+
+// initFormFields 构造初始化表单字段，独立于交互循环以便验证字段顺序与初值。
+func initFormFields(cfg map[string]any, includeSub bool) []tui.Field {
 	tunOn := func(s *tui.FormState) bool { return s.Bool("enable_tun") }
 	lanOn := func(s *tui.FormState) bool { return s.Bool("lan_proxy") }
 	// 局域网/防火墙提示里的端口跟随「本地代理端口」字段的当前值，避免固定显示 7890 误导。
@@ -107,15 +139,14 @@ func runInitForm(p paths.Paths, includeSub bool) (*initSettings, bool, error) {
 				return fmt.Sprintf(i18n.T("放行防火墙 %d 端口"), portOf(s))
 			},
 			Bool: true, Visible: lanOn},
-		// TUN 直连白名单：开 TUN 后 SSH 等会话可能被劫持断连，可按 UID / 进程名放行直连。
+		// TUN 直连 UID 白名单：开 TUN 后 SSH 等会话可能被劫持断连，可按 UID 放行直连。
 		{Key: "tun_exclude_uids", Section: basic, Kind: tui.FieldText, AllowEmpty: true,
 			Label: i18n.T("直连 UID（逗号分隔，防 SSH 断连）"),
 			Text:  intsToText(config.IntList(cfg, "tun_exclude_uids")), Placeholder: "0,1000",
 			Visible: tunOn},
-		{Key: "tun_exclude_process", Section: basic, Kind: tui.FieldText, AllowEmpty: true,
-			Label: i18n.T("直连进程名（逗号分隔，防 SSH 断连）"),
-			Text:  strings.Join(config.StrList(cfg, "tun_exclude_process"), ","), Placeholder: "sshd",
-			Visible: tunOn},
+		{Key: "fake_ip_filter", Section: basic, Kind: tui.FieldText, AllowEmpty: true,
+			Label: i18n.T("Fake-IP 过滤规则（逗号分隔）"),
+			Text:  strings.Join(config.StrList(cfg, "fake_ip_filter"), ","), Placeholder: "*.lan,*.local"},
 	}
 	if includeSub {
 		sub := i18n.T("订阅设置")
@@ -141,32 +172,7 @@ func runInitForm(p paths.Paths, includeSub bool) (*initSettings, bool, error) {
 		)
 	}
 
-	res, err := tui.Form(i18n.T("ClashDock 初始化"), fields,
-		tui.FormOpts{SubmitLabel: i18n.T("开始初始化"), CancelLabel: i18n.T("取消"),
-			Note: i18n.T("提示：更多细项可在启动后于「配置变更」中设置。")})
-	if err != nil {
-		return nil, false, err
-	}
-	if !res.Submitted {
-		return nil, false, nil
-	}
-
-	s := &initSettings{
-		downloadProxy:  normalizeProxy(res.Text("download_proxy")),
-		proxyPort:      portFromText(res.Text("proxy_port"), config.ProxyPort(cfg)),
-		enableTun:      res.Bool("enable_tun"),
-		lanProxy:       res.Bool("lan_proxy"),
-		writeBashrc:    res.Bool("write_bashrc"),
-		allowPort:      res.Bool("allow_port"),
-		excludeUIDs:    csvInts(res.Text("tun_exclude_uids")),
-		excludeProcess: csvStrings(res.Text("tun_exclude_process")),
-	}
-	if includeSub {
-		if err := fillSubSetting(s, res); err != nil {
-			return nil, false, err
-		}
-	}
-	return s, true, nil
+	return fields
 }
 
 // fillSubSetting 把订阅相关表单字段转成 newSub（链接留空=暂不配置，hasSub=false）。

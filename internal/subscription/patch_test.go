@@ -165,7 +165,7 @@ func TestDefaultDNSWhenMissing(t *testing.T) {
 	sample := patchSample(t)
 	delete(sample, "dns")
 	cfg := mustApply(t, sample, map[string]any{
-		"enable_tun": true,
+		"enable_tun":     true,
 		"fake_ip_filter": []string{"*.lan", "+.example.com"},
 	})
 	dns := cfg["dns"].(map[string]any)
@@ -182,8 +182,9 @@ func TestDefaultDNSWhenMissing(t *testing.T) {
 }
 
 func TestFakeIPFilterOverridesSubscriptionDNSFieldOnly(t *testing.T) {
-	cfg := mustApply(t, patchSample(t), map[string]any{
-		"enable_tun": true,
+	sample := patchSample(t)
+	cfg := mustApply(t, sample, map[string]any{
+		"enable_tun":     true,
 		"fake_ip_filter": []string{"*.lan", "+.internal.example"},
 	})
 	dns := cfg["dns"].(map[string]any)
@@ -193,6 +194,20 @@ func TestFakeIPFilterOverridesSubscriptionDNSFieldOnly(t *testing.T) {
 	}
 	if nameservers := strListOf(dns["nameserver"]); len(nameservers) != 1 || nameservers[0] != "223.5.5.5" {
 		t.Fatalf("订阅 DNS 其它字段应保留，实际 %v", dns)
+	}
+	if _, changed := sample["dns"].(map[string]any)["fake-ip-filter"]; changed {
+		t.Fatal("Apply 不应原地修改订阅 DNS")
+	}
+}
+
+func TestFakeIPFilterCanBeCleared(t *testing.T) {
+	cfg := mustApply(t, patchSample(t), map[string]any{
+		"fake_ip_filter": []string{},
+	})
+	dns := cfg["dns"].(map[string]any)
+	filters, ok := dns["fake-ip-filter"].([]any)
+	if !ok || len(filters) != 0 {
+		t.Fatalf("显式空列表应清空 fake-ip-filter，实际 %#v", dns["fake-ip-filter"])
 	}
 }
 
