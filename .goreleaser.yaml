@@ -112,12 +112,9 @@ checksum:
 release:
   prerelease: auto
   header: |
-    Highlights of 0.2.4 (vs v0.2.3):
-    - Initialization is now a single-screen form with dynamic fields; local proxy port is configurable end-to-end (Config Changes → Deployment Settings; default 7890) and reflected in every LAN prompt/hint.
-    - TUN direct-connect allowlists (UID / process name) during init keep SSH-style sessions off the proxy.
-    - "Update" moved into the Tools menu; new "Latest Log" viewer split into mihomo service log and clashdock app log.
-    - New "Reinitialize" (Config Changes) and "Reload Service · delete & rebuild" (Service Settings).
-    - Portable archive adds a no-root `tool/` folder: `update.sh` (update binary / core / rules in place) and `nettest.sh`; still bundles no Web UI (use the full version or an online panel).
+    Highlights of the 0.2.5 preview line (vs v0.2.4):
+    - Fake-IP filter rules are configurable in Deployment Settings and initialization; applying them preserves all other subscription DNS fields.
+    - TUN direct-connect process names are configurable in Deployment Settings and initialization, with existing UID/process exclusions preserved when TUN is off.
 
 changelog:
   sort: asc
