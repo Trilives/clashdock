@@ -112,9 +112,14 @@ checksum:
 release:
   prerelease: auto
   header: |
-    Highlights of the 0.2.5 preview line (vs v0.2.4):
+    Highlights of 0.2.5 (vs v0.2.4):
+
+    v0.2.5 promotes v0.2.5-beta.1 to stable with no application source changes since the preview.
+
     - Fake-IP filter rules are configurable in Deployment Settings and initialization; applying them preserves all other subscription DNS fields.
-    - TUN direct-connect process names are configurable in Deployment Settings and initialization, with existing UID/process exclusions preserved when TUN is off.
+    - TUN direct-connect process names can now be set during initialization and remain configurable in Deployment Settings; existing UID/process exclusions are preserved when reinitializing with TUN off.
+
+    No breaking changes.
 
 changelog:
   sort: asc
