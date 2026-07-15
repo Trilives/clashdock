@@ -3,6 +3,7 @@ package subscription
 import (
 	"encoding/json"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -181,33 +182,52 @@ func TestDefaultDNSWhenMissing(t *testing.T) {
 	}
 }
 
-func TestFakeIPFilterOverridesSubscriptionDNSFieldOnly(t *testing.T) {
+func TestFakeIPFilterMergesSubscriptionAndCustomize(t *testing.T) {
 	sample := patchSample(t)
-	cfg := mustApply(t, sample, map[string]any{
+	sourceFilters := []any{"+.provider.example", "*.lan"}
+	sampleDNS := sample["dns"].(map[string]any)
+	sampleDNS["fake-ip-filter"] = sourceFilters
+	customFilters := []any{"*.lan", "*.local", "*.local"}
+	customize := map[string]any{
 		"enable_tun":     true,
-		"fake_ip_filter": []string{"*.lan", "+.internal.example"},
-	})
+		"fake_ip_filter": customFilters,
+	}
+
+	cfg := mustApply(t, sample, customize)
 	dns := cfg["dns"].(map[string]any)
 	filters := strListOf(dns["fake-ip-filter"])
-	if len(filters) != 2 || filters[1] != "+.internal.example" {
-		t.Fatalf("应覆写订阅 fake-ip-filter，实际 %v", filters)
+	want := []string{"+.provider.example", "*.lan", "*.local"}
+	if !reflect.DeepEqual(filters, want) {
+		t.Fatalf("应保留订阅规则并追加去重后的定制规则，实际 %v，期望 %v", filters, want)
 	}
 	if nameservers := strListOf(dns["nameserver"]); len(nameservers) != 1 || nameservers[0] != "223.5.5.5" {
 		t.Fatalf("订阅 DNS 其它字段应保留，实际 %v", dns)
 	}
-	if _, changed := sample["dns"].(map[string]any)["fake-ip-filter"]; changed {
-		t.Fatal("Apply 不应原地修改订阅 DNS")
+	if !reflect.DeepEqual(sampleDNS["fake-ip-filter"], sourceFilters) {
+		t.Fatalf("Apply 不应修改订阅 fake-ip-filter，实际 %v", sampleDNS["fake-ip-filter"])
+	}
+	if !reflect.DeepEqual(customize["fake_ip_filter"], customFilters) {
+		t.Fatalf("Apply 不应修改定制 fake_ip_filter，实际 %v", customize["fake_ip_filter"])
+	}
+	outputFilters := dns["fake-ip-filter"].([]any)
+	outputFilters[0] = "+.changed.example"
+	if sourceFilters[0] != "+.provider.example" {
+		t.Fatal("生成的 fake-ip-filter 不应与订阅切片共享底层存储")
 	}
 }
 
-func TestFakeIPFilterCanBeCleared(t *testing.T) {
-	cfg := mustApply(t, patchSample(t), map[string]any{
-		"fake_ip_filter": []string{},
+func TestEmptyFakeIPFilterPreservesSubscription(t *testing.T) {
+	sample := patchSample(t)
+	sourceFilters := []any{"+.provider.example", "*.lan"}
+	sample["dns"].(map[string]any)["fake-ip-filter"] = sourceFilters
+	cfg := mustApply(t, sample, map[string]any{
+		"fake_ip_filter": []any{},
 	})
 	dns := cfg["dns"].(map[string]any)
-	filters, ok := dns["fake-ip-filter"].([]any)
-	if !ok || len(filters) != 0 {
-		t.Fatalf("显式空列表应清空 fake-ip-filter，实际 %#v", dns["fake-ip-filter"])
+	filters := strListOf(dns["fake-ip-filter"])
+	want := []string{"+.provider.example", "*.lan"}
+	if !reflect.DeepEqual(filters, want) {
+		t.Fatalf("空定制列表不应清空订阅 fake-ip-filter，实际 %v，期望 %v", filters, want)
 	}
 }
 
