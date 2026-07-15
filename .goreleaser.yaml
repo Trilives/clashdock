@@ -114,10 +114,10 @@ release:
   header: |
     Highlights of the 0.2.6 preview line (vs v0.2.5):
 
-    - Subscription-provided `dns.fake-ip-filter` rules are now preserved. Deployment Settings entries are appended with stable deduplication instead of replacing provider-required exclusions.
-    - This prevents domain-based proxy endpoints, including Hua nodes, from being resolved into mihomo's fake-IP range and timing out while retaining user-configured filters.
+    - Subscription-provided `dns.fake-ip-filter` rules are now preserved; Deployment Settings entries are appended with stable deduplication instead of replacing provider-required exclusions.
+    - This restores subscriptions whose domain-based node endpoints or host redirects depend on those exclusions, preventing matching endpoints from being resolved into mihomo's fake-IP range and timing out.
 
-    No breaking changes. After upgrading, refresh affected subscriptions once to regenerate their stored runtime configuration.
+    No config migration is required. After upgrading, refresh affected subscriptions once to regenerate their stored runtime configuration; configured filters are now additive and an empty configured list no longer clears provider rules.
 
 changelog:
   sort: asc

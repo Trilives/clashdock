@@ -123,7 +123,8 @@ func defaultDNS(customize map[string]any) map[string]any {
 	}
 }
 
-// fakeIPFilterOf 区分“未提供配置”和“显式清空”：前者使用最小默认值，后者写入空列表。
+// fakeIPFilterOf 区分“未提供配置”和“显式空列表”：前者返回最小默认值，后者返回
+// 空的追加项；已有订阅 DNS 时，空追加项不会清除订阅的 fake-ip-filter。
 func fakeIPFilterOf(customize map[string]any) []string {
 	v, ok := customize["fake_ip_filter"]
 	if !ok {
