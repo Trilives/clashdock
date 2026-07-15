@@ -8,7 +8,7 @@
 //   - 外部控制器与面板（external-controller / external-ui / secret，由 lan_panel 决定）
 //   - TUN（按 enable_tun 整段覆写，由本部署层统一控制）
 //   - 选组持久化（profile.store-selected）
-//   - DNS（订阅自带则仅覆写可配置的 fake-ip-filter；缺失时注入可用的最小默认）
+//   - DNS（订阅自带则向 fake-ip-filter 追加定制规则；缺失时注入可用的最小默认）
 //
 // 输出为普通 map，由调用方以 JSON 写成 config.yaml（JSON 是合法 YAML，
 // mihomo 直接解析，省掉 YAML dumper）。
@@ -140,6 +140,24 @@ func toAnyList(ss []string) []any {
 	return out
 }
 
+// mergeFakeIPFilters 保留订阅规则的顺序，再追加定制规则；完全相同的规则只保留
+// 第一次出现的位置。始终返回新切片，避免运行时配置与输入共享底层存储。
+func mergeFakeIPFilters(subscription any, additions []string) []any {
+	existing := strListOf(subscription)
+	merged := make([]any, 0, len(existing)+len(additions))
+	seen := make(map[string]struct{}, len(existing)+len(additions))
+	for _, filters := range [][]string{existing, additions} {
+		for _, filter := range filters {
+			if _, duplicate := seen[filter]; duplicate {
+				continue
+			}
+			seen[filter] = struct{}{}
+			merged = append(merged, filter)
+		}
+	}
+	return merged
+}
+
 // Apply 对机场 Clash 订阅 map 做最小改写，返回运行时 mihomo 配置 map。
 // uiDir 为面板静态资源目录（external-ui 指向它）。业务字段引用原样保留。
 func Apply(clash map[string]any, customize map[string]any, uiDir string) (map[string]any, error) {
@@ -218,8 +236,8 @@ func Apply(clash map[string]any, customize map[string]any, uiDir string) (map[st
 		cfg["rules"] = prependProcessDirect(cfg["rules"], strListOf(customize["tun_exclude_process"]))
 	}
 
-	// 7. DNS：缺失时注入默认；订阅自带时保留其余字段，仅在 customize 显式提供
-	// fake_ip_filter 时覆写对应的 mihomo fake-ip-filter。
+	// 7. DNS：缺失时注入默认；订阅自带时保留其余字段，仅在 customize 提供
+	// fake_ip_filter 时向订阅的 mihomo fake-ip-filter 追加并去重。
 	if m, ok := cfg["dns"].(map[string]any); !ok || len(m) == 0 {
 		cfg["dns"] = defaultDNS(customize)
 	} else if _, configured := customize["fake_ip_filter"]; configured {
@@ -227,7 +245,7 @@ func Apply(clash map[string]any, customize map[string]any, uiDir string) (map[st
 		for k, v := range m {
 			dns[k] = v
 		}
-		dns["fake-ip-filter"] = toAnyList(fakeIPFilterOf(customize))
+		dns["fake-ip-filter"] = mergeFakeIPFilters(m["fake-ip-filter"], fakeIPFilterOf(customize))
 		cfg["dns"] = dns
 	}
 
