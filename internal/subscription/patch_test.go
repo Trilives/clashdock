@@ -184,10 +184,12 @@ func TestDefaultDNSWhenMissing(t *testing.T) {
 
 func TestFakeIPFilterMergesSubscriptionAndCustomize(t *testing.T) {
 	sample := patchSample(t)
-	sourceFilters := []any{"+.provider.example", "*.lan"}
+	sourceFilters := []any{"+.provider.example", "*.lan", "+.provider.example"}
+	sourceSnapshot := append([]any(nil), sourceFilters...)
 	sampleDNS := sample["dns"].(map[string]any)
 	sampleDNS["fake-ip-filter"] = sourceFilters
 	customFilters := []any{"*.lan", "*.local", "*.local"}
+	customSnapshot := append([]any(nil), customFilters...)
 	customize := map[string]any{
 		"enable_tun":     true,
 		"fake_ip_filter": customFilters,
@@ -203,16 +205,32 @@ func TestFakeIPFilterMergesSubscriptionAndCustomize(t *testing.T) {
 	if nameservers := strListOf(dns["nameserver"]); len(nameservers) != 1 || nameservers[0] != "223.5.5.5" {
 		t.Fatalf("订阅 DNS 其它字段应保留，实际 %v", dns)
 	}
-	if !reflect.DeepEqual(sampleDNS["fake-ip-filter"], sourceFilters) {
+	if !reflect.DeepEqual(sampleDNS["fake-ip-filter"], sourceSnapshot) {
 		t.Fatalf("Apply 不应修改订阅 fake-ip-filter，实际 %v", sampleDNS["fake-ip-filter"])
 	}
-	if !reflect.DeepEqual(customize["fake_ip_filter"], customFilters) {
+	if !reflect.DeepEqual(customize["fake_ip_filter"], customSnapshot) {
 		t.Fatalf("Apply 不应修改定制 fake_ip_filter，实际 %v", customize["fake_ip_filter"])
 	}
 	outputFilters := dns["fake-ip-filter"].([]any)
 	outputFilters[0] = "+.changed.example"
-	if sourceFilters[0] != "+.provider.example" {
+	outputFilters[len(outputFilters)-1] = "*.changed.example"
+	if !reflect.DeepEqual(sourceFilters, sourceSnapshot) {
 		t.Fatal("生成的 fake-ip-filter 不应与订阅切片共享底层存储")
+	}
+	if !reflect.DeepEqual(customFilters, customSnapshot) {
+		t.Fatal("生成的 fake-ip-filter 不应与定制切片共享底层存储")
+	}
+}
+
+func TestFakeIPFilterAddsToExistingDNSWithoutSubscriptionFilter(t *testing.T) {
+	customFilters := []any{"*.local", "*.local", "+.internal.example"}
+	cfg := mustApply(t, patchSample(t), map[string]any{
+		"fake_ip_filter": customFilters,
+	})
+	filters := strListOf(cfg["dns"].(map[string]any)["fake-ip-filter"])
+	want := []string{"*.local", "+.internal.example"}
+	if !reflect.DeepEqual(filters, want) {
+		t.Fatalf("订阅未提供过滤规则时应追加去重后的定制规则，实际 %v，期望 %v", filters, want)
 	}
 }
 
