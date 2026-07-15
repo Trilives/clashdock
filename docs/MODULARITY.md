@@ -38,7 +38,7 @@
 
 - `cmd/clashdock`：只做 CLI 分发、版本输出、顶层子命令入口。
 - `internal/flows`：交互流程编排，允许调用领域包，但不直接承载复杂转换或下载实现。
-- `internal/subscription`：订阅拉取、识别、转换、patch、overlay、active 切换。
+- `internal/subscription`：订阅拉取、识别、转换、非破坏性 DNS patch、overlay、active 切换。
 - `internal/kernel`：mihomo/UI/geo 下载、系统包种子接管、资源更新策略。
 - `internal/sysd`：systemd unit、运行时暂存、服务/面板/自愈/定时器管理。
 - `internal/config`：`customize.json` 默认值、字段元数据、读写兼容性。
@@ -51,6 +51,8 @@
 - 领域包不得依赖 `flows`。
 - `tui`、`txn`、`paths`、`errs` 应保持底层工具属性，避免反向依赖业务。
 - `sysd` 可以依赖 `paths/config/execx/jsonx`，不得依赖 `flows`。
+- 订阅嵌套字段采用 copy-on-write：追加列表规则时返回新切片，保留订阅项在前并稳定去重，
+  不得原地修改解析后的订阅 map、订阅切片或定制层输入。
 
 ## 文件命名
 
