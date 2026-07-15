@@ -112,14 +112,12 @@ checksum:
 release:
   prerelease: auto
   header: |
-    Highlights of 0.2.5 (vs v0.2.4):
+    Highlights of the 0.2.6 preview line (vs v0.2.5):
 
-    v0.2.5 promotes v0.2.5-beta.1 to stable with no application source changes since the preview.
+    - Subscription-provided `dns.fake-ip-filter` rules are now preserved. Deployment Settings entries are appended with stable deduplication instead of replacing provider-required exclusions.
+    - This prevents domain-based proxy endpoints, including Hua nodes, from being resolved into mihomo's fake-IP range and timing out while retaining user-configured filters.
 
-    - Fake-IP filter rules are configurable in Deployment Settings and initialization; applying them preserves all other subscription DNS fields.
-    - TUN direct-connect process names can now be set during initialization and remain configurable in Deployment Settings; existing UID/process exclusions are preserved when reinitializing with TUN off.
-
-    No breaking changes.
+    No breaking changes. After upgrading, refresh affected subscriptions once to regenerate their stored runtime configuration.
 
 changelog:
   sort: asc
