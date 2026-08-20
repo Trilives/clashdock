@@ -452,6 +452,25 @@ func NodeSelect(p paths.Paths, configPath, group string) error {
 		return err
 	}
 
+	var syncRuntime func(paths.Paths) error
+	if sysd.IsInstalled(sysd.DefaultName) {
+		syncRuntime = func(got paths.Paths) error {
+			return sysd.SyncAndRestart(got, sysd.DefaultName)
+		}
+	}
+	if err := persistPinnedSelectionWithSync(p, r.cfg, r.groupName, r.node, configPath, syncRuntime); err != nil {
+		return err
+	}
+	execx.Ok(fmt.Sprintf(i18n.T("已固定 %s 首选 = %s"), r.groupName, r.node))
+	return nil
+}
+
+func persistPinnedSelectionWithSync(
+	p paths.Paths,
+	cfg map[string]any,
+	groupName, node, configPath string,
+	syncRuntime func(paths.Paths) error,
+) error {
 	// 写生效配置 + 当前 active 订阅的 config.yaml（双写以跨重启持久）
 	targets := []string{configPath}
 	if active := subscription.GetActive(p); active != nil {
@@ -460,13 +479,13 @@ func NodeSelect(p paths.Paths, configPath, group string) error {
 			targets = append(targets, subCfg)
 		}
 	}
-	if err := persistFirst(r.cfg, r.groupName, r.node, targets); err != nil {
+	if err := persistFirst(cfg, groupName, node, targets); err != nil {
 		return err
 	}
-	execx.Ok(fmt.Sprintf(i18n.T("已固定 %s 首选 = %s"), r.groupName, r.node))
-
-	if sysd.IsInstalled(sysd.DefaultName) {
-		return sysd.SyncAndRestart(p, sysd.DefaultName)
+	if syncRuntime != nil {
+		if err := syncRuntime(p); err != nil {
+			return fmt.Errorf(i18n.T("节点首选已保存，但同步到运行时失败: %w"), err)
+		}
 	}
 	return nil
 }

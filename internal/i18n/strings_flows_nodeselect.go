@@ -36,6 +36,7 @@ func init() {
 		"放弃并退出":     "Discard and exit",
 
 		"已固定 %s 首选 = %s":             "Pinned %s preferred = %s",
+		"节点首选已保存，但同步到运行时失败: %w":      "Node preference was saved, but syncing it to the runtime failed: %w",
 		"Clash API 实时切换失败：%v":        "Clash API live switch failed: %v",
 		"已通过 Clash API 实时切换 %s → %s": "Live-switched via Clash API %s → %s",
 

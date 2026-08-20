@@ -1,8 +1,14 @@
 package flows
 
 import (
+	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Trilives/clashdock/internal/configfile"
+	"github.com/Trilives/clashdock/internal/paths"
 )
 
 func TestCurrentNodeLabelsDistinguishRuntimeAndConfiguredPreferred(t *testing.T) {
@@ -67,4 +73,98 @@ func nodeLabel(t *testing.T, names, labels []string, node string) string {
 	}
 	t.Fatalf("测试节点 %q 不在节点列表中", node)
 	return ""
+}
+
+func TestPersistPinnedSelectionWithSyncPublishesLatestConfigBeforeRestart(t *testing.T) {
+	t.Setenv("CLASHDOCK_HOME", t.TempDir())
+	p := paths.Detect()
+	if err := p.EnsureStateDirs(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(p.SubscriptionDir("airport"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(p.SubscriptionDir("airport"), "meta.json"), []byte(`{"name":"airport"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p.ActiveFile, []byte("airport\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	old := []byte(`{"proxy-groups":[{"name":"手动选择","type":"select","proxies":["香港 01","日本 01"]}]}`)
+	subCfg := filepath.Join(p.SubscriptionDir("airport"), "config.yaml")
+	if err := os.WriteFile(p.ConfigFile, old, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(subCfg, old, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := map[string]any{
+		"proxy-groups": []any{
+			map[string]any{
+				"name":    "手动选择",
+				"type":    "select",
+				"proxies": []any{"香港 01", "日本 01"},
+			},
+		},
+	}
+
+	called := false
+	err := persistPinnedSelectionWithSync(p, cfg, "手动选择", "日本 01", p.ConfigFile, func(got paths.Paths) error {
+		called = true
+		assertPinnedNode(t, got.ConfigFile, "手动选择", "日本 01")
+		assertPinnedNode(t, subCfg, "手动选择", "日本 01")
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !called {
+		t.Fatal("runtime sync was not called")
+	}
+}
+
+func TestPersistPinnedSelectionWithSyncReturnsRuntimeSyncFailure(t *testing.T) {
+	t.Setenv("CLASHDOCK_HOME", t.TempDir())
+	p := paths.Detect()
+	if err := p.EnsureStateDirs(); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := map[string]any{
+		"proxy-groups": []any{
+			map[string]any{
+				"name":    "手动选择",
+				"type":    "select",
+				"proxies": []any{"香港 01", "日本 01"},
+			},
+		},
+	}
+	wantErr := errors.New("restart failed")
+	err := persistPinnedSelectionWithSync(p, cfg, "手动选择", "日本 01", p.ConfigFile, func(paths.Paths) error {
+		return wantErr
+	})
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("persistPinnedSelectionWithSync error = %v, want wrapped %v", err, wantErr)
+	}
+	if !strings.Contains(err.Error(), "节点首选已保存") || !strings.Contains(err.Error(), "同步到运行时失败") {
+		t.Fatalf("error should explain saved/runtime split, got %q", err)
+	}
+	assertPinnedNode(t, p.ConfigFile, "手动选择", "日本 01")
+}
+
+func assertPinnedNode(t *testing.T, configPath, groupName, want string) {
+	t.Helper()
+	cfg, err := configfile.Read(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	group, err := pickGroup(cfg, groupName, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := preferredNode(group); got != want {
+		t.Fatalf("preferredNode(%s) = %q, want %q", groupName, got, want)
+	}
 }
