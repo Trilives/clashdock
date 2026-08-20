@@ -106,7 +106,7 @@ func serviceSettings(p paths.Paths) error {
 	case 0:
 		sysd.Status(sysd.DefaultName)
 	case 1:
-		execx.RunRoot([]string{"systemctl", "restart", "mihomo.service"}, i18n.T("重启服务"), nil)
+		return sysd.SyncAndRestart(p, sysd.DefaultName)
 	default:
 		return reloadService(p)
 	}

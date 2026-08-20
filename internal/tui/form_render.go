@@ -25,7 +25,7 @@ func (m *formModel) View() string {
 	end := min(top+visible, len(bodyLines))
 
 	// 3. 计算盒宽：主体所有行 + 标题 + 按钮 + 页脚里最宽的一行。
-	footer := truncate("  "+i18n.T("↑/↓ 移动   空格 切换/勾选   ←/→ 选项   ⏎ 下一项/确认   esc 取消"), maxW)
+	footer := truncate("  "+i18n.T("↑/↓ 移动   空格 切换/勾选   ←/→ 选项   ⏎ 编辑/确认   esc 取消"), maxW)
 	buttons := m.buttonsLine(ss, maxW)
 	noteLines := m.noteLines(maxW)
 	label := truncate(fmt.Sprintf("─ %s ", m.title), maxW)

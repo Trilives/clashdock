@@ -2,8 +2,8 @@
 //
 // ModifyConfig「配置变更」——订阅增删改 / 切换 / 刷新、部署设置、自定义分流
 // 叠加，改动缓冲在事务里，esc「保存并退出」才提交，^R 回退本次会话全部改动，
-// 需要重启服务才能生效。定制层字段分组（部署设置 / 自定义分流叠加）直接是
-// 本菜单下的平级项，不再经过多余的「编辑定制层」中间层。
+// 定制层保存后自动重建生效订阅并同步重启。字段分组（部署设置 / 自定义分流叠加）
+// 直接是本菜单下的平级项，不再经过多余的「编辑定制层」中间层。
 // ModifyRuntime「运行时管理」——节点实时切换 / 内核更新 / 服务重启 / 网络自愈 /
 // 更新定时器，均为即时生效的系统操作（各自按需处理重启，无需你事后再单独
 // 重启一次）。
@@ -34,8 +34,8 @@ var modifyConfigOptions = []string{
 }
 
 // 顺序按常用程度排列：切节点/查看服务状态是日常操作，自愈/定时器属一次性
-// 设置项，排最后。临时切换与固定切换拆成两项：前者不写盘/不重启，后者才会
-// 写盘并可选重启。「更新」（内核 / geo / clashdock 自身）已移到「工具」菜单，
+// 设置项，排最后。临时切换与固定切换拆成两项：前者不写盘/不重启，后者会
+// 写盘并在服务已安装时同步重启。「更新」（内核 / geo / clashdock 自身）已移到「工具」菜单，
 // 使本菜单聚焦服务本身的即时操作。
 var modifyRuntimeOptions = []string{
 	"节点切换",
@@ -45,7 +45,7 @@ var modifyRuntimeOptions = []string{
 	"每周更新定时器",
 }
 
-// ModifyConfig 配置变更会话（需重启生效）：订阅管理 + 定制层字段分组编辑。
+// ModifyConfig 配置变更会话：订阅管理 + 定制层字段分组编辑。
 // 改动缓冲在事务里，esc 保存并退出才提交，^R 回退并退出则整体撤销。
 func ModifyConfig(p paths.Paths) error {
 	return modifySession(p, "配置变更", modifyConfigOptions, []func() error{
@@ -309,14 +309,8 @@ func editFieldGroupFlow(p paths.Paths, title string, fields []string) error {
 	}
 	active := subscription.GetActive(p)
 	if changed && active != nil {
-		ok, err := tui.Confirm(i18n.T("立即用本地原文重新生成生效订阅并重启？（不重新拉取链接）"), true)
-		if err != nil {
-			return err
-		}
-		if ok {
-			_, err = subscription.Rebuild(p, active.Name)
-			return err
-		}
+		_, err = subscription.Rebuild(p, active.Name)
+		return err
 	}
 	return nil
 }

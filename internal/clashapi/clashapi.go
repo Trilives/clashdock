@@ -74,6 +74,34 @@ func (c *Client) Reachable() bool {
 	return resp.StatusCode < 400
 }
 
+// CurrentSelections 返回所有策略组当前实际选中的成员。普通代理没有 now 字段，
+// 因而不会出现在结果里。
+func (c *Client) CurrentSelections() (map[string]string, error) {
+	resp, err := c.req(http.MethodGet, "/proxies", nil, 4*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return nil, fmt.Errorf("GET /proxies: HTTP %d", resp.StatusCode)
+	}
+	var payload struct {
+		Proxies map[string]struct {
+			Now string `json:"now"`
+		} `json:"proxies"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return nil, fmt.Errorf("decode GET /proxies: %w", err)
+	}
+	selections := make(map[string]string)
+	for group, proxy := range payload.Proxies {
+		if proxy.Now != "" {
+			selections[group] = proxy.Now
+		}
+	}
+	return selections, nil
+}
+
 // Switch 实时切换 group 的选中节点（PUT /proxies/{group}）。
 func (c *Client) Switch(group, node string) error {
 	body, _ := json.Marshal(map[string]string{"name": node})

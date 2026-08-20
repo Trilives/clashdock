@@ -43,9 +43,8 @@ func init() {
 		"新名称":                  "New name",
 		"删除哪个订阅":               "Which subscription to delete",
 		"确认删除订阅「%s」？":          "Confirm deleting subscription \"%s\"?",
-		"立即用本地原文重新生成生效订阅并重启？（不重新拉取链接）": "Regenerate the active subscription from the local original now and restart? (won't re-fetch the URL)",
-		"更新 内核 / UI / geo 数据？":         "Update core / UI / geo data?",
-		"同时下载 / 更新 Web UI？":            "Also download / update the Web UI?",
-		"服务同步失败：%v":                    "Service sync failed: %v",
+		"更新 内核 / UI / geo 数据？": "Update core / UI / geo data?",
+		"同时下载 / 更新 Web UI？":    "Also download / update the Web UI?",
+		"服务同步失败：%v":            "Service sync failed: %v",
 	})
 }

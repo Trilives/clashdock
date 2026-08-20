@@ -102,8 +102,9 @@ func (m *formModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.canceled = true
 			return m, tea.Quit
 		default:
-			m.move(1) // 字段上回车 = 移到下一项（末字段则到「提交」）
-			return m, nil
+			// 字段上的 Enter 只编辑 / 确认当前值，不改变焦点；只有提交
+			// 按钮上的 Enter 才能结束表单，避免初始化被连续回车误触发。
+			return m.editField(cur.field, msg)
 		}
 	}
 	if cur.kind == slotField {
@@ -117,7 +118,7 @@ func (m *formModel) editField(f *Field, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	key := msg.String()
 	switch f.Kind {
 	case FieldToggle:
-		if key == " " {
+		if key == " " || key == "enter" {
 			f.Bool = !f.Bool
 		}
 	case FieldChoice:
@@ -128,7 +129,7 @@ func (m *formModel) editField(f *Field, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		switch key {
 		case "left":
 			f.ChoiceIdx = (f.ChoiceIdx - 1 + n) % n
-		case "right", " ":
+		case "right", " ", "enter":
 			f.ChoiceIdx = (f.ChoiceIdx + 1) % n
 		}
 	case FieldText:

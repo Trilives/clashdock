@@ -9,7 +9,6 @@ package subscription
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -351,6 +350,16 @@ func Switch(p paths.Paths, name string) error {
 }
 
 func applyActive(p paths.Paths, name string) error {
+	var syncRuntime func(paths.Paths) error
+	if sysd.IsInstalled(sysd.DefaultName) {
+		syncRuntime = func(got paths.Paths) error {
+			return sysd.SyncAndRestart(got, sysd.DefaultName)
+		}
+	}
+	return applyActiveWithSync(p, name, syncRuntime)
+}
+
+func applyActiveWithSync(p paths.Paths, name string, syncRuntime func(paths.Paths) error) error {
 	if err := p.EnsureStateDirs(); err != nil {
 		return err
 	}
@@ -364,12 +373,9 @@ func applyActive(p paths.Paths, name string) error {
 	if err := os.WriteFile(p.ActiveFile, []byte(name+"\n"), 0o644); err != nil {
 		return err
 	}
-	if sysd.IsInstalled(sysd.DefaultName) {
-		if err := sysd.SyncAndRestart(p, sysd.DefaultName); err != nil {
-			var ce *execx.CommandError
-			if errors.As(err, &ce) || err != nil {
-				execx.Warn(fmt.Sprintf(i18n.T("配置已切换，但同步到服务失败：%v"), err))
-			}
+	if syncRuntime != nil {
+		if err := syncRuntime(p); err != nil {
+			return fmt.Errorf(i18n.T("配置已保存，但同步到运行时失败: %w"), err)
 		}
 	}
 	return nil

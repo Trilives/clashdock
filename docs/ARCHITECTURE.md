@@ -88,7 +88,9 @@ geo / clashdock 自身已移到「工具」菜单）。`serviceSettings` 第三�
 两者共享同一套 `modifySession` 快照 + 回退骨架。定制层不再有单独的「编辑定制层」中间层：
 `config.DeploymentFields`（部署设置）与 `config.OverlayFields`（自定义分流叠加）两个字段
 分组直接是 `ModifyConfig` 菜单下的平级项（`flows.EditFieldGroup`），退出即保存本组已做的
-修改，外层会话的文件快照负责整体回退。启动第一步（完整模式与便携模式共用）是
+修改；若存在生效订阅，会立即用本地原文重建 `config.yaml`，同步到运行时并重启服务。
+固定节点同样先持久化到生效配置与订阅配置，再走统一的同步、校验、重启链路；所有这些
+改动仍由外层会话的文件快照负责整体回退。启动第一步（完整模式与便携模式共用）是
 `flows.EnsureLanguage`：仅当 `customize.json` 里**未显式设置过**语言（`config.LanguageConfigured`
 读原始文件判定，非 Load 的默认补全值）、且未用 `CLASHDOCK_LANG` 指定时，才先弹语言
 选择。之后完整模式再检测主服务未注册（`sysd.IsInstalled` 判定，已停止但单元文件仍在

@@ -39,6 +39,7 @@ func init() {
 
 		"已切换生效订阅: ":                "Active subscription switched to: ",
 		"配置已切换，但同步到服务失败：%v":        "Config switched, but syncing to the service failed: %v",
+		"配置已保存，但同步到运行时失败: %w":      "Config was saved, but syncing it to the runtime failed: %w",
 		"已删除当前生效订阅；请切换到其它订阅或重新添加。": "The active subscription was deleted; please switch to another subscription or add a new one.",
 		"已删除订阅: ":                  "Subscription deleted: ",
 		"目标名已存在: %s":               "Target name already exists: %s",

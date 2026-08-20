@@ -235,16 +235,26 @@ func SyncAndRestart(p paths.Paths, name string) error {
 		return err
 	}
 	defer os.Remove(staged)
-	if _, err := execx.RunRoot([]string{"install", "-m", "0644", staged, rt.Config}, "", nil); err != nil {
-		return err
-	}
-	if _, err := execx.RunRoot([]string{rt.Bin, "-t", "-d", rt.Dir, "-f", rt.Config}, i18n.T("校验配置"), nil); err != nil {
-		return err
-	}
-	if _, err := execx.RunRoot([]string{"systemctl", "restart", name + ".service"}, "", nil); err != nil {
+	if err := syncStagedAndRestart(staged, rt, name, execx.RunRoot); err != nil {
 		return err
 	}
 	execx.Ok(i18n.T("已同步配置并重启: ") + name + ".service")
+	return nil
+}
+
+type rootCommandRunner func([]string, string, *execx.Opt) (execx.Result, error)
+
+// syncStagedAndRestart 保证重启只能发生在最新配置已安装且通过校验之后。
+func syncStagedAndRestart(staged string, rt runtimePaths, name string, run rootCommandRunner) error {
+	if _, err := run([]string{"install", "-m", "0644", staged, rt.Config}, "", nil); err != nil {
+		return fmt.Errorf(i18n.T("同步运行时配置: %w"), err)
+	}
+	if _, err := run([]string{rt.Bin, "-t", "-d", rt.Dir, "-f", rt.Config}, i18n.T("校验配置"), nil); err != nil {
+		return fmt.Errorf(i18n.T("校验运行时配置: %w"), err)
+	}
+	if _, err := run([]string{"systemctl", "restart", name + ".service"}, "", nil); err != nil {
+		return fmt.Errorf(i18n.T("重启服务: %w"), err)
+	}
 	return nil
 }
 

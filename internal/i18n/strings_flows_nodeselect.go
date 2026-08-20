@@ -8,6 +8,11 @@ func init() {
 
 		"已连上 Clash API，列表将实时测速。": "Connected to the Clash API; the list will show live latency.",
 		"Clash API 不可达，跳过测速。":    "Clash API unreachable, skipping latency test.",
+		"读取 Clash API 当前节点失败：%v": "Failed to read current nodes from the Clash API: %v",
+		"策略组当前节点：":               "Current policy-group nodes:",
+		"当前运行":                   "currently active",
+		"配置首选":                   "configured preferred",
+		"非运行时状态":                 "not runtime state",
 
 		"测速中（%d 个节点）…":         "Testing latency (%d nodes)…",
 		"\r\033[K  测速中… %d/%d": "\r\033[K  Testing latency… %d/%d",
@@ -33,7 +38,6 @@ func init() {
 		"已固定 %s 首选 = %s":             "Pinned %s preferred = %s",
 		"Clash API 实时切换失败：%v":        "Clash API live switch failed: %v",
 		"已通过 Clash API 实时切换 %s → %s": "Live-switched via Clash API %s → %s",
-		"重启服务以确保生效？":                 "Restart the service to ensure it takes effect?",
 
 		"Clash API 不可达，临时切换需要服务正在运行（如需跨重启保留，请改用「固定节点」）": "Clash API unreachable; live-switching requires the service to be running (use \"Pin node\" if you need it to survive a restart)",
 		"已临时切换 %s → %s（不写盘，重启/切换订阅后失效）":                 "Live-switched %s → %s (not saved; lost after a restart or subscription switch)",

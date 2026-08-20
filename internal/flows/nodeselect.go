@@ -213,6 +213,61 @@ func fmtDelay(results map[string]int, name string) string {
 	return i18n.T("超时")
 }
 
+func preferredNode(group map[string]any) string {
+	members, _ := group["proxies"].([]any)
+	if len(members) == 0 {
+		return ""
+	}
+	return fmt.Sprint(members[0])
+}
+
+// currentNodeLabels 同时展示运行时当前节点与配置中的固定首选。runtimeOK=false
+// 表示无法读取 API 状态，此时配置首选必须明确标成非运行时状态。
+func currentNodeLabels(names []string, delays map[string]int, runtimeCurrent, pinned string, runtimeOK bool) []string {
+	labels := make([]string, len(names))
+	for i, name := range names {
+		parts := []string{name}
+		if delays != nil {
+			parts = append(parts, fmtDelay(delays, name))
+		}
+		var states []string
+		if runtimeOK && name == runtimeCurrent {
+			states = append(states, i18n.T("当前运行"))
+		}
+		if name == pinned {
+			states = append(states, i18n.T("配置首选"))
+			if !runtimeOK {
+				states = append(states, i18n.T("非运行时状态"))
+			}
+		}
+		label := strings.Join(parts, "   ")
+		if len(states) > 0 {
+			label += "（" + strings.Join(states, "，") + "）"
+		}
+		labels[i] = label
+	}
+	return labels
+}
+
+func printCurrentNodeSummary(cfg map[string]any, selections map[string]string, runtimeOK bool) {
+	execx.Info(i18n.T("策略组当前节点："))
+	for _, group := range groupsOf(cfg) {
+		name := fmt.Sprint(group["name"])
+		if runtimeOK {
+			if current := selections[name]; current != "" {
+				fmt.Printf("  • %s → %s（%s）\n", name, current, i18n.T("当前运行"))
+			}
+			continue
+		}
+		if group["type"] == "select" {
+			if pinned := preferredNode(group); pinned != "" {
+				fmt.Printf("  • %s → %s（%s，%s）\n", name, pinned,
+					i18n.T("配置首选"), i18n.T("非运行时状态"))
+			}
+		}
+	}
+}
+
 // persistFirst 把选中节点提为目标组首成员，双写生效配置与订阅配置（跨重启兜底）。
 func persistFirst(cfg map[string]any, groupName, node string, files []string) error {
 	for _, g := range groupsOf(cfg) {
@@ -275,11 +330,22 @@ func pickNode(p paths.Paths, configPath, group string) (*pickResult, error) {
 	// 节点切换走 Clash API 热切换，直接连 API 实时测速/切换
 	api := clashapi.FromConfig(cfg)
 	apiOK := api != nil && api.Reachable()
+	runtimeSelections := map[string]string{}
+	runtimeOK := false
 	if apiOK {
 		execx.Info(i18n.T("已连上 Clash API，列表将实时测速。"))
+		if selections, serr := api.CurrentSelections(); serr != nil {
+			execx.Warn(fmt.Sprintf(i18n.T("读取 Clash API 当前节点失败：%v"), serr))
+		} else {
+			runtimeSelections = selections
+			runtimeOK = true
+		}
 	} else {
 		execx.Info(i18n.T("Clash API 不可达，跳过测速。"))
 	}
+	printCurrentNodeSummary(cfg, runtimeSelections, runtimeOK)
+	runtimeCurrent := runtimeSelections[groupName]
+	pinned := preferredNode(target)
 
 	type menuEntry struct {
 		label string
@@ -317,15 +383,19 @@ func pickNode(p paths.Paths, configPath, group string) (*pickResult, error) {
 		if apiOK {
 			delays = measure(api, entry.items)
 		}
-		nodeLabels := make([]string, len(entry.items))
+		nodeLabels := currentNodeLabels(entry.items, delays, runtimeCurrent, pinned, runtimeOK)
+		initial := 0
+		preferred := runtimeCurrent
+		if preferred == "" {
+			preferred = pinned
+		}
 		for j, name := range entry.items {
-			if apiOK {
-				nodeLabels[j] = fmt.Sprintf("%s   %s", name, fmtDelay(delays, name))
-			} else {
-				nodeLabels[j] = name
+			if name == preferred {
+				initial = j
+				break
 			}
 		}
-		nidx, err := tui.Select(entry.label, nodeLabels, tui.SelectOpts{SaveLabel: i18n.T("返回地区/分组"), BackLabel: i18n.T("放弃并退出")})
+		nidx, err := tui.Select(entry.label, nodeLabels, tui.SelectOpts{SaveLabel: i18n.T("返回地区/分组"), BackLabel: i18n.T("放弃并退出"), Initial: initial})
 		if err != nil {
 			if errors.Is(err, errs.ErrSaveExit) {
 				continue // 返回地区/分组选择，重新选
@@ -359,7 +429,7 @@ func NodeSwitchLive(p paths.Paths, configPath, group string) error {
 }
 
 // NodeSelect 两级菜单（地区/分组 → 节点）切换节点；是否固定为首选（写盘，
-// 跨重启/服务重建后仍保留）由用户显式确认，只有选择固定时才会问是否重启服务。
+// 跨重启/服务重建后仍保留）由用户显式确认，固定后同步配置并重启已安装的服务。
 func NodeSelect(p paths.Paths, configPath, group string) error {
 	if configPath == "" {
 		configPath = p.ConfigFile
@@ -396,10 +466,7 @@ func NodeSelect(p paths.Paths, configPath, group string) error {
 	execx.Ok(fmt.Sprintf(i18n.T("已固定 %s 首选 = %s"), r.groupName, r.node))
 
 	if sysd.IsInstalled(sysd.DefaultName) {
-		ok, err := tui.Confirm(i18n.T("重启服务以确保生效？"), false)
-		if err == nil && ok {
-			return sysd.SyncAndRestart(p, sysd.DefaultName)
-		}
+		return sysd.SyncAndRestart(p, sysd.DefaultName)
 	}
 	return nil
 }

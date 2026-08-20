@@ -2,7 +2,10 @@ package i18n
 
 func init() {
 	register(map[string]string{
-		"解析 state/config.yaml: %w":                                                    "Failed to parse state/config.yaml: %w",
+		"同步运行时配置: %w":              "Sync runtime config: %w",
+		"校验运行时配置: %w":              "Validate runtime config: %w",
+		"重启服务: %w":                 "Restart service: %w",
+		"解析 state/config.yaml: %w": "Failed to parse state/config.yaml: %w",
 		"未找到 mihomo 内核，请先执行『下载内核/UI/geo 数据』":                                          "mihomo core not found; please run 'Update core/UI/geo data' first",
 		"未找到生效配置 config.yaml，请先添加订阅":                                                  "Active config.yaml not found; please add a subscription first",
 		"未找到 geo 数据（geosite.dat 且 geoip.metadb/country.mmdb 之一），请先执行『下载内核/UI/geo 数据』": "geo data not found (need geosite.dat plus one of geoip.metadb/country.mmdb); please run 'Update core/UI/geo data' first",
