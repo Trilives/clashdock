@@ -1,8 +1,10 @@
 package subscription
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Trilives/clashdock/internal/paths"
@@ -82,5 +84,69 @@ func TestPrimaryProxy(t *testing.T) {
 	}
 	if got := primaryProxy([]string{"", "http://x:1"}); got != "http://x:1" {
 		t.Fatalf("primaryProxy should skip empty candidates, got %q", got)
+	}
+}
+
+func TestApplyActiveWithSyncPublishesLatestConfigBeforeRestart(t *testing.T) {
+	t.Setenv("CLASHDOCK_HOME", t.TempDir())
+	p := paths.Detect()
+	if err := p.EnsureStateDirs(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(p.SubscriptionDir("Hua"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	want := []byte("mixed-port: 7891\nrules:\n  - MATCH,DIRECT\n")
+	if err := os.WriteFile(configFile(p, "Hua"), want, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p.ConfigFile, []byte("mixed-port: 7890\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	called := false
+	err := applyActiveWithSync(p, "Hua", func(got paths.Paths) error {
+		called = true
+		data, err := os.ReadFile(got.ConfigFile)
+		if err != nil {
+			return err
+		}
+		if string(data) != string(want) {
+			t.Fatalf("sync saw stale config:\n%s", data)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !called {
+		t.Fatal("runtime sync was not called")
+	}
+	active, err := os.ReadFile(p.ActiveFile)
+	if err != nil || string(active) != "Hua\n" {
+		t.Fatalf("active pointer = %q, err=%v", active, err)
+	}
+}
+
+func TestApplyActiveWithSyncReturnsRuntimeSyncFailure(t *testing.T) {
+	t.Setenv("CLASHDOCK_HOME", t.TempDir())
+	p := paths.Detect()
+	if err := p.EnsureStateDirs(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(p.SubscriptionDir("Hua"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(configFile(p, "Hua"), []byte("mixed-port: 7891\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	wantErr := errors.New("restart failed")
+	err := applyActiveWithSync(p, "Hua", func(paths.Paths) error { return wantErr })
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("applyActiveWithSync error = %v, want wrapped %v", err, wantErr)
+	}
+	if !strings.Contains(err.Error(), "配置已保存") || !strings.Contains(err.Error(), "同步到运行时失败") {
+		t.Fatalf("error should explain saved/runtime split, got %q", err)
 	}
 }

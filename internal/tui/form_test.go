@@ -3,6 +3,8 @@ package tui
 import (
 	"strings"
 	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func TestFormViewRendersVisibleFieldsOnly(t *testing.T) {
@@ -56,6 +58,86 @@ func TestFormViewRendersNote(t *testing.T) {
 		Note: "Configure more later."}).View()
 	if !strings.Contains(out, "Configure more later.") {
 		t.Fatalf("note should render:\n%s", out)
+	}
+}
+
+func TestFormEnterOnTextFieldKeepsFocus(t *testing.T) {
+	state := buildState([]Field{
+		{Key: "name", Label: "Name", Kind: FieldText, Text: "sub-1"},
+		{Key: "tun", Label: "Enable TUN", Kind: FieldToggle},
+	})
+	m := newFormModel("Init", state, FormOpts{SubmitLabel: "Start", CancelLabel: "Cancel"})
+
+	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	got := updated.(*formModel)
+
+	if got.cursor != 0 {
+		t.Fatalf("cursor after Enter = %d, want 0", got.cursor)
+	}
+	if cmd != nil {
+		t.Fatalf("Enter on text field returned command, want nil")
+	}
+}
+
+func TestFormEnterOnToggleFlipsValueAndKeepsFocus(t *testing.T) {
+	state := buildState([]Field{
+		{Key: "tun", Label: "Enable TUN", Kind: FieldToggle},
+		{Key: "name", Label: "Name", Kind: FieldText},
+	})
+	m := newFormModel("Init", state, FormOpts{SubmitLabel: "Start", CancelLabel: "Cancel"})
+
+	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	got := updated.(*formModel)
+
+	if !state.Bool("tun") {
+		t.Fatal("toggle value after Enter = false, want true")
+	}
+	if got.cursor != 0 {
+		t.Fatalf("cursor after Enter = %d, want 0", got.cursor)
+	}
+	if cmd != nil {
+		t.Fatalf("Enter on toggle returned command, want nil")
+	}
+}
+
+func TestFormEnterOnChoiceSelectsNextAndKeepsFocus(t *testing.T) {
+	state := buildState([]Field{
+		{Key: "type", Label: "Type", Kind: FieldChoice, Choices: []string{"clash", "base64"}},
+		{Key: "name", Label: "Name", Kind: FieldText},
+	})
+	m := newFormModel("Init", state, FormOpts{SubmitLabel: "Start", CancelLabel: "Cancel"})
+
+	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	got := updated.(*formModel)
+
+	if got := state.Choice("type"); got != "base64" {
+		t.Fatalf("choice after Enter = %q, want base64", got)
+	}
+	if got.cursor != 0 {
+		t.Fatalf("cursor after Enter = %d, want 0", got.cursor)
+	}
+	if cmd != nil {
+		t.Fatalf("Enter on choice returned command, want nil")
+	}
+}
+
+func TestFormEnterOnSubmitReturnsQuitMsg(t *testing.T) {
+	state := buildState([]Field{{Key: "name", Label: "Name", Kind: FieldText}})
+	m := newFormModel("Init", state, FormOpts{SubmitLabel: "Start", CancelLabel: "Cancel"})
+	m.cursor = 1
+	m.syncFocus(m.slots())
+
+	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	got := updated.(*formModel)
+
+	if got.canceled {
+		t.Fatal("submit marked form as canceled")
+	}
+	if cmd == nil {
+		t.Fatal("Enter on submit returned nil command, want QuitMsg")
+	}
+	if _, ok := cmd().(tea.QuitMsg); !ok {
+		t.Fatalf("Enter on submit command returned %T, want tea.QuitMsg", cmd())
 	}
 }
 
