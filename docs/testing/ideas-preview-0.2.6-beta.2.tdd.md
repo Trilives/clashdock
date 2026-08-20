@@ -29,5 +29,5 @@
 ## Coverage
 
 - Repository statement coverage: 29.9% (existing project-wide gap; below the 80% target).
-- Changed helpers: `CurrentSelections` 85.7%, `currentNodeLabels` 100%, `applyActiveWithSync` 69.2%, `syncStagedAndRestart` 71.4%, and `editField` 87.5%.
+- Changed helpers: `CurrentSelections` 85.7%, `currentNodeLabels` 100%, `persistPinnedSelectionWithSync` 90.9%, `applyActiveWithSync` 69.2%, `syncStagedAndRestart` 71.4%, and `editField` 87.5%.
 - System-level sudo/systemd execution is covered through injected command runners; no real host service was restarted during tests.
