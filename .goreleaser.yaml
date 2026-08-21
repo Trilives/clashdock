@@ -112,11 +112,11 @@ checksum:
 release:
   prerelease: auto
   header: |
-    Highlights of the 0.2.6 preview line (vs v0.2.5):
+    Highlights of v0.2.6 (vs v0.2.5):
 
     - Initialization forms no longer advance or submit when Enter is pressed on a field; Enter edits the focused value, and initialization starts only from the submit button.
     - Deployment and routing changes now rebuild the active subscription automatically. Service restarts always install and validate the latest runtime config first, and sync failures are returned clearly.
-    - Node switching now shows each policy group's live selection and distinguishes it from the configured preferred node, with an explicit config-only fallback when the Clash API is unavailable.
+    - Node switching and pinning now summarize only the recognized main selector. If automatic recognition fails, users can add and validate a group keyword in place; empty or invalid input leaves the configuration unchanged.
     - Subscription-provided `dns.fake-ip-filter` rules are now preserved; Deployment Settings entries are appended with stable deduplication instead of replacing provider-required exclusions.
 
     No config migration is required.
