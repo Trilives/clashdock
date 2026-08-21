@@ -7,9 +7,160 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Trilives/clashdock/internal/config"
 	"github.com/Trilives/clashdock/internal/configfile"
 	"github.com/Trilives/clashdock/internal/paths"
 )
+
+func TestPickGroupDoesNotGuessLargestSelectWhenMainGroupIsUnrecognized(t *testing.T) {
+	cfg := nodeSelectConfig(
+		nodeSelectGroup("入口", "香港 01"),
+		nodeSelectGroup("机场线路", "日本 01", "新加坡 01", "美国 01"),
+	)
+
+	group, err := pickGroup(cfg, "", []string{"主选择", "proxy"})
+	if err == nil {
+		t.Fatalf("pickGroup() = %v, nil；未命中主选择组时不应猜测成员最多的 select 组", group)
+	}
+	if group != nil {
+		t.Fatalf("pickGroup() group = %v, want nil", group)
+	}
+	if !strings.Contains(err.Error(), "未识别到主选择组") {
+		t.Fatalf("pickGroup() error = %q，应可判定为未识别主选择组", err)
+	}
+}
+
+func TestResolveMainGroupPrependsEnteredKeywordPersistsAndRecognizesImmediately(t *testing.T) {
+	p := prepareMainGroupCustomize(t, []string{"旧关键词"})
+	cfg := nodeSelectConfig(
+		nodeSelectGroup("Alpha Control", "香港 01", "日本 01"),
+		nodeSelectGroup("Other Pool", "新加坡 01"),
+	)
+
+	inputCalls := 0
+	group, err := resolveMainGroup(p, cfg, "", func(prompt string) (string, error) {
+		inputCalls++
+		if !strings.Contains(prompt, "主选择组") {
+			t.Fatalf("输入提示 = %q，应说明主选择组", prompt)
+		}
+		return "Alpha", nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if inputCalls != 1 {
+		t.Fatalf("input 调用次数 = %d, want 1", inputCalls)
+	}
+	if got := group["name"]; got != "Alpha Control" {
+		t.Fatalf("resolveMainGroup() name = %v, want Alpha Control", got)
+	}
+	if got := config.StrList(config.Load(p), "main_group_keywords"); len(got) < 2 || got[0] != "Alpha" || got[1] != "旧关键词" {
+		t.Fatalf("保存后的 main_group_keywords = %v, want [Alpha 旧关键词 ...]", got)
+	}
+}
+
+func TestResolveMainGroupEmptyInputDoesNotWriteCustomize(t *testing.T) {
+	p := prepareMainGroupCustomize(t, []string{"旧关键词"})
+	before, err := os.ReadFile(p.CustomizeFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := nodeSelectConfig(nodeSelectGroup("Unknown Pool", "香港 01"))
+
+	group, err := resolveMainGroup(p, cfg, "", func(string) (string, error) {
+		return "  \t ", nil
+	})
+	if err == nil || !strings.Contains(err.Error(), "未识别到主选择组，无法切换") {
+		t.Fatalf("resolveMainGroup() = %v, %v；空输入应返回无法切换提示", group, err)
+	}
+	if group != nil {
+		t.Fatalf("resolveMainGroup() group = %v, want nil", group)
+	}
+	after, readErr := os.ReadFile(p.CustomizeFile)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if string(after) != string(before) {
+		t.Fatalf("空输入后 customize.json 被改写\nbefore:\n%s\nafter:\n%s", before, after)
+	}
+}
+
+func TestResolveMainGroupPropagatesInputErrorWithoutWritingCustomize(t *testing.T) {
+	p := prepareMainGroupCustomize(t, []string{"旧关键词"})
+	before, err := os.ReadFile(p.CustomizeFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := nodeSelectConfig(nodeSelectGroup("Unknown Pool", "香港 01"))
+	wantErr := errors.New("input cancelled")
+
+	group, err := resolveMainGroup(p, cfg, "", func(string) (string, error) {
+		return "", wantErr
+	})
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("resolveMainGroup() error = %v, want wrapped %v", err, wantErr)
+	}
+	if group != nil {
+		t.Fatalf("resolveMainGroup() group = %v, want nil", group)
+	}
+	after, readErr := os.ReadFile(p.CustomizeFile)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if string(after) != string(before) {
+		t.Fatalf("输入失败后 customize.json 被改写\nbefore:\n%s\nafter:\n%s", before, after)
+	}
+}
+
+func TestCurrentNodeSummaryOnlyIncludesRecognizedMainGroup(t *testing.T) {
+	cfg := nodeSelectConfig(
+		nodeSelectGroup("Main Select", "香港 01", "日本 01"),
+		nodeSelectGroup("Fallback Select", "新加坡 01", "美国 01"),
+	)
+	selections := map[string]string{
+		"Main Select":     "日本 01",
+		"Fallback Select": "美国 01",
+	}
+
+	lines := currentNodeSummary(cfg, "Main Select", selections, true)
+	if len(lines) != 1 {
+		t.Fatalf("currentNodeSummary() = %v, want exactly one main-group line", lines)
+	}
+	if !strings.Contains(lines[0], "Main Select") || !strings.Contains(lines[0], "日本 01") || !strings.Contains(lines[0], "当前运行") {
+		t.Fatalf("主选择组当前状态 = %q，缺少组名、当前节点或运行态", lines[0])
+	}
+	if strings.Contains(lines[0], "Fallback Select") || strings.Contains(lines[0], "美国 01") {
+		t.Fatalf("主选择组摘要不应包含其它组状态：%q", lines[0])
+	}
+}
+
+func prepareMainGroupCustomize(t *testing.T, keywords []string) paths.Paths {
+	t.Helper()
+	t.Setenv("CLASHDOCK_HOME", t.TempDir())
+	p := paths.Detect()
+	customize := config.Defaults()
+	customize["main_group_keywords"] = append([]string(nil), keywords...)
+	if err := config.Save(p, customize); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+func nodeSelectConfig(groups ...map[string]any) map[string]any {
+	items := make([]any, len(groups))
+	for i, group := range groups {
+		items[i] = group
+	}
+	return map[string]any{"proxy-groups": items}
+}
+
+func nodeSelectGroup(name string, proxies ...string) map[string]any {
+	members := make([]any, len(proxies))
+	for i, proxy := range proxies {
+		members[i] = proxy
+	}
+	return map[string]any{"name": name, "type": "select", "proxies": members}
+}
 
 func TestCurrentNodeLabelsDistinguishRuntimeAndConfiguredPreferred(t *testing.T) {
 	names := []string{"香港 01", "日本 01", "新加坡 01"}
