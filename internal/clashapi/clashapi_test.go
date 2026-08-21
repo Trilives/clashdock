@@ -1,8 +1,9 @@
 package clashapi
 
 import (
+	"io"
 	"net/http"
-	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -13,20 +14,20 @@ func TestCurrentSelectionsParsesPolicyGroups(t *testing.T) {
 		auth   string
 	}
 	requestSeen := make(chan requestSnapshot, 1)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestSeen <- requestSnapshot{r.Method, r.URL.Path, r.Header.Get("Authorization")}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{
+	client := &Client{
+		Base:   "http://clash.test",
+		secret: "test-secret",
+		http: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			requestSeen <- requestSnapshot{r.Method, r.URL.Path, r.Header.Get("Authorization")}
+			return jsonResponse(http.StatusOK, `{
   "proxies": {
     "手动选择": {"type": "Selector", "now": "香港 01", "all": ["香港 01", "日本 01"]},
     "自动选择": {"type": "URLTest", "now": "日本 01", "all": ["香港 01", "日本 01"]},
     "香港 01": {"type": "Shadowsocks", "udp": true}
   }
-}`))
-	}))
-	defer server.Close()
-
-	client := &Client{Base: server.URL, secret: "test-secret", http: server.Client()}
+}`)
+		})},
+	}
 	got, err := client.CurrentSelections()
 	if err != nil {
 		t.Fatalf("CurrentSelections() error = %v", err)
@@ -53,13 +54,27 @@ func TestCurrentSelectionsParsesPolicyGroups(t *testing.T) {
 }
 
 func TestCurrentSelectionsRejectsNonSuccessResponse(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		http.Error(w, "service unavailable", http.StatusServiceUnavailable)
-	}))
-	defer server.Close()
-
-	client := &Client{Base: server.URL, http: server.Client()}
+	client := &Client{
+		Base: "http://clash.test",
+		http: &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+			return jsonResponse(http.StatusServiceUnavailable, "service unavailable")
+		})},
+	}
 	if _, err := client.CurrentSelections(); err == nil {
 		t.Fatal("CurrentSelections() 在 GET /proxies 返回非 2xx 时应返回错误")
 	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (fn roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return fn(req)
+}
+
+func jsonResponse(status int, body string) (*http.Response, error) {
+	return &http.Response{
+		StatusCode: status,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(body)),
+	}, nil
 }
