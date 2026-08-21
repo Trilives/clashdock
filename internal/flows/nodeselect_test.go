@@ -112,6 +112,32 @@ func TestResolveMainGroupPropagatesInputErrorWithoutWritingCustomize(t *testing.
 	}
 }
 
+func TestResolveMainGroupRejectsUnmatchedKeywordWithoutWritingCustomize(t *testing.T) {
+	p := prepareMainGroupCustomize(t, []string{"旧关键词"})
+	before, err := os.ReadFile(p.CustomizeFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := nodeSelectConfig(nodeSelectGroup("Unknown Pool", "香港 01"))
+
+	group, err := resolveMainGroup(p, cfg, "", func(string) (string, error) {
+		return "不存在的关键词", nil
+	})
+	if err == nil || !strings.Contains(err.Error(), "未匹配") {
+		t.Fatalf("resolveMainGroup() = %v, %v；无效关键词应返回未匹配提示", group, err)
+	}
+	if group != nil {
+		t.Fatalf("resolveMainGroup() group = %v, want nil", group)
+	}
+	after, readErr := os.ReadFile(p.CustomizeFile)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if string(after) != string(before) {
+		t.Fatalf("无效关键词输入后 customize.json 被改写\nbefore:\n%s\nafter:\n%s", before, after)
+	}
+}
+
 func TestCurrentNodeSummaryOnlyIncludesRecognizedMainGroup(t *testing.T) {
 	cfg := nodeSelectConfig(
 		nodeSelectGroup("Main Select", "香港 01", "日本 01"),
@@ -128,6 +154,25 @@ func TestCurrentNodeSummaryOnlyIncludesRecognizedMainGroup(t *testing.T) {
 	}
 	if !strings.Contains(lines[0], "Main Select") || !strings.Contains(lines[0], "日本 01") || !strings.Contains(lines[0], "当前运行") {
 		t.Fatalf("主选择组当前状态 = %q，缺少组名、当前节点或运行态", lines[0])
+	}
+	if strings.Contains(lines[0], "Fallback Select") || strings.Contains(lines[0], "美国 01") {
+		t.Fatalf("主选择组摘要不应包含其它组状态：%q", lines[0])
+	}
+}
+
+func TestCurrentNodeSummaryFallsBackToMainGroupConfiguredPreference(t *testing.T) {
+	cfg := nodeSelectConfig(
+		nodeSelectGroup("Main Select", "香港 01", "日本 01"),
+		nodeSelectGroup("Fallback Select", "美国 01"),
+	)
+
+	lines := currentNodeSummary(cfg, "Main Select", nil, false)
+	if len(lines) != 1 {
+		t.Fatalf("currentNodeSummary() = %v, want exactly one main-group line", lines)
+	}
+	if !strings.Contains(lines[0], "Main Select") || !strings.Contains(lines[0], "香港 01") ||
+		!strings.Contains(lines[0], "配置首选") || !strings.Contains(lines[0], "非运行时状态") {
+		t.Fatalf("主选择组配置状态 = %q，缺少组名、配置首选或非运行时标记", lines[0])
 	}
 	if strings.Contains(lines[0], "Fallback Select") || strings.Contains(lines[0], "美国 01") {
 		t.Fatalf("主选择组摘要不应包含其它组状态：%q", lines[0])
