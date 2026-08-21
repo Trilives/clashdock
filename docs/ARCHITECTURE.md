@@ -89,8 +89,11 @@ geo / clashdock 自身已移到「工具」菜单）。`serviceSettings` 第三�
 `config.DeploymentFields`（部署设置）与 `config.OverlayFields`（自定义分流叠加）两个字段
 分组直接是 `ModifyConfig` 菜单下的平级项（`flows.EditFieldGroup`），退出即保存本组已做的
 修改；若存在生效订阅，会立即用本地原文重建 `config.yaml`，同步到运行时并重启服务。
-固定节点同样先持久化到生效配置与订阅配置，再走统一的同步、校验、重启链路；所有这些
-改动仍由外层会话的文件快照负责整体回退。启动第一步（完整模式与便携模式共用）是
+节点切换与固定节点仅摘要展示已识别主选择组的当前状态，不再列出所有策略组；节点选择
+流程按 `main_group_keywords` 识别主组，未命中时允许当场输入关键词，验证能命中 `select`
+组后才插到关键词首位并写回 `customize.json`，空输入或无效输入不改配置。固定节点同样先
+持久化到生效配置与订阅配置，再走统一的同步、校验、重启链路；所有这些改动仍由外层
+会话的文件快照负责整体回退。启动第一步（完整模式与便携模式共用）是
 `flows.EnsureLanguage`：仅当 `customize.json` 里**未显式设置过**语言（`config.LanguageConfigured`
 读原始文件判定，非 Load 的默认补全值）、且未用 `CLASHDOCK_LANG` 指定时，才先弹语言
 选择。之后完整模式再检测主服务未注册（`sysd.IsInstalled` 判定，已停止但单元文件仍在
