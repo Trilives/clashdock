@@ -179,6 +179,44 @@ func TestCurrentNodeSummaryFallsBackToMainGroupConfiguredPreference(t *testing.T
 	}
 }
 
+func TestCurrentNodeSummaryOmitsUnavailableOrUnknownMainGroupState(t *testing.T) {
+	tests := []struct {
+		name        string
+		cfg         map[string]any
+		target      string
+		selections  map[string]string
+		runtimeOkay bool
+	}{
+		{
+			name:        "runtime response lacks main group",
+			cfg:         nodeSelectConfig(nodeSelectGroup("Main Select", "香港 01")),
+			target:      "Main Select",
+			selections:  map[string]string{"Other Select": "日本 01"},
+			runtimeOkay: true,
+		},
+		{
+			name:        "configured group has no preferred member",
+			cfg:         nodeSelectConfig(nodeSelectGroup("Main Select")),
+			target:      "Main Select",
+			runtimeOkay: false,
+		},
+		{
+			name:        "target group is absent",
+			cfg:         nodeSelectConfig(nodeSelectGroup("Other Select", "香港 01")),
+			target:      "Main Select",
+			runtimeOkay: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if lines := currentNodeSummary(tt.cfg, tt.target, tt.selections, tt.runtimeOkay); len(lines) != 0 {
+				t.Fatalf("currentNodeSummary() = %v, want no misleading state", lines)
+			}
+		})
+	}
+}
+
 func prepareMainGroupCustomize(t *testing.T, keywords []string) paths.Paths {
 	t.Helper()
 	t.Setenv("CLASHDOCK_HOME", t.TempDir())

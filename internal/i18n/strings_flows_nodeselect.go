@@ -2,14 +2,18 @@ package i18n
 
 func init() {
 	register(map[string]string{
-		"配置里没有 select 策略组，无法切换节点": "No select proxy group in the config; cannot switch node",
-		"指定分组 '%s' 不存在":           "Specified group '%s' does not exist",
-		"分组 '%s' 下没有可选项":          "No selectable items under group '%s'",
+		"配置里没有 select 策略组，无法切换节点":         "No select proxy group in the config; cannot switch node",
+		"指定分组 '%s' 不存在":                   "Specified group '%s' does not exist",
+		"分组 '%s' 下没有可选项":                  "No selectable items under group '%s'",
+		"未识别到主选择组，无法切换":                   "Main selector group was not recognized; cannot switch nodes",
+		"未识别到主选择组，请输入组名或识别关键词（直接回车取消）":    "Main selector group was not recognized. Enter its name or a matching keyword (press Enter to cancel)",
+		"输入的主选择组识别关键词 %q 未匹配任何 select 分组": "The main selector keyword %q did not match any select group",
+		"保存主选择组识别关键词失败: %w":               "Failed to save the main selector keyword: %w",
 
 		"已连上 Clash API，列表将实时测速。": "Connected to the Clash API; the list will show live latency.",
 		"Clash API 不可达，跳过测速。":    "Clash API unreachable, skipping latency test.",
 		"读取 Clash API 当前节点失败：%v": "Failed to read current nodes from the Clash API: %v",
-		"策略组当前节点：":               "Current policy-group nodes:",
+		"主选择组当前节点：":              "Current main selector node:",
 		"当前运行":                   "currently active",
 		"配置首选":                   "configured preferred",
 		"非运行时状态":                 "not runtime state",

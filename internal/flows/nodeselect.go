@@ -40,6 +40,8 @@ var builtinNodes = map[string]bool{
 
 var infoKeywords = []string{"Traffic:", "Expire:", "剩余流量", "过期时间", "剩余", "套餐", "官网", "订阅", "重置"}
 
+var errMainGroupUnrecognized = errors.New("main selector group unrecognized")
+
 type region struct {
 	key   string
 	label string
@@ -72,8 +74,8 @@ func groupsOf(cfg map[string]any) []map[string]any {
 }
 
 // pickGroup 定位目标 select 分组：forced 指定时精确匹配；否则按 keywords 顺序
-// 逐个尝试，第一个命中分组名的关键词即采用该分组（先到先得，顺序即优先级）；
-// 全都不命中则退化为成员数最多的 select 组。
+// 逐个尝试，第一个命中分组名的关键词即采用该分组（先到先得，顺序即优先级）。
+// 关键词全都不命中时不猜测，避免把节点切换错误地施加到其它 select 组。
 func pickGroup(cfg map[string]any, forced string, keywords []string) (map[string]any, error) {
 	var selects []map[string]any
 	for _, g := range groupsOf(cfg) {
@@ -105,20 +107,57 @@ func pickGroup(cfg map[string]any, forced string, keywords []string) (map[string
 			}
 		}
 	}
-	best := selects[0]
-	for _, g := range selects[1:] {
-		if lenAnyList(g["proxies"]) > lenAnyList(best["proxies"]) {
-			best = g
-		}
-	}
-	return best, nil
+	return nil, fmt.Errorf("%s: %w", i18n.T("未识别到主选择组，无法切换"), errMainGroupUnrecognized)
 }
 
-func lenAnyList(v any) int {
-	if l, ok := v.([]any); ok {
-		return len(l)
+// resolveMainGroup 在自动识别失败时允许补充一个关键词。新关键词只有在本次配置中
+// 确实命中 select 组后才写盘，并插到列表首位，供当前与后续切换立即复用。
+func resolveMainGroup(
+	p paths.Paths,
+	cfg map[string]any,
+	forced string,
+	input func(string) (string, error),
+) (map[string]any, error) {
+	customize := config.Load(p)
+	keywords := config.StrList(customize, "main_group_keywords")
+	target, err := pickGroup(cfg, forced, keywords)
+	if err == nil || forced != "" || !errors.Is(err, errMainGroupUnrecognized) {
+		return target, err
 	}
-	return 0
+
+	entered, inputErr := input(i18n.T("未识别到主选择组，请输入组名或识别关键词（直接回车取消）"))
+	if inputErr != nil {
+		return nil, inputErr
+	}
+	entered = strings.TrimSpace(entered)
+	if entered == "" {
+		return nil, fmt.Errorf("%s", i18n.T("未识别到主选择组，无法切换"))
+	}
+
+	updatedKeywords := make([]string, 0, len(keywords)+1)
+	updatedKeywords = append(updatedKeywords, entered)
+	for _, keyword := range keywords {
+		if keyword != entered {
+			updatedKeywords = append(updatedKeywords, keyword)
+		}
+	}
+	target, err = pickGroup(cfg, "", updatedKeywords)
+	if err != nil {
+		if errors.Is(err, errMainGroupUnrecognized) {
+			return nil, fmt.Errorf(i18n.T("输入的主选择组识别关键词 %q 未匹配任何 select 分组"), entered)
+		}
+		return nil, err
+	}
+
+	updatedCustomize := make(map[string]any, len(customize))
+	for key, value := range customize {
+		updatedCustomize[key] = value
+	}
+	updatedCustomize["main_group_keywords"] = updatedKeywords
+	if err := config.Save(p, updatedCustomize); err != nil {
+		return nil, fmt.Errorf(i18n.T("保存主选择组识别关键词失败: %w"), err)
+	}
+	return target, nil
 }
 
 func classify(name string) string {
@@ -249,22 +288,37 @@ func currentNodeLabels(names []string, delays map[string]int, runtimeCurrent, pi
 	return labels
 }
 
-func printCurrentNodeSummary(cfg map[string]any, selections map[string]string, runtimeOK bool) {
-	execx.Info(i18n.T("策略组当前节点："))
+func currentNodeSummary(cfg map[string]any, targetName string, selections map[string]string, runtimeOK bool) []string {
 	for _, group := range groupsOf(cfg) {
 		name := fmt.Sprint(group["name"])
+		if name != targetName {
+			continue
+		}
 		if runtimeOK {
 			if current := selections[name]; current != "" {
-				fmt.Printf("  • %s → %s（%s）\n", name, current, i18n.T("当前运行"))
+				return []string{fmt.Sprintf("  • %s → %s（%s）", name, current, i18n.T("当前运行"))}
 			}
-			continue
+			return nil
 		}
 		if group["type"] == "select" {
 			if pinned := preferredNode(group); pinned != "" {
-				fmt.Printf("  • %s → %s（%s，%s）\n", name, pinned,
-					i18n.T("配置首选"), i18n.T("非运行时状态"))
+				return []string{fmt.Sprintf("  • %s → %s（%s，%s）", name, pinned,
+					i18n.T("配置首选"), i18n.T("非运行时状态"))}
 			}
 		}
+		return nil
+	}
+	return nil
+}
+
+func printCurrentNodeSummary(cfg map[string]any, targetName string, selections map[string]string, runtimeOK bool) {
+	lines := currentNodeSummary(cfg, targetName, selections, runtimeOK)
+	if len(lines) == 0 {
+		return
+	}
+	execx.Info(i18n.T("主选择组当前节点："))
+	for _, line := range lines {
+		fmt.Println(line)
 	}
 }
 
@@ -316,8 +370,9 @@ func pickNode(p paths.Paths, configPath, group string) (*pickResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	keywords := config.StrList(config.Load(p), "main_group_keywords")
-	target, err := pickGroup(cfg, group, keywords)
+	target, err := resolveMainGroup(p, cfg, group, func(prompt string) (string, error) {
+		return tui.Ask(prompt, tui.AskOpts{AllowEmpty: true})
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -343,7 +398,7 @@ func pickNode(p paths.Paths, configPath, group string) (*pickResult, error) {
 	} else {
 		execx.Info(i18n.T("Clash API 不可达，跳过测速。"))
 	}
-	printCurrentNodeSummary(cfg, runtimeSelections, runtimeOK)
+	printCurrentNodeSummary(cfg, groupName, runtimeSelections, runtimeOK)
 	runtimeCurrent := runtimeSelections[groupName]
 	pinned := preferredNode(target)
 
