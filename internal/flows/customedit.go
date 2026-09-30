@@ -205,10 +205,10 @@ func editScalar(cfg map[string]any, key, label string) bool {
 	if err != nil {
 		return false
 	}
-	if key == "bootstrap_dns_port" {
-		n, err := strconv.Atoi(val)
-		if err != nil {
-			execx.Warn(i18n.T("端口需为整数，未修改。"))
+	if config.PortFields[key] {
+		n, err := strconv.Atoi(strings.TrimSpace(val))
+		if err != nil || !config.ValidPort(n) {
+			execx.Warn(i18n.T("端口需为 1-65535 的整数，未修改。"))
 			return false
 		}
 		cfg[key] = n

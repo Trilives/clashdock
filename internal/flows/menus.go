@@ -154,11 +154,12 @@ func printAccessHint(p paths.Paths) {
 	if lanPanel {
 		host = "0.0.0.0"
 	}
+	port := config.ControllerPort(cfg)
 	if _, err := os.Stat(filepath.Join(p.UI, "index.html")); err == nil {
-		execx.Info(fmt.Sprintf(i18n.T("Web UI（mihomo 内置路径）: http://%s:9090/ui/"), host))
+		execx.Info(fmt.Sprintf(i18n.T("Web UI（mihomo 内置路径）: http://%s:%d/ui/"), host, port))
 	}
 	if host == "127.0.0.1" {
-		execx.Info(i18n.T("远程查看建议用 SSH 端口转发： ssh -N -L 9090:127.0.0.1:9090 user@server"))
+		execx.Info(fmt.Sprintf(i18n.T("远程查看建议用 SSH 端口转发： ssh -N -L %d:127.0.0.1:%d user@server"), port, port))
 	}
 	if config.Bool(cfg, "lan_proxy") {
 		execx.Info(fmt.Sprintf(i18n.T("局域网代理已开启：其他主机可设置 http/socks 代理为 本机IP:%d"), config.ProxyPort(cfg)))

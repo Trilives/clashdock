@@ -96,7 +96,7 @@ func Init(p paths.Paths) error {
 		// 检测到已有订阅并跳过重新添加，直接重试服务注册）。
 		if err := ensureStartupResources(p); err != nil {
 			execx.Warn(i18n.T("本地内核缺失，本次暂不注册/启动服务：") + err.Error())
-			execx.Info(i18n.T("已保留本次配置与订阅；补齐内核（重装安装包或「运行时管理 → 更新内核」）后重新执行初始化即可完成服务注册。"))
+			execx.Info(i18n.T("已保留本次配置与订阅；补齐内核（重装安装包或「工具 → 更新 → 内核」）后重新执行初始化即可完成服务注册。"))
 			t.Commit()
 			return nil
 		}
@@ -207,17 +207,17 @@ func startupResourcesReady(p paths.Paths) bool {
 // ensureStartupResources 服务启动前检查本地内核与基础规则是否就绪。内核与基础规则
 // 现由安装包提供——deb 种子接管，或便携包 install.sh 装入系统路径——初始化不再
 // 下载内核。缺失即返回错误，由调用方（Init）软失败处理：不回滚已完成的设置与订阅，
-// 提示用户先补齐内核（重装安装包或「运行时管理 → 更新内核」）后重试。
+// 提示用户先补齐内核（重装安装包或「工具 → 更新 → 内核」）后重试。
 func ensureStartupResources(p paths.Paths) error {
 	if startupResourcesReady(p) {
 		execx.Info(i18n.T("使用本地内核与基础规则启动服务（系统包种子或既有资源）。"))
 		return nil
 	}
-	return fmt.Errorf("%s", i18n.T("未找到本地内核或基础规则：请通过安装包（deb 已内置，便携包运行 install.sh）安装内核，或在「运行时管理 → 更新内核」手动下载后重试。"))
+	return fmt.Errorf("%s", i18n.T("未找到本地内核或基础规则：请通过安装包（deb 已内置，便携包运行 install.sh）安装内核，或在「工具 → 更新 → 内核」手动下载后重试。"))
 }
 
 // optionalPostStartUpdate 服务已启动后自动下载/更新 geo 数据与 Web UI（不再下载
-// 内核——内核随安装包捆绑，更新由用户在「运行时管理 → 更新内核」显式触发）；服务
+// 内核——内核随安装包捆绑，更新由用户在「工具 → 更新 → 内核」显式触发）；服务
 // 已运行，优先走本机 mixed-port 下载（出海更稳），失败回退 download_proxy、最后
 // 直连。失败只警告，不影响已启动的服务。
 func optionalPostStartUpdate(p paths.Paths) {
@@ -225,13 +225,13 @@ func optionalPostStartUpdate(p paths.Paths) {
 	ensureGithubToken(p)
 	if _, err := kernel.DownloadAll(p, kernel.Options{Force: true, WithUI: true, LocalProxyFirst: true, SkipCore: true}); err != nil {
 		execx.Warn(i18n.T("资源更新失败：") + err.Error())
-		execx.Info(i18n.T("可稍后在「运行时管理 → 更新」重试。"))
+		execx.Info(i18n.T("可稍后在「工具 → 更新」重试。"))
 		return
 	}
 	execx.Info(i18n.T("已更新资源，重新部署运行时并重启服务…"))
 	if err := sysd.Install(p, sysd.DefaultName, true); err != nil {
 		execx.Warn(i18n.T("重新部署运行时失败：") + err.Error())
-		execx.Info(i18n.T("可稍后在「运行时管理 → 更新」重试。"))
+		execx.Info(i18n.T("可稍后在「工具 → 更新」重试。"))
 	}
 }
 

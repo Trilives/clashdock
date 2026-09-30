@@ -30,6 +30,6 @@ func init() {
 		"粘贴（逗号或空格分隔）": "Paste (comma or space separated)",
 		"输入无效，已跳过。":   "Invalid input, skipped.",
 		"（留空清除）":      " (leave empty to clear)",
-		"端口需为整数，未修改。": "Port must be an integer, not modified.",
+		"端口需为 1-65535 的整数，未修改。": "Port must be an integer between 1 and 65535; not modified.",
 	})
 }

@@ -518,7 +518,7 @@ type Options struct {
 	WithUI     bool
 
 	// SkipCore 跳过内核下载，只更新 geo 数据（+ 可选 Web UI）。内核随安装包捆绑，
-	// 初始化不再下载内核；内核更新由用户在「运行时管理 → 更新内核」显式触发。
+	// 初始化不再下载内核；内核更新由用户在「工具 → 更新 → 内核」显式触发。
 	SkipCore bool
 
 	// LocalProxyFirst 优先走本机 mixed-port（127.0.0.1:7890）下载，失败再回退
@@ -582,7 +582,7 @@ func SeedFromSystem(p paths.Paths) ([]string, error) {
 
 // SeedFrom 通用种子接管：从给定的内核目录与规则目录把 mihomo + 基础规则复制到
 // state（仅当 state 对应文件缺失时）。deb 走 /usr 下的种子目录（SeedFromSystem），
-// 便携模式走解压目录里的 deps/ 兄弟目录（见 internal/portable）。
+// 用户模式走便携包解压目录里的 deps/ 兄弟目录（见 internal/usermode）。
 func SeedFrom(p paths.Paths, binDir, rulesetDir string) ([]string, error) {
 	var seeded []string
 	if err := p.EnsureStateDirs(); err != nil {
@@ -613,7 +613,7 @@ func SeedFrom(p paths.Paths, binDir, rulesetDir string) ([]string, error) {
 		seeded = append(seeded, dest)
 	}
 	if len(seeded) > 0 {
-		execx.Info(fmt.Sprintf(i18n.T("已从系统包接管 %d 个种子文件（离线可用；后续可在线更新）。"), len(seeded)))
+		execx.Info(fmt.Sprintf(i18n.T("已从安装包接管 %d 个种子文件（离线可用；后续可在线更新）。"), len(seeded)))
 	}
 	return seeded, nil
 }

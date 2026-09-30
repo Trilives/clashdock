@@ -302,11 +302,31 @@ func ensureManagedByCurrentLink(p paths.Paths, currentVersion string) error {
 		return err
 	}
 	execx.Info(fmt.Sprintf(i18n.T("已把当前运行的可执行文件迁移为托管版本 %s。"), baseline))
-	reason := i18n.T("首次自更新需要把 ") + exe + i18n.T(" 接管为指向托管版本的符号链接")
-	if _, err := execx.RunRoot([]string{"ln", "-sfn", currentLink(p), exe}, reason, nil); err != nil {
-		return err
+	return linkExecutable(currentLink(p), exe, p.UserMode)
+}
+
+// linkExecutable 把可执行文件路径替换为指向 current 的符号链接。用户模式的本体在
+// ~/.local/bin（当前用户可写），直接原子替换、无需 root；其余情况（/usr/bin 等）保持
+// 原先经 sudo 的显式接管，不在未经确认时替换任意可写目录里的二进制。
+func linkExecutable(current, exe string, userMode bool) error {
+	if userMode && dirWritable(filepath.Dir(exe)) {
+		return atomicSymlink(current, exe)
 	}
-	return nil
+	reason := i18n.T("首次自更新需要把 ") + exe + i18n.T(" 接管为指向托管版本的符号链接")
+	_, err := execx.RunRoot([]string{"ln", "-sfn", current, exe}, reason, nil)
+	return err
+}
+
+// dirWritable 探测目录是否可创建文件（access(2) 在 root / ACL 场景下不可靠，直接试写）。
+func dirWritable(dir string) bool {
+	f, err := os.CreateTemp(dir, ".clashdock-wtest-*")
+	if err != nil {
+		return false
+	}
+	name := f.Name()
+	f.Close()
+	os.Remove(name)
+	return true
 }
 
 // swapCurrentLink 原子重写 current 符号链接指向 target（versionsDir 属当前

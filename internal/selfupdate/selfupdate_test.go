@@ -263,3 +263,26 @@ func TestRollbackToStableWithoutRecordFails(t *testing.T) {
 		t.Error("expected error when no stable version has been recorded")
 	}
 }
+
+func TestLinkExecutableInWritableDirNeedsNoRoot(t *testing.T) {
+	dir := t.TempDir()
+	current := filepath.Join(dir, "versions", "current")
+	if err := os.MkdirAll(filepath.Dir(current), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(dir, "bin", "clashdock")
+	if err := os.MkdirAll(filepath.Dir(exe), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(exe, []byte("plain"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := linkExecutable(current, exe, true); err != nil {
+		t.Fatalf("linkExecutable: %v", err)
+	}
+	target, err := os.Readlink(exe)
+	if err != nil || target != current {
+		t.Fatalf("exe should now link to current, got %q (%v)", target, err)
+	}
+}

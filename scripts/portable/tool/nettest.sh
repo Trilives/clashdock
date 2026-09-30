@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # clashdock 便携包网络自测脚本（无需 root）。
 #
-# 面向便携/轻量模式：clashdock 只在本机提供 mixed 入站（127.0.0.1:<port>），
+# 面向用户模式（免 root）：clashdock 只在本机提供 mixed 入站（127.0.0.1:<port>），
 # 本脚本分别测「直连」与「经本地代理」两条路的连通性、时延与出口 IP，
 # 帮你快速判断代理有没有真正生效、出海是否走了机场节点。
 #
-# 代理端口默认 7890；若便携工作目录里的 customize.json 改过 proxy_port 会自动读取。
+# 代理端口默认 7890；若用户模式数据目录（~/.local/share/clashdock）里的 customize.json
+# 改过 proxy_port 会自动读取（兼容旧版放在包目录旁的 clashdock-data）。
 # 可用 PORT=xxxx ./tool/nettest.sh 覆盖。
 set -euo pipefail
 
@@ -14,15 +15,17 @@ ROOT_DIR="$(cd "$TOOL_DIR/.." && pwd)"
 
 command -v curl >/dev/null 2>&1 || { echo "错误：需要 curl。" >&2; exit 1; }
 
-# resolve_port 优先取 PORT 环境变量，其次读便携工作目录 customize.json 的 proxy_port，兜底 7890。
+# resolve_port 优先取 PORT 环境变量，其次读数据目录 customize.json 的 proxy_port，兜底 7890。
 resolve_port() {
 	if [ -n "${PORT:-}" ]; then echo "$PORT"; return; fi
-	local cfg="${CLASHDOCK_HOME:-$ROOT_DIR/clashdock-data}/customize.json"
-	if [ -f "$cfg" ]; then
-		local p
-		p="$(grep -oE '"proxy_port"[[:space:]]*:[[:space:]]*[0-9]+' "$cfg" | grep -oE '[0-9]+' | head -n1)"
+	local user_state="${XDG_DATA_HOME:-$HOME/.local/share}/clashdock"
+	local dir cfg p
+	for dir in "${CLASHDOCK_HOME:-}" "$user_state" "$ROOT_DIR/clashdock-data"; do
+		cfg="$dir/customize.json"
+		[ -n "$dir" ] && [ -f "$cfg" ] || continue
+		p="$(grep -oE '"proxy_port"[[:space:]]*:[[:space:]]*"?[0-9]+' "$cfg" | grep -oE '[0-9]+' | head -n1)"
 		if [ -n "$p" ]; then echo "$p"; return; fi
-	fi
+	done
 	echo 7890
 }
 PORT="$(resolve_port)"

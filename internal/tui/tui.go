@@ -8,8 +8,8 @@
 package tui
 
 import (
-	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"strconv"
@@ -199,15 +199,31 @@ func maxOf(ns []int) int {
 	return m
 }
 
-// 非 TTY 模式共享 stdin 读取器（避免多次调用丢缓冲）。
-var stdinReader = bufio.NewReader(os.Stdin)
-
 func readPlainLine(prompt string) (string, error) {
 	fmt.Print(prompt)
-	line, err := stdinReader.ReadString('\n')
+	line, err := readLine(os.Stdin)
 	if err != nil && line == "" {
 		fmt.Println()
 		return "", errs.ErrCancelled
 	}
 	return strings.TrimRight(line, "\r\n"), nil
+}
+
+// readLine 逐字节读到换行为止（含换行符）。刻意不用 bufio：stdin 与 exec 交接后的新
+// 进程、sudo 等子进程共享，预读进缓冲的后续输入会丢失。交互输入量极小，逐字节读无妨。
+func readLine(r io.Reader) (string, error) {
+	var sb strings.Builder
+	buf := make([]byte, 1)
+	for {
+		n, err := r.Read(buf)
+		if n > 0 {
+			sb.WriteByte(buf[0])
+			if buf[0] == '\n' {
+				return sb.String(), nil
+			}
+		}
+		if err != nil {
+			return sb.String(), err
+		}
+	}
 }

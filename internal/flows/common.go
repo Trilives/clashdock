@@ -17,7 +17,7 @@ import (
 	"github.com/Trilives/clashdock/internal/i18n"
 	"github.com/Trilives/clashdock/internal/kernel"
 	"github.com/Trilives/clashdock/internal/paths"
-	"github.com/Trilives/clashdock/internal/sysd"
+	"github.com/Trilives/clashdock/internal/runtimesvc"
 	"github.com/Trilives/clashdock/internal/tui"
 )
 
@@ -124,7 +124,7 @@ func askProxyChoice(p paths.Paths) (fetchViaProxy, pauseForDirect bool, err erro
 	if err != nil {
 		return false, false, err
 	}
-	if !fetchViaProxy && config.Bool(config.Load(p), "enable_tun") && sysd.IsActive(sysd.DefaultName) {
+	if !fetchViaProxy && config.Bool(config.Load(p), "enable_tun") && runtimesvc.For(p).Active() {
 		pauseForDirect, err = tui.Confirm(
 			i18n.T("TUN 模式下直连可能仍被路由劫持；是否临时暂停服务以确保本次直连成功？（拉取完成后自动恢复）"), true)
 		if err != nil {
@@ -174,7 +174,7 @@ func ensureGithubToken(p paths.Paths) {
 	execx.Ok(i18n.T("GitHub Token 已保存到 customize.json。"))
 }
 
-// EnsureLanguage 启动第一步（完整模式与便携模式共用）：配置文件里未显式设置过
+// EnsureLanguage 启动第一步（完整模式与用户模式共用）：配置文件里未显式设置过
 // 界面语言、且未用 CLASHDOCK_LANG 环境变量显式指定时，先弹出语言选择并写回。
 // 已设置或已用环境变量指定则原样跳过，不打扰。
 func EnsureLanguage(p paths.Paths) error {

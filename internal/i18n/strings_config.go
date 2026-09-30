@@ -42,14 +42,15 @@ func init() {
 		"启用日志（写入文件，超限自动裁剪旧内容）":        "Enable logging (write to file, auto-trims oldest content past the size cap)",
 
 		// ScalarFields
-		"本地代理端口（默认 7890，端口被占用时可改）":     "Local proxy port (default 7890, change if the port is occupied)",
-		"TUN 协议栈（gvisor/system/mixed）": "TUN stack (gvisor/system/mixed)",
-		"面板密钥 secret":                  "Panel secret",
-		"引导 DNS 服务器":                   "Bootstrap DNS server",
-		"引导 DNS 端口":                    "Bootstrap DNS port",
-		"subconverter 后端":              "subconverter backend",
-		"GitHub 加速前缀":                  "GitHub mirror prefix",
-		"GitHub Token（提升 API 限额）":      "GitHub token (raises API rate limit)",
-		"下载代理":                         "Download proxy",
+		"控制器端口（Clash API / 面板，默认 9090，被占用时可改）": "Controller port (Clash API / panel, default 9090, change if the port is occupied)",
+		"本地代理端口（默认 7890，端口被占用时可改）":             "Local proxy port (default 7890, change if the port is occupied)",
+		"TUN 协议栈（gvisor/system/mixed）":         "TUN stack (gvisor/system/mixed)",
+		"面板密钥 secret":                          "Panel secret",
+		"引导 DNS 服务器":                           "Bootstrap DNS server",
+		"引导 DNS 端口":                            "Bootstrap DNS port",
+		"subconverter 后端":                      "subconverter backend",
+		"GitHub 加速前缀":                          "GitHub mirror prefix",
+		"GitHub Token（提升 API 限额）":              "GitHub token (raises API rate limit)",
+		"下载代理":                                 "Download proxy",
 	})
 }

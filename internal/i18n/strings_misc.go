@@ -34,5 +34,23 @@ func init() {
 		"  已回退: ":         "  Rolled back: ",
 		"回退完成，但有 %d 项失败，请手动检查。": "Rollback finished, but %d item(s) failed; please check manually.",
 		"已回退到操作前状态。":            "Rolled back to the state before the operation.",
+
+		// 此前遗漏的界面文案（由 coverage_test 发现）
+		"检测到本地内核/geo 数据已更新，但运行中的服务尚未使用最新版本，是否现在重启应用？": "Local core/geo data has been updated but the running service is not using it yet. Restart now to apply it?",
+		"已应用最新内核/geo 数据并重启服务。":                        "Applied the latest core/geo data and restarted the service.",
+		"日志启用失败：": "Failed to enable logging: ",
+		"直连":      "direct",
+		"  %s 失败（%v），改下一通道重试…": "  %s failed (%v); retrying via the next channel…",
+		"TUN 模式下直连可能仍被路由劫持；是否临时暂停服务以确保本次直连成功？（拉取完成后自动恢复）": "In TUN mode a direct fetch may still be hijacked by routing; temporarily pause the service to ensure this fetch is really direct? (resumes automatically afterwards)",
+		"回车返回主菜单… ":                    "Press Enter to return to the main menu… ",
+		"资源更新失败：":                      "Resource update failed: ",
+		"可稍后在「工具 → 更新」重试。":             "You can retry later via 'Tools → Update'.",
+		"重新部署运行时失败：":                   "Failed to redeploy the runtime: ",
+		"  代理候选失败（%v），改下一候选重试…":        "  Proxy candidate failed (%v); trying the next candidate…",
+		"临时暂停服务以确保本次直连不被 TUN 路由劫持…":    "Temporarily pausing the service so this direct fetch is not hijacked by TUN routing…",
+		"暂停服务失败，继续直连拉取：":               "Failed to pause the service; continuing the direct fetch: ",
+		"恢复服务失败，请手动启动：":                "Failed to resume the service; please start it manually: ",
+		"未找到 Web UI，面板将不可用；可稍后执行更新补齐。": "Web UI not found; the panel will be unavailable. You can fetch it later via Update.",
+		"记录资源部署指纹失败（不影响服务本身）：":         "Failed to record the deployed-asset fingerprint (the service itself is unaffected): ",
 	})
 }

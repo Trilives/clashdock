@@ -33,6 +33,10 @@ type Paths struct {
 	GeositeDat    string
 	GeoipMetadb   string
 	CountryMmdb   string // DB-IP Lite 种子（deb 附带，可再分发）；metadb 缺失时的兜底
+
+	// UserMode 用户模式（免 root，用户级服务，见 internal/usermode）。由入口判定模式后
+	// 设置；服务同步 / 重启经 internal/runtimesvc 按此选择系统服务或用户服务。
+	UserMode bool
 }
 
 func stateRoot() string {

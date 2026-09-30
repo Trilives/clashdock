@@ -64,6 +64,7 @@ var defaultsOrder = []string{
 	// —— 部署字段（始终生效）——
 	"enable_tun",
 	"proxy_port",
+	"controller_port",
 	"tun_stack",
 	"tun_route_exclude_cidrs",
 	"tun_exclude_uids",
@@ -106,6 +107,7 @@ func Defaults() map[string]any {
 		"tun_exclude_process":       []string{},
 		"main_group_keywords":       append([]string(nil), DefaultMainGroupKeywords...),
 		"proxy_port":                DefaultProxyPort,
+		"controller_port":           DefaultControllerPort,
 		"lan_proxy":                 false,
 		"lan_panel":                 false,
 		"secret":                    "",
@@ -250,6 +252,7 @@ var BoolFields = map[string]string{
 
 var ScalarFields = map[string]string{
 	"proxy_port":           "本地代理端口（默认 7890，端口被占用时可改）",
+	"controller_port":      "控制器端口（Clash API / 面板，默认 9090，被占用时可改）",
 	"tun_stack":            "TUN 协议栈（gvisor/system/mixed）",
 	"secret":               "面板密钥 secret",
 	"bootstrap_dns_server": "引导 DNS 服务器",
@@ -264,6 +267,7 @@ var ScalarFields = map[string]string{
 var DeploymentFields = []string{
 	"enable_tun",
 	"proxy_port",
+	"controller_port",
 	"tun_stack",
 	"lan_proxy",
 	"lan_panel",
@@ -278,6 +282,24 @@ var DeploymentFields = []string{
 	"tun_exclude_uids",
 	"fake_ip_filter",
 	"tun_exclude_process",
+	"main_group_keywords",
+	"base64_local_fallback",
+	"enable_log",
+}
+
+// UserModeFields 用户模式可编辑的本地设置：去掉需要 root 或对外暴露的 TUN / 局域网 /
+// 面板开放 / 直连 UID 与进程项（用户模式固定为纯本机代理）。
+var UserModeFields = []string{
+	"proxy_port",
+	"controller_port",
+	"secret",
+	"download_proxy",
+	"github_mirror",
+	"github_token",
+	"subconverter_backend",
+	"bootstrap_dns_server",
+	"bootstrap_dns_port",
+	"fake_ip_filter",
 	"main_group_keywords",
 	"base64_local_fallback",
 	"enable_log",
@@ -381,16 +403,37 @@ func Str(cfg map[string]any, key string) string {
 	return toString(v)
 }
 
-// DefaultProxyPort 本地 mixed 入站默认端口（HTTP + SOCKS5 共用）。与
-// subscription.MixedPort 一致，但按现有约定刻意不互相引用。
+// DefaultProxyPort 本地 mixed 入站默认端口（HTTP + SOCKS5 共用）。订阅改写
+// （subscription.Apply）经 ProxyPort / ControllerPort 读取端口，与界面展示共用同一套
+// 解析，避免两处各自解析导致「界面显示改了、实际监听没改」。
 const DefaultProxyPort = 7890
+
+// DefaultControllerPort mihomo 外部控制器（Clash API / 内置面板）默认端口。
+const DefaultControllerPort = 9090
+
+// PortFields 取值为端口号的字段：编辑时按整数校验并以整数落盘。
+var PortFields = map[string]bool{"proxy_port": true, "controller_port": true, "bootstrap_dns_port": true}
 
 // ProxyPort 本地代理端口：读 customize 的 proxy_port，越界（非 1-65535）回退默认 7890。
 func ProxyPort(cfg map[string]any) int {
-	if p := Int(cfg, "proxy_port"); p >= 1 && p <= 65535 {
+	return portOr(cfg, "proxy_port", DefaultProxyPort)
+}
+
+// ControllerPort 外部控制器端口：读 customize 的 controller_port，越界回退默认 9090。
+// 同机多用户各跑一份用户模式时，各自改成不同端口即可避免冲突。
+func ControllerPort(cfg map[string]any) int {
+	return portOr(cfg, "controller_port", DefaultControllerPort)
+}
+
+// ValidPort 端口号是否在 1-65535。
+func ValidPort(p int) bool { return p >= 1 && p <= 65535 }
+
+// portOr 读端口字段（int / JSON 数字 / 数字字符串皆可），越界回退 def。
+func portOr(cfg map[string]any, key string, def int) int {
+	if p := Int(cfg, key); ValidPort(p) {
 		return p
 	}
-	return DefaultProxyPort
+	return def
 }
 
 func Int(cfg map[string]any, key string) int {

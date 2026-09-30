@@ -29,6 +29,7 @@ archives:
     formats: [tar.gz]
     name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{- if eq .Arch "arm" -}}armv{{ .Arm }}{{- else -}}{{ .Arch }}{{- end -}}'
     # 便携包内含内核 + 规则 + 脚本多个文件，包成顶层目录避免解压时污染当前目录。
+    # 同一个包两种用法：sudo ./install.sh 装成系统服务；直接 ./clashdock 进入用户模式。
     wrap_in_directory: true
     files:
       - LICENSE
@@ -42,13 +43,11 @@ archives:
         dst: uninstall.sh
         info:
           mode: 0755
-      # tool/：无 root 的就地维护脚本（面向实验室等取不到 root 的环境）——
-      # 交互式更新 clashdock 本体 / mihomo 内核 / 规则集，以及本机代理网络自测。
-      # 刻意不含 Web UI：便携包不捆绑面板，需图形界面用完整版或在线面板。
-      - src: scripts/portable/tool/update.sh
-        dst: tool/update.sh
-        info:
-          mode: 0755
+      # 用户模式（免 root）：直接运行包内 ./clashdock 即把本体装到 ~/.local/bin、
+      # 内核与规则接管到 ~/.local/share/clashdock，并注册用户级服务；之后的更新 /
+      # 卸载都在 clashdock 菜单里完成，不再需要包内更新脚本。
+      # tool/nettest.sh：不依赖 clashdock 的本机代理网络自测脚本。
+      # 刻意不含 Web UI：需要面板可在「工具 → 更新 → Web UI」在线下载。
       - src: scripts/portable/tool/nettest.sh
         dst: tool/nettest.sh
         info:
@@ -112,14 +111,15 @@ checksum:
 release:
   prerelease: auto
   header: |
-    Highlights of v0.2.6 (vs v0.2.5):
+    Highlights of v0.3.0 (vs v0.2.6):
 
-    - Initialization forms no longer advance or submit when Enter is pressed on a field; Enter edits the focused value, and initialization starts only from the submit button.
-    - Deployment and routing changes now rebuild the active subscription automatically. Service restarts always install and validate the latest runtime config first, and sync failures are returned clearly.
-    - Node switching and pinning now summarize only the recognized main selector. If automatic recognition fails, users can add and validate a group keyword in place; empty or invalid input leaves the configuration unchanged.
-    - Subscription-provided `dns.fake-ip-filter` rules are now preserved; Deployment Settings entries are appended with stable deduplication instead of replacing provider-required exclusions.
+    - New **user mode** (replaces portable mode): a second mainstream way to run clashdock with no root at all. Extract the tar.gz and run `./clashdock`; it installs itself to `~/.local/bin`, keeps data in `~/.local/share/clashdock`, and runs mihomo as a `systemctl --user` service (falling back to a detached background process where no user systemd instance exists). No foreground process is needed: node switching, pinning, config changes, pause/resume, updates and uninstall all work against the user service, from the menu or via `clashdock pause|resume|update|uninstall`.
+    - User-mode setup checks whether the proxy/controller ports are already taken (common on shared machines) and walks you through picking free ones. The controller port is now configurable (`controller_port`, default 9090).
+    - Data from the old portable mode (`clashdock-data` next to the package) is detected and can be migrated in one step; the old directory is left untouched.
+    - The tar.gz no longer ships `tool/update.sh`; updates happen inside clashdock. `sudo ./install.sh` still installs the same package as the full system service, equivalent to the .deb.
+    - Fixes: ports changed in Deployment Settings were saved as strings and ignored by the running config; updating the Web UI now redeploys; piped (non-TTY) input is no longer swallowed; 20 missing English translations added, with a test that keeps coverage complete.
 
-    No config migration is required.
+    Full-mode installs need no config migration.
 
 changelog:
   sort: asc

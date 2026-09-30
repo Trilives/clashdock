@@ -10,7 +10,7 @@ import (
 	"github.com/Trilives/clashdock/internal/execx"
 	"github.com/Trilives/clashdock/internal/i18n"
 	"github.com/Trilives/clashdock/internal/paths"
-	"github.com/Trilives/clashdock/internal/sysd"
+	"github.com/Trilives/clashdock/internal/runtimesvc"
 	"github.com/Trilives/clashdock/internal/tui"
 )
 
@@ -23,13 +23,13 @@ func importConfigFlow(p paths.Paths) error {
 		return err
 	}
 	execx.Ok(i18n.T("已导入 YAML 配置文件，并设为当前生效配置。"))
-	if sysd.IsInstalled(sysd.DefaultName) {
+	if svc := runtimesvc.For(p); svc.Installed() {
 		ok, err := tui.Confirm(i18n.T("服务已安装，立即同步并重启以使用该配置？"), true)
 		if err != nil {
 			return err
 		}
 		if ok {
-			return sysd.SyncAndRestart(p, sysd.DefaultName)
+			return svc.SyncAndRestart()
 		}
 	}
 	return nil

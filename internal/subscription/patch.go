@@ -20,12 +20,12 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/Trilives/clashdock/internal/config"
 	"github.com/Trilives/clashdock/internal/i18n"
 )
 
 const (
 	MixedPort           = 7890
-	ControllerPort      = 9090
 	TunDevice           = "mihomo"
 	DefaultBootstrapDNS = "223.5.5.5"
 )
@@ -43,22 +43,6 @@ var defaultFakeIPFilter = []string{"*.lan", "*.local", "localhost.ptlogin2.qq.co
 type PatchError struct{ Msg string }
 
 func (e *PatchError) Error() string { return e.Msg }
-
-// mixedPortOf 从 customize 读本地代理端口（proxy_port），越界（非 1-65535）回退
-// 默认 MixedPort。值可能是 int（默认补全）或 float64（JSON 解析）两种形态。
-func mixedPortOf(customize map[string]any) int {
-	var port int
-	switch v := customize["proxy_port"].(type) {
-	case int:
-		port = v
-	case float64:
-		port = int(v)
-	}
-	if port >= 1 && port <= 65535 {
-		return port
-	}
-	return MixedPort
-}
 
 // buildTun 按 enable_tun 构造 tun 段。关闭时仅 enable:false（纯代理模式）。
 func buildTun(customize map[string]any) map[string]any {
@@ -180,7 +164,7 @@ func Apply(clash map[string]any, customize map[string]any, uiDir string) (map[st
 	delete(cfg, "socks-port")
 	delete(cfg, "redir-port")
 	delete(cfg, "tproxy-port")
-	cfg["mixed-port"] = mixedPortOf(customize)
+	cfg["mixed-port"] = config.ProxyPort(customize)
 
 	// 2. 局域网代理
 	lanProxy := truthy(customize, "lan_proxy", false)
@@ -197,7 +181,7 @@ func Apply(clash map[string]any, customize map[string]any, uiDir string) (map[st
 	if lanPanel {
 		host = "0.0.0.0"
 	}
-	cfg["external-controller"] = fmt.Sprintf("%s:%d", host, ControllerPort)
+	cfg["external-controller"] = fmt.Sprintf("%s:%d", host, config.ControllerPort(customize))
 	cfg["external-ui"] = uiDir
 	secret := strOr(customize["secret"], "")
 	switch {

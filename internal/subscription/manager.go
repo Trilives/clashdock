@@ -23,7 +23,7 @@ import (
 	"github.com/Trilives/clashdock/internal/i18n"
 	"github.com/Trilives/clashdock/internal/jsonx"
 	"github.com/Trilives/clashdock/internal/paths"
-	"github.com/Trilives/clashdock/internal/sysd"
+	"github.com/Trilives/clashdock/internal/runtimesvc"
 )
 
 // Subscription 元数据；JSON 字段与 Python 版 meta.json 完全一致（老数据直读）。
@@ -204,10 +204,16 @@ func buildWithFetchProxy(p paths.Paths, sub *Subscription, proxies []string, pau
 		}
 	} else {
 		execx.Info(fmt.Sprintf(i18n.T("拉取订阅「%s」…"), sub.Name))
-		if pauseForDirect && sysd.IsActive(sysd.DefaultName) {
+		if svc := runtimesvc.For(p); pauseForDirect && svc.Active() {
 			execx.Info(i18n.T("临时暂停服务以确保本次直连不被 TUN 路由劫持…"))
-			sysd.Pause(sysd.DefaultName)
-			defer sysd.Resume(sysd.DefaultName)
+			if err := svc.Pause(); err != nil {
+				execx.Warn(i18n.T("暂停服务失败，继续直连拉取：") + err.Error())
+			}
+			defer func() {
+				if err := svc.Resume(); err != nil {
+					execx.Warn(i18n.T("恢复服务失败，请手动启动：") + err.Error())
+				}
+			}()
 		}
 		raw, err = Fetch(sub.URL, sub.SourceType, proxies)
 		if err != nil {
@@ -351,10 +357,8 @@ func Switch(p paths.Paths, name string) error {
 
 func applyActive(p paths.Paths, name string) error {
 	var syncRuntime func(paths.Paths) error
-	if sysd.IsInstalled(sysd.DefaultName) {
-		syncRuntime = func(got paths.Paths) error {
-			return sysd.SyncAndRestart(got, sysd.DefaultName)
-		}
+	if svc := runtimesvc.For(p); svc.Installed() {
+		syncRuntime = func(paths.Paths) error { return svc.SyncAndRestart() }
 	}
 	return applyActiveWithSync(p, name, syncRuntime)
 }

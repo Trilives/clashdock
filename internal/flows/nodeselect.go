@@ -23,8 +23,8 @@ import (
 	"github.com/Trilives/clashdock/internal/i18n"
 	"github.com/Trilives/clashdock/internal/jsonx"
 	"github.com/Trilives/clashdock/internal/paths"
+	"github.com/Trilives/clashdock/internal/runtimesvc"
 	"github.com/Trilives/clashdock/internal/subscription"
-	"github.com/Trilives/clashdock/internal/sysd"
 	"github.com/Trilives/clashdock/internal/tui"
 )
 
@@ -508,10 +508,8 @@ func NodeSelect(p paths.Paths, configPath, group string) error {
 	}
 
 	var syncRuntime func(paths.Paths) error
-	if sysd.IsInstalled(sysd.DefaultName) {
-		syncRuntime = func(got paths.Paths) error {
-			return sysd.SyncAndRestart(got, sysd.DefaultName)
-		}
+	if svc := runtimesvc.For(p); svc.Installed() {
+		syncRuntime = func(paths.Paths) error { return svc.SyncAndRestart() }
 	}
 	if err := persistPinnedSelectionWithSync(p, r.cfg, r.groupName, r.node, configPath, syncRuntime); err != nil {
 		return err

@@ -20,6 +20,7 @@ import (
 	"github.com/Trilives/clashdock/internal/i18n"
 	"github.com/Trilives/clashdock/internal/kernel"
 	"github.com/Trilives/clashdock/internal/paths"
+	"github.com/Trilives/clashdock/internal/runtimesvc"
 	"github.com/Trilives/clashdock/internal/subscription"
 	"github.com/Trilives/clashdock/internal/sysd"
 	"github.com/Trilives/clashdock/internal/tui"
@@ -133,8 +134,8 @@ func modifySession(p paths.Paths, title string, options []string, handlers []fun
 }
 
 func resyncService(p paths.Paths) {
-	if sysd.IsInstalled(sysd.DefaultName) && fileExists(p.ConfigFile) {
-		if err := sysd.SyncAndRestart(p, sysd.DefaultName); err != nil {
+	if svc := runtimesvc.For(p); svc.Installed() && fileExists(p.ConfigFile) {
+		if err := svc.SyncAndRestart(); err != nil {
 			execx.Warn(fmt.Sprintf(i18n.T("服务同步失败：%v"), err))
 		}
 	}
@@ -359,25 +360,23 @@ func updateGeoOnly(p paths.Paths) error {
 	return redeployIfInstalled(p)
 }
 
+// updateUIOnly Web UI 同样由完整部署复制到运行时目录（面板从运行时 ui/ 提供），
+// 只下载到 state/ 不重新部署的话，新面板要等下一次完整 Install 才生效。
 func updateUIOnly(p paths.Paths) error {
 	ensureGithubToken(p)
 	f, s := kernel.NewFetcher(p)
-	return kernel.UpdateUI(p, f, s, true)
-}
-
-func syncRestartIfInstalled(p paths.Paths) error {
-	if fileExists(p.ConfigFile) && sysd.IsInstalled(sysd.DefaultName) {
-		return sysd.SyncAndRestart(p, sysd.DefaultName)
+	if err := kernel.UpdateUI(p, f, s, true); err != nil {
+		return err
 	}
-	return nil
+	return redeployIfInstalled(p)
 }
 
-// redeployIfInstalled 内核/geo 数据下载到 state/ 后必须走完整 sysd.Install 才会
-// 真正落到运行时目录（SyncAndRestart 只重新同步 config.yaml，不会重新拷贝
+// redeployIfInstalled 内核/geo/UI 下载到 state/ 后必须完整重新部署才会真正落到
+// 运行时目录（系统服务的 SyncAndRestart 只重新同步 config.yaml，不会重新拷贝
 // 二进制/geo 文件——之前这里错用它，导致下载"成功"但服务其实还在用旧文件）。
 func redeployIfInstalled(p paths.Paths) error {
-	if fileExists(p.ConfigFile) && sysd.IsInstalled(sysd.DefaultName) {
-		return sysd.Install(p, sysd.DefaultName, true)
+	if svc := runtimesvc.For(p); fileExists(p.ConfigFile) && svc.Installed() {
+		return svc.Redeploy()
 	}
 	return nil
 }

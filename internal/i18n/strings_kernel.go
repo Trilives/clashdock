@@ -24,6 +24,6 @@ func init() {
 		"非法压缩条目路径: %s": "Illegal archive entry path: %s",
 
 		"下载代理（直连不可用时回退）: ":                "Download proxy (fallback when direct connection is unavailable): ",
-		"已从系统包接管 %d 个种子文件（离线可用；后续可在线更新）。": "Took over %d seed file(s) from the system package (usable offline; can be updated online later).",
+		"已从安装包接管 %d 个种子文件（离线可用；后续可在线更新）。": "Took over %d seed file(s) from the installation package (usable offline; can be updated online later).",
 	})
 }

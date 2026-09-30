@@ -1,4 +1,4 @@
-package portable
+package usermode
 
 import (
 	"os"

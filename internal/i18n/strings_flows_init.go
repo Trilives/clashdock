@@ -51,11 +51,11 @@ func init() {
 		"已使用现有订阅：%s": "Using existing subscription: %s",
 
 		"使用本地内核与基础规则启动服务（系统包种子或既有资源）。":                                               "Starting the service with the local core and basic rules (system package seed or existing resources).",
-		"未找到本地内核或基础规则：请通过安装包（deb 已内置，便携包运行 install.sh）安装内核，或在「运行时管理 → 更新内核」手动下载后重试。": "Local core or basic rules not found: install the core via the package (bundled in the .deb, or run install.sh from the portable archive), or download it manually via 'Runtime management → Update core', then retry.",
+		"未找到本地内核或基础规则：请通过安装包（deb 已内置，便携包运行 install.sh）安装内核，或在「工具 → 更新 → 内核」手动下载后重试。": "Local core or basic rules not found: install the core via the package (bundled in the .deb, or run install.sh from the portable archive), or download it manually via 'Tools → Update → Core', then retry.",
 		"缺少 mihomo 内核或基础规则，无法注册并启动服务":                                                "Missing mihomo core or basic rules; cannot register and start the service",
 
 		"本地内核缺失，本次暂不注册/启动服务：": "Local core missing; skipping service registration/startup this time: ",
-		"已保留本次配置与订阅；补齐内核（重装安装包或「运行时管理 → 更新内核」）后重新执行初始化即可完成服务注册。": "Your configuration and subscriptions are kept; install the core (reinstall the package, or 'Runtime management → Update core'), then re-run initialization to finish service registration.",
+		"已保留本次配置与订阅；补齐内核（重装安装包或「工具 → 更新 → 内核」）后重新执行初始化即可完成服务注册。": "Your configuration and subscriptions are kept; install the core (reinstall the package, or 'Tools → Update → Core'), then re-run initialization to finish service registration.",
 
 		"服务已启动，自动下载/更新 geo 数据 / Web UI…": "Service started; automatically downloading/updating geo data / Web UI…",
 		"已更新资源，重新部署运行时并重启服务…":            "Resources updated; redeploying the runtime and restarting the service…",

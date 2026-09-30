@@ -220,3 +220,26 @@ func TestLanguageConfigured(t *testing.T) {
 		}
 	})
 }
+
+func TestUserModeFieldsExcludeRootOnlySettings(t *testing.T) {
+	deployment := map[string]bool{}
+	for _, k := range DeploymentFields {
+		deployment[k] = true
+	}
+	rootOnly := map[string]bool{
+		"enable_tun": true, "tun_stack": true, "lan_proxy": true, "lan_panel": true,
+		"tun_route_exclude_cidrs": true, "tun_exclude_uids": true, "tun_exclude_process": true,
+	}
+	for _, k := range UserModeFields {
+		if !deployment[k] {
+			t.Errorf("UserModeFields 含非部署字段 %s", k)
+		}
+		if rootOnly[k] {
+			t.Errorf("UserModeFields 不应开放需要 root 或对外暴露的字段 %s", k)
+		}
+	}
+	if len(UserModeFields)+len(rootOnly) != len(DeploymentFields) {
+		t.Errorf("部署字段应恰好分为用户模式可用(%d)与仅完整模式(%d)两类，共 %d",
+			len(UserModeFields), len(rootOnly), len(DeploymentFields))
+	}
+}

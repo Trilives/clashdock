@@ -1,6 +1,6 @@
 // 「最新日志」工具（完整模式）：先让用户选择查看 mihomo 服务（内核）运行日志还是
-// clashdock 应用日志，再单独一屏展示所选那一份。便携模式的「最新日志」直接 tail 内核
-// stdout 文件（见 portable.go）；完整模式下内核由 systemd 托管，运行日志走 journald，
+// clashdock 应用日志，再单独一屏展示所选那一份。用户模式的「最新日志」由用户服务
+// 提供（见 usermode_menu.go）；完整模式下内核由 systemd 托管，运行日志走 journald，
 // 故这里改用 journalctl 读取。
 package flows
 
@@ -72,4 +72,18 @@ func printServiceJournal(name string) {
 		return
 	}
 	fmt.Println(out)
+}
+
+// printLogTail 打印日志文件末尾 logTailLines 行。
+func printLogTail(path string) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		execx.Warn(i18n.T("暂无日志：") + err.Error())
+		return
+	}
+	lines := strings.Split(strings.TrimRight(string(b), "\n"), "\n")
+	if len(lines) > logTailLines {
+		lines = lines[len(lines)-logTailLines:]
+	}
+	fmt.Println(strings.Join(lines, "\n"))
 }
