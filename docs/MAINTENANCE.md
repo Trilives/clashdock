@@ -49,9 +49,9 @@
 
 | 方向 | 现状（证据） | 说明 |
 |---|---|---|
-| 测试覆盖率 | 全仓约 30%（`docs/testing/` 记录 29.9%–30.7%），目标 80% | `kernel`、`firewall`、`proxyenv`、`jsonx`、`configfile` 无测试文件；`flows` 约 12%–14%。每个任务至少为改动部分补测试 |
-| CI 运行测试 | `.github/workflows/release.yml` 只在推送 `v*` tag 时打包发布，不跑 `go test` | 已登记任务 T-008 |
-| 超过软上限的文件 | `internal/kernel/kernel.go` 657 行、`internal/flows/nodeselect.go` 544 行、`internal/selfupdate/selfupdate.go` 526 行 | 已登记 T-002 ~ T-004 |
-| 超过 80 行软上限的函数（均未超 120 行硬上限） | `flows.Init` 112、`selfupdate.Update` 99、`flows.pickNode` 97、`subscription.Apply` 91、`sysd.Install` 88、`kernel.extract` 87、`flows.editList` 86、`subscription.ApplyOverlay` 85 | 修改这些函数时顺带拆分；`i18n/strings_flows_usermode.go` 的 `init`（97 行）是翻译表，属 MODULARITY 允许的集中表例外 |
+| 测试覆盖率 | 全仓约 30%（`docs/testing/` 记录 29.9%–30.7%），目标 80%；2026-10-18 `kernel` 0% → 56.7%、`selfupdate` 44.7% → 51.5% | `firewall`、`proxyenv`、`jsonx`、`configfile` 仍无测试文件；`flows` 约 12%–14%。每个任务至少为改动部分补测试 |
+| CI 运行测试 | 已新增 `.github/workflows/test.yml`（push 到 `main` / PR 时跑 gofmt、vet、race 测试） | T-008 待推送后确认首次运行 |
+| 超过软上限的文件 | 无（2026-10-18 T-002 ~ T-004 已拆分 `kernel.go`、`nodeselect.go`、`selfupdate.go`） | 每次清理时用 MODULARITY.md「修改流程」的 `wc -l` 复查 |
+| 超过 80 行软上限的函数（均未超 120 行硬上限） | `flows.Init` 112、`subscription.Apply` 91、`sysd.Install` 88、`flows.editList` 86、`subscription.ApplyOverlay` 85（`Update`、`pickNode`、`extract` 已于 T-002 ~ T-004 拆短） | 修改这些函数时顺带拆分；`i18n/strings_flows_usermode.go` 的 `init`（97 行）是翻译表，属 MODULARITY 允许的集中表例外 |
 | 文档长度 | ARCHITECTURE.md 约 266 行，接近 270 行阈值 | 再扩写前先按章节继续拆分（候选：§4 交互契约、§8 自更新） |
-| 实机验证缺口 | 见 ideas.md T-005、T-006 | 主选择组实机验证、linger 成功分支、联网更新 / 自更新 |
+| 实机验证缺口 | 用户模式已于 2026-10-18 实机验证（T-005 / T-006） | 完整模式（系统服务）未验证，见 ideas.md T-010 |

@@ -13,7 +13,7 @@
 
 ## 待办
 
-按优先级排列；T-001 ~ T-004、T-007 已完成，见 [done.md](./done.md) 2026-10-18。
+按优先级排列；T-001 ~ T-007 已完成，见 [done.md](./done.md) 2026-10-18。
 
 ### T-008 为 push / PR 增加测试 CI
 
@@ -26,25 +26,15 @@
   - 不改变现有 `release.yml` 的发布行为；在 GitHub 上首次运行通过
 - 记录：不需要
 
-### T-005 主选择组节点选择的实机验证
+### T-010 完整模式（系统服务）实机验证
 
 - 优先级：P2
-- 状态：待开始（记录中写明「待预览包下载后另行验证」，此后没有完成记录，按未完成处理）
-- 来源：[main-group-node-selection.tdd.md](../docs/testing/main-group-node-selection.tdd.md)「覆盖率与已知缺口」
+- 状态：阻塞（需要有可用 sudo、允许注册系统服务与改动路由 / 防火墙的测试机）
+- 来源：[2026-10-18-real-machine-verification.md](tasks/2026-10-18-real-machine-verification.md)「遗留问题」
 - 验收标准：
-  - 在真实 mihomo / systemd 环境验证交互、Clash API 热切换和固定节点重启链路
-  - 结果补写到上述 TDD 记录
-- 记录：需要（实机验证）
-
-### T-006 用户模式未实机验证的路径
-
-- 优先级：P2
-- 状态：待开始
-- 来源：[user-mode-service.tdd.md](../docs/testing/user-mode-service.tdd.md)「覆盖率与已知缺口」
-- 验收标准：
-  - `loginctl enable-linger` 成功分支实机验证（依赖 polkit 允许）
-  - 用户模式下 `clashdock update` 与 clashdock 自更新的联网路径实机验证
-  - 结果补写到上述 TDD 记录
+  - 完整模式下固定节点走 `sysd.SyncAndRestart`：配置双写、运行时同步、`mihomo.service` 重启后保持所选节点
+  - 完整模式下 `clashdock update` 下载后走完整 `Install`，服务使用新内核
+  - 结果补写到 [main-group-node-selection.tdd.md](../docs/testing/main-group-node-selection.tdd.md)，测试机恢复原状
 - 记录：需要（实机验证）
 
 ### T-009 用户模式按需 sudo 授权开启 TUN

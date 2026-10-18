@@ -62,3 +62,15 @@
 - linger 开启路径依赖 polkit 策略，只做了「拒绝开启」分支的实机验证。
 - `clashdock update` / 自更新需要联网拉取发行版，本轮未实机跑，重新部署路径与固定节点共用已验证的
   「重铺运行时 → 校验 → 重启」链路。
+
+## 补充实机验证（2026-10-18，T-006）
+
+环境同上（本机 systemd 用户实例；本机 7890 / 9090 已被其它代理占用，部署时改为 17890 / 19090）。
+GitHub API 匿名限额已用尽，测试进程经环境变量 `GITHUB_TOKEN` 传入 Token（仅附在 API 请求上，未写盘）。
+
+| 场景 | 结果 |
+|---|---|
+| 部署后开启 linger（polkit 允许） | PASS：提示「Linger enabled」，`loginctl` 显示 `Linger=yes`；测试结束后已 `disable-linger` 恢复原状 |
+| 用户模式 `clashdock update` | PASS：本机 mixed-port 通道因占位节点不可用而失败，按设计回退直连；内核 bundled → v1.19.32、geo、Web UI 均更新，用户服务重启，API 报告 v1.19.32，`/ui/` 返回 200 |
+| 用户模式自更新（0.2.6 → 稳定版 0.3.0） | PASS：下载并通过 SHA-256 校验；首次接管把 `~/.local/bin/clashdock` 原子替换为指向 `current` 的符号链接，全程免 sudo；保留 0.2.6 基线并记录 `last-stable` |
+| 卸载（服务 + 本体 + 数据，自更新后的符号链接布局） | PASS：单元、本体、数据目录全部删除，无残留进程，端口释放 |

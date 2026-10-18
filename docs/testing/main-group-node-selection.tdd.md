@@ -35,3 +35,19 @@
 
 - RED：`d9fbf24`、`267d87b`
 - GREEN：`419ae38`
+
+## 实机验证（2026-10-18，T-005）
+
+环境：本机 systemd 用户实例 + 真实 mihomo v1.19.27，用户模式部署（本机无免密 sudo，完整模式未测）；
+本地 YAML 订阅含 `Airport Main`（不命中默认关键词）、`Streaming`、`Auto` 三个分组，节点为不可达的
+socks5 占位。以非 TTY 回退喂答案驱动，结束后经 `clashdock uninstall` 清理。
+
+| 场景 | 结果 |
+|---|---|
+| 未识别主选择组时直接回车 | PASS：提示无法切换，`customize.json` 哈希不变 |
+| 输入不命中任何 select 组的关键词 | PASS：报错，`customize.json` 哈希不变 |
+| 输入有效关键词 `Airport` | PASS：关键词插到 `main_group_keywords` 首位并立即识别；摘要只显示 `Airport Main` 的当前运行节点 |
+| 节点切换（热切换） | PASS：Clash API `now` 变为所选节点；生效配置与运行时配置哈希不变 |
+| 固定节点 | PASS：API 实时切换；生效配置、运行时配置、订阅配置首成员均为所选节点；用户服务重启后 `now` 保持所选节点 |
+
+未覆盖：完整模式（系统服务，`sysd.SyncAndRestart`）的固定节点重启链路，已登记 T-010。
