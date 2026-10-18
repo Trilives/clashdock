@@ -21,6 +21,7 @@
 | Go | 构建、测试、`go vet`、`gofmt` | `go.mod` 声明 `go 1.26`；CI 用 `setup-go` 读取 `go.mod` |
 | make | `make build` / `test` / `vet` / `fmt` / `release-snapshot` | 见 `Makefile` |
 | GoReleaser | 打包 tar.gz 与 .deb；`make release-snapshot`、tag 触发的 CI 发布 | v2（`.github/workflows/release.yml` 用 `~> v2`） |
+| GitHub Actions | `test.yml`：push 到 `main` 与 PR 时跑 gofmt / `go vet` / `go test -race`；`release.yml`：`v*` tag 发布 | `.github/workflows/` |
 | bash、curl、gunzip | `scripts/*.sh`（如打包前预下载内核与规则的 `fetch-deb-deps.sh`） | 脚本 shebang 为 `#!/usr/bin/env bash` |
 | tmux | TUI 逐屏验证（`send-keys` / `capture-pane`） | 见 ARCHITECTURE §10 |
 | systemd（系统实例与用户实例）、sudo | 完整模式 / 用户模式的实机验证 | 见 `docs/testing/*.tdd.md` |

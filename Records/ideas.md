@@ -18,7 +18,7 @@
 ### T-008 为 push / PR 增加测试 CI
 
 - 优先级：P1
-- 状态：待开始
+- 状态：待验证（`.github/workflows/test.yml` 已提交并在本地按相同命令通过；需推送到 GitHub 后确认首次运行通过）
 - 来源：[MAINTENANCE.md §3](../docs/MAINTENANCE.md#3-长期改进方向)：`release.yml` 只在 `v*` tag 时打包，不跑测试
 - 验收标准：
   - 新工作流在推送到 `main` 与 PR 时运行 `gofmt -l cmd internal`（有输出即失败）、`go vet ./...`、`go test ./...`
