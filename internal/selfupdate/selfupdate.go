@@ -25,20 +25,10 @@
 package selfupdate
 
 import (
-	"archive/tar"
-	"compress/gzip"
-	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
-	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
-	"sort"
 	"strings"
-	"time"
 
 	"github.com/Trilives/clashdock/internal/execx"
 	"github.com/Trilives/clashdock/internal/fetchx"
@@ -60,62 +50,6 @@ const (
 	Stable  Channel = "stable"
 	Preview Channel = "preview"
 )
-
-type ghRelease struct {
-	TagName    string `json:"tag_name"`
-	Prerelease bool   `json:"prerelease"`
-	Assets     []struct {
-		Name               string `json:"name"`
-		BrowserDownloadURL string `json:"browser_download_url"`
-	} `json:"assets"`
-}
-
-func fetchRelease(f *fetchx.Fetcher, channel Channel) (ghRelease, error) {
-	if channel == Preview {
-		var rels []ghRelease
-		if err := f.ReadJSON("https://api.github.com/repos/"+Repo+"/releases?per_page=1", &rels); err != nil {
-			return ghRelease{}, err
-		}
-		if len(rels) == 0 {
-			return ghRelease{}, fmt.Errorf("%s", i18n.T("仓库还没有任何发行版"))
-		}
-		return rels[0], nil
-	}
-	var rel ghRelease
-	err := f.ReadJSON("https://api.github.com/repos/"+Repo+"/releases/latest", &rel)
-	return rel, err
-}
-
-func assetName(version string) string {
-	return fmt.Sprintf("clashdock_%s_linux_%s.tar.gz", version, releaseArch())
-}
-
-func releaseArch() string {
-	return releaseArchFor(runtime.GOARCH)
-}
-
-func releaseArchFor(goarch string) string {
-	if goarch == "arm" {
-		return "armv7"
-	}
-	return goarch
-}
-
-func findAssetURL(rel ghRelease, name string) string {
-	for _, a := range rel.Assets {
-		if a.Name == name {
-			return a.BrowserDownloadURL
-		}
-	}
-	return ""
-}
-
-func versionsDir(p paths.Paths) string    { return filepath.Join(p.State, "clashdock-versions") }
-func currentLink(p paths.Paths) string    { return filepath.Join(versionsDir(p), "current") }
-func lastStableLink(p paths.Paths) string { return filepath.Join(versionsDir(p), "last-stable") }
-func versionBin(p paths.Paths, version string) string {
-	return filepath.Join(versionsDir(p), version, "clashdock")
-}
 
 // LatestVersion 只查询最新版本号（不下载），供菜单展示"当前 vX，最新 vY"。
 func LatestVersion(p paths.Paths, channel Channel) (string, error) {
@@ -173,55 +107,16 @@ func Update(p paths.Paths, currentVersion string, channel Channel) (string, bool
 	}
 
 	name := assetName(version)
-	assetURL := findAssetURL(rel, name)
-	if assetURL == "" {
-		return "", false, fmt.Errorf(i18n.T("未找到本机架构的发行包: %s"), name)
-	}
-	sumsURL := findAssetURL(rel, "checksums.txt")
-	if sumsURL == "" {
-		return "", false, fmt.Errorf("%s", i18n.T("发行版缺少 checksums.txt，无法校验完整性"))
-	}
-
-	if err := os.MkdirAll(p.Downloads, 0o755); err != nil {
-		return "", false, err
-	}
 	archivePath := filepath.Join(p.Downloads, name)
 	sumsPath := filepath.Join(p.Downloads, name+".sha256")
 	defer os.Remove(archivePath)
 	defer os.Remove(sumsPath)
-
-	execx.Info(i18n.T("下载 clashdock: ") + assetURL)
-	if err := f.FetchFile(kernel.Mirror(assetURL, s.GithubMirror), archivePath); err != nil {
+	if err := downloadVerified(f, s, rel, name, archivePath, sumsPath); err != nil {
 		return "", false, err
 	}
-	if err := f.FetchFile(kernel.Mirror(sumsURL, s.GithubMirror), sumsPath); err != nil {
-		return "", false, err
-	}
-	if err := verifySHA256(archivePath, sumsPath, name); err != nil {
-		return "", false, err
-	}
-	execx.Ok(i18n.T("SHA-256 校验通过。"))
-
-	verDir := filepath.Join(versionsDir(p), version)
-	if err := os.RemoveAll(verDir); err != nil {
-		return "", false, err
-	}
-	if err := os.MkdirAll(verDir, 0o755); err != nil {
-		return "", false, err
-	}
-	if err := extractTarGz(archivePath, verDir); err != nil {
-		return "", false, err
-	}
-	newBin, err := prepareExtractedBinary(p, version)
+	newBin, err := installVersion(p, version, archivePath)
 	if err != nil {
 		return "", false, err
-	}
-	if err := os.Chmod(newBin, 0o755); err != nil {
-		return "", false, err
-	}
-	if err := probeBinary(newBin); err != nil {
-		os.RemoveAll(verDir)
-		return "", false, fmt.Errorf(i18n.T("新版本二进制无法正常运行，已放弃更新：%w"), err)
 	}
 
 	if err := ensureManagedByCurrentLink(p, currentVersion); err != nil {
@@ -258,269 +153,56 @@ func Update(p paths.Paths, currentVersion string, channel Channel) (string, bool
 	return version, false, nil
 }
 
-func exeSelf() string {
-	p, err := os.Executable()
-	if err != nil {
-		return ""
+// downloadVerified 下载本机架构的发行包与 checksums.txt 到给定路径，并校验 SHA-256。
+func downloadVerified(f *fetchx.Fetcher, s kernel.Settings, rel ghRelease, name, archivePath, sumsPath string) error {
+	assetURL := findAssetURL(rel, name)
+	if assetURL == "" {
+		return fmt.Errorf(i18n.T("未找到本机架构的发行包: %s"), name)
 	}
-	return p
+	sumsURL := findAssetURL(rel, "checksums.txt")
+	if sumsURL == "" {
+		return fmt.Errorf("%s", i18n.T("发行版缺少 checksums.txt，无法校验完整性"))
+	}
+	if err := os.MkdirAll(filepath.Dir(archivePath), 0o755); err != nil {
+		return err
+	}
+	execx.Info(i18n.T("下载 clashdock: ") + assetURL)
+	if err := f.FetchFile(kernel.Mirror(assetURL, s.GithubMirror), archivePath); err != nil {
+		return err
+	}
+	if err := f.FetchFile(kernel.Mirror(sumsURL, s.GithubMirror), sumsPath); err != nil {
+		return err
+	}
+	if err := verifySHA256(archivePath, sumsPath, name); err != nil {
+		return err
+	}
+	execx.Ok(i18n.T("SHA-256 校验通过。"))
+	return nil
 }
 
-// ensureManagedByCurrentLink 首次自更新迁移：若正在运行的可执行文件还不是
-// current 符号链接（apt 刚装好的普通文件），把它搬进版本目录当基线版本，
-// 再把该路径替换成指向 current 的符号链接。之后的更新只需重写 current。
-//
-// 判断"是否已迁移"不能用 os.Readlink(exe)：os.Executable() 在 Linux 上读
-// /proc/self/exe，内核已经把符号链接完全解析成真实文件路径，exe 本身永远
-// 不是符号链接（迁移与否都一样），Readlink 对它总会失败。真正可靠的判断是
-// 看这个已解析的真实路径是否已经落在 versionsDir 下——已经在，说明早迁移
-// 过了；如果这里误判成"未迁移"又重新执行一遍复制，会把正在运行的二进制
-// 自身当成迁移源尝试原地覆写自己，触发 "text file busy"。
-func ensureManagedByCurrentLink(p paths.Paths, currentVersion string) error {
-	if err := os.MkdirAll(versionsDir(p), 0o755); err != nil {
-		return err
+// installVersion 把已校验的发行包解压到独立版本目录、归一化出 <version>/clashdock 并试跑；
+// 试跑失败时删除该版本目录。返回新版本二进制路径。
+func installVersion(p paths.Paths, version, archivePath string) (string, error) {
+	verDir := filepath.Join(versionsDir(p), version)
+	if err := os.RemoveAll(verDir); err != nil {
+		return "", err
 	}
-	exe := exeSelf()
-	if exe == "" {
-		return fmt.Errorf("%s", i18n.T("无法定位当前运行的可执行文件"))
+	if err := os.MkdirAll(verDir, 0o755); err != nil {
+		return "", err
 	}
-	if strings.HasPrefix(exe, versionsDir(p)+string(os.PathSeparator)) {
-		return nil // 已经落在版本目录下，说明早迁移过了
+	if err := extractTarGz(archivePath, verDir); err != nil {
+		return "", err
 	}
-	baseline := strings.TrimPrefix(currentVersion, "v")
-	if baseline == "" || baseline == "dev" {
-		baseline = "installed"
-	}
-	baselineBin := versionBin(p, baseline)
-	if err := os.MkdirAll(filepath.Dir(baselineBin), 0o755); err != nil {
-		return err
-	}
-	if err := copyFileMode(exe, baselineBin, 0o755); err != nil {
-		return err
-	}
-	if err := atomicSymlink(baselineBin, currentLink(p)); err != nil {
-		return err
-	}
-	execx.Info(fmt.Sprintf(i18n.T("已把当前运行的可执行文件迁移为托管版本 %s。"), baseline))
-	return linkExecutable(currentLink(p), exe, p.UserMode)
-}
-
-// linkExecutable 把可执行文件路径替换为指向 current 的符号链接。用户模式的本体在
-// ~/.local/bin（当前用户可写），直接原子替换、无需 root；其余情况（/usr/bin 等）保持
-// 原先经 sudo 的显式接管，不在未经确认时替换任意可写目录里的二进制。
-func linkExecutable(current, exe string, userMode bool) error {
-	if userMode && dirWritable(filepath.Dir(exe)) {
-		return atomicSymlink(current, exe)
-	}
-	reason := i18n.T("首次自更新需要把 ") + exe + i18n.T(" 接管为指向托管版本的符号链接")
-	_, err := execx.RunRoot([]string{"ln", "-sfn", current, exe}, reason, nil)
-	return err
-}
-
-// dirWritable 探测目录是否可创建文件（access(2) 在 root / ACL 场景下不可靠，直接试写）。
-func dirWritable(dir string) bool {
-	f, err := os.CreateTemp(dir, ".clashdock-wtest-*")
-	if err != nil {
-		return false
-	}
-	name := f.Name()
-	f.Close()
-	os.Remove(name)
-	return true
-}
-
-// swapCurrentLink 原子重写 current 符号链接指向 target（versionsDir 属当前
-// 用户所有，不需要 root）。
-func swapCurrentLink(p paths.Paths, target string) error {
-	return atomicSymlink(target, currentLink(p))
-}
-
-func atomicSymlink(target, linkPath string) error {
-	tmp := linkPath + ".new"
-	os.Remove(tmp)
-	if err := os.Symlink(target, tmp); err != nil {
-		return err
-	}
-	return os.Rename(tmp, linkPath)
-}
-
-func copyFileMode(src, dst string, mode os.FileMode) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, mode)
-	if err != nil {
-		return err
-	}
-	if _, err := io.Copy(out, in); err != nil {
-		out.Close()
-		return err
-	}
-	return out.Close()
-}
-
-// prepareExtractedBinary normalizes GoReleaser archives into the self-update
-// managed layout. Portable tarballs are wrapped in a top-level directory, while
-// self-update expects <versions>/<version>/clashdock for stable symlink targets.
-func prepareExtractedBinary(p paths.Paths, version string) (string, error) {
-	newBin := versionBin(p, version)
-	if st, err := os.Stat(newBin); err == nil && !st.IsDir() {
-		return newBin, nil
-	}
-	candidate, err := findExtractedBinary(filepath.Dir(newBin))
+	newBin, err := prepareExtractedBinary(p, version)
 	if err != nil {
 		return "", err
 	}
-	if err := copyFileMode(candidate, newBin, 0o755); err != nil {
+	if err := os.Chmod(newBin, 0o755); err != nil {
 		return "", err
+	}
+	if err := probeBinary(newBin); err != nil {
+		os.RemoveAll(verDir)
+		return "", fmt.Errorf(i18n.T("新版本二进制无法正常运行，已放弃更新：%w"), err)
 	}
 	return newBin, nil
-}
-
-func findExtractedBinary(root string) (string, error) {
-	var matches []string
-	if err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() || filepath.Base(path) != "clashdock" {
-			return nil
-		}
-		if st, err := d.Info(); err == nil && st.Mode().IsRegular() {
-			matches = append(matches, path)
-		}
-		return nil
-	}); err != nil {
-		return "", err
-	}
-	if len(matches) == 0 {
-		return "", fmt.Errorf("%s", i18n.T("解压后未找到 clashdock 可执行文件"))
-	}
-	sort.Slice(matches, func(i, j int) bool {
-		if strings.Count(matches[i], string(os.PathSeparator)) == strings.Count(matches[j], string(os.PathSeparator)) {
-			return matches[i] < matches[j]
-		}
-		return strings.Count(matches[i], string(os.PathSeparator)) < strings.Count(matches[j], string(os.PathSeparator))
-	})
-	return matches[0], nil
-}
-
-// probeBinary 试跑新二进制，确认它能正常执行（"version" 子命令，无需 root/网络）。
-func probeBinary(path string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	out, err := exec.CommandContext(ctx, path, "version").CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("%s: %w", strings.TrimSpace(string(out)), err)
-	}
-	return nil
-}
-
-// pruneOldVersions 只保留 current 指向的版本、紧邻上一个版本、以及 last-stable
-// 记录的稳定版（如果三者不同的话），其余版本目录删除。
-func pruneOldVersions(p paths.Paths, keepVersion string) {
-	entries, err := os.ReadDir(versionsDir(p))
-	if err != nil {
-		return
-	}
-	var versions []string
-	for _, e := range entries {
-		if e.IsDir() && e.Name() != "current" {
-			versions = append(versions, e.Name())
-		}
-	}
-	sort.Strings(versions)
-	keep := map[string]bool{keepVersion: true}
-	if idx := sort.SearchStrings(versions, keepVersion); idx > 0 {
-		keep[versions[idx-1]] = true
-	}
-	if target, err := os.Readlink(lastStableLink(p)); err == nil {
-		keep[filepath.Base(filepath.Dir(target))] = true
-	}
-	for _, v := range versions {
-		if !keep[v] {
-			os.RemoveAll(filepath.Join(versionsDir(p), v))
-		}
-	}
-}
-
-func verifySHA256(archivePath, sumsPath, name string) error {
-	sums, err := os.ReadFile(sumsPath)
-	if err != nil {
-		return err
-	}
-	var want string
-	for _, line := range strings.Split(string(sums), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) == 2 && strings.TrimPrefix(fields[1], "*") == name {
-			want = strings.ToLower(fields[0])
-			break
-		}
-	}
-	if want == "" {
-		return fmt.Errorf(i18n.T("checksums.txt 里没有 %s 的记录"), name)
-	}
-	f, err := os.Open(archivePath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return err
-	}
-	got := hex.EncodeToString(h.Sum(nil))
-	if got != want {
-		return fmt.Errorf(i18n.T("SHA-256 校验失败：期望 %s，实际 %s"), want, got)
-	}
-	return nil
-}
-
-func extractTarGz(archive, outDir string) error {
-	f, err := os.Open(archive)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	gz, err := gzip.NewReader(f)
-	if err != nil {
-		return err
-	}
-	defer gz.Close()
-	tr := tar.NewReader(gz)
-	cleanOut := filepath.Clean(outDir)
-	for {
-		hdr, err := tr.Next()
-		if err == io.EOF {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		target := filepath.Join(outDir, hdr.Name)
-		if target != cleanOut && !strings.HasPrefix(target, cleanOut+string(os.PathSeparator)) {
-			return fmt.Errorf(i18n.T("非法压缩条目路径: %s"), hdr.Name)
-		}
-		switch hdr.Typeflag {
-		case tar.TypeDir:
-			if err := os.MkdirAll(target, 0o755); err != nil {
-				return err
-			}
-		case tar.TypeReg:
-			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-				return err
-			}
-			out, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.FileMode(hdr.Mode&0o777))
-			if err != nil {
-				return err
-			}
-			if _, err := io.Copy(out, tr); err != nil {
-				out.Close()
-				return err
-			}
-			out.Close()
-		}
-	}
 }

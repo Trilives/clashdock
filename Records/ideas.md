@@ -13,7 +13,7 @@
 
 ## 待办
 
-按优先级排列；T-001 ~ T-003、T-007 已完成，见 [done.md](./done.md) 2026-10-18。
+按优先级排列；T-001 ~ T-004、T-007 已完成，见 [done.md](./done.md) 2026-10-18。
 
 ### T-008 为 push / PR 增加测试 CI
 
@@ -25,17 +25,6 @@
   - Go 版本取自 `go.mod`（与 `release.yml` 一致）
   - 不改变现有 `release.yml` 的发布行为；在 GitHub 上首次运行通过
 - 记录：不需要
-
-### T-004 拆分 `internal/selfupdate/selfupdate.go`
-
-- 优先级：P2
-- 状态：待开始
-- 来源：526 行，超过 500 行软上限；`Update` 99 行超过函数 80 行软上限
-- 验收标准：
-  - 拆分后每个文件不超过 500 行，`Update` 不超过 80 行
-  - 行为不变；`internal/selfupdate/selfupdate_test.go` 现有测试全部通过
-  - `gofmt`、`go vet ./...`、`go test ./...` 通过
-- 记录：不需要（单包重构）
 
 ### T-005 主选择组节点选择的实机验证
 

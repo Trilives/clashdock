@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/Trilives/clashdock/internal/kernel"
 	"github.com/Trilives/clashdock/internal/paths"
 )
 
@@ -284,5 +285,50 @@ func TestLinkExecutableInWritableDirNeedsNoRoot(t *testing.T) {
 	target, err := os.Readlink(exe)
 	if err != nil || target != current {
 		t.Fatalf("exe should now link to current, got %q (%v)", target, err)
+	}
+}
+
+func TestInstallVersionNormalizesWrappedArchiveAndProbes(t *testing.T) {
+	dir := t.TempDir()
+	p := paths.Paths{State: filepath.Join(dir, "state")}
+	archive := writeTarGz(t, dir, map[string]string{
+		"clashdock_1.2.3_linux_amd64/clashdock": "#!/bin/sh\necho 1.2.3\n",
+	})
+
+	bin, err := installVersion(p, "1.2.3", archive)
+
+	if err != nil {
+		t.Fatalf("installVersion: %v", err)
+	}
+	if bin != versionBin(p, "1.2.3") {
+		t.Fatalf("bin = %q, want %q", bin, versionBin(p, "1.2.3"))
+	}
+	if st, err := os.Stat(bin); err != nil || st.Mode().Perm()&0o100 == 0 {
+		t.Fatalf("installed binary missing or not executable: %v", err)
+	}
+}
+
+func TestInstallVersionRemovesVersionDirWhenProbeFails(t *testing.T) {
+	dir := t.TempDir()
+	p := paths.Paths{State: filepath.Join(dir, "state")}
+	archive := writeTarGz(t, dir, map[string]string{"clashdock": "#!/bin/sh\nexit 3\n"})
+
+	if _, err := installVersion(p, "9.9.9", archive); err == nil {
+		t.Fatal("expected probe failure")
+	}
+
+	if _, err := os.Stat(filepath.Join(versionsDir(p), "9.9.9")); !os.IsNotExist(err) {
+		t.Fatal("version dir should be removed after a failed probe")
+	}
+}
+
+func TestDownloadVerifiedRejectsReleaseWithoutAssets(t *testing.T) {
+	dir := t.TempDir()
+	name := "clashdock_1.0.0_linux_amd64.tar.gz"
+	var rel ghRelease
+
+	// nil fetcher: returning before any download proves the asset checks run first.
+	if err := downloadVerified(nil, kernel.Settings{}, rel, name, filepath.Join(dir, name), filepath.Join(dir, "sums")); err == nil {
+		t.Fatal("expected missing asset error")
 	}
 }

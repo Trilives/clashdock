@@ -18,6 +18,7 @@
 - T-007：首次清理——MODULARITY 包边界与命名示例更新、COMMANDS 用户模式条目精简、`.gitignore` 去除 Python 条目、
   删除一次性迁移脚本 `scripts/migrate-runtime-dir.sh`（可从 tag `v0.3.0` 取回）、更正「四类提示」等过时注释。
 - 记录：[2026-10-18-project-management-docs.md](tasks/2026-10-18-project-management-docs.md)
+- T-004：`internal/selfupdate/selfupdate.go`（526 行）拆为 selfupdate（公开 API 与 Update 流程）、release（发行版查询）、layout（版本目录 / 符号链接 / 首次接管 / 清理）、install（校验 / 解压 / 归一化 / 试跑）；`Update` 由 99 行降到 60 行（抽出 `downloadVerified` / `installVersion`），补充对应测试，覆盖率 44.7% → 51.5%。
 - T-003：`internal/flows/nodeselect.go`（544 行）拆为 nodegroups（主组识别 / 成员分类）、nodestatus（测速 / 状态标签）、nodeselect（选择与持久化）三个文件；`pickNode` 由 97 行降到 56 行（抽出 `connectRuntime` / `buildRegionMenu` / `preferredIndex`）；测试按职责拆分并补充 helper 与 `collectMembers` 测试。
 - T-002：`internal/kernel/kernel.go`（657 行）按职责拆为 kernel / release / download / update / archive / seed 六个文件（均 ≤ 170 行），`extract` 拆出 tar.gz / zip 两个 helper，内核解压抽为 `installGzipBinary`；新增该包首批单元测试，覆盖率 0% → 56.7%。
 
