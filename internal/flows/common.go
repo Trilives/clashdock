@@ -1,7 +1,7 @@
 // Package flows 交互流程编排（对应 Python 版 flows/ + 各模块 menu_flow）：
 // 初始化 / 更改配置 / 网络测试 / 卸载 / 切换节点 / 定制层编辑 / 主菜单。
 //
-// 结构与 Python 版一比一对应：tui 的四类提示为阻塞调用，esc/^R 以
+// 结构与 Python 版一比一对应：tui 的五类提示为阻塞调用，esc/^R 以
 // ErrSaveExit/ErrCancelled 错误返回，事务语义由 txn.Run 承载。
 package flows
 

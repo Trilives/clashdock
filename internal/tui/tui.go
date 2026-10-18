@@ -1,5 +1,5 @@
 // Package tui 交互组件（对应 Python 版 menu.py + keys.py）：Bubble Tea 实现的
-// 四类阻塞式提示 Select / MultiSelect / Ask / Confirm。
+// 五类阻塞式提示 Select / MultiSelect / Ask / Confirm / Form。
 //
 // 每次调用运行一个内联 tea.Program（退出后视图留在终端，与 Python 版自绘盒子的
 // 观感一致），因此上层 flows 保持命令式结构，可与 Python 版一比一对应。

@@ -9,8 +9,8 @@
 // 所有 root 操作经 execx.RunRoot（非 root 自动 sudo，凭证会话内缓存）。
 //
 // 注意：本目录曾用 /etc/mihomo（旧版遗留），自本次改名起不再兼容旧路径——
-// 旧版本升级上来的部署需要先完整卸载旧版本（或运行
-// scripts/migrate-runtime-dir.sh 清理），再重新初始化。
+// 旧版本升级上来的部署需要先完整卸载旧版本（v0.3.0 及更早的源码树中附有
+// scripts/migrate-runtime-dir.sh 清理脚本，可从 Git 历史取回），再重新初始化。
 package sysd
 
 import (

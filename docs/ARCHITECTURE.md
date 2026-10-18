@@ -52,7 +52,7 @@ url-test 聚合组）见 `overlay.go` / `regiongroups.go`，默认关闭，且�
 
 TUI（`internal/tui`，Bubble Tea）提供五类阻塞式提示：Select / MultiSelect / Ask /
 Confirm / **Form**。Form 是单屏表单（`form.go`）：多字段汇总到同一盒子里一次填写、
-统一提交，字段可随其它字段的当前值动态显隐/改标签（初始化用它，见第 4 节），终端
+统一提交，字段可随其它字段的当前值动态显隐/改标签（初始化用它，见本节下文），终端
 过矮时纵向滚动并按分节展示。每次调用运行一个内联 `tea.Program`，因此流程层保持
 命令式结构。键位契约：
 

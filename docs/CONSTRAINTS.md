@@ -91,4 +91,5 @@ Go 文件另有 MODULARITY.md 的目标值与软上限，以 MODULARITY.md 为�
   （与 git 历史一致）。
 - **版本与发布**：版本号在 `VERSION`；推送 `v*` tag 触发 `release.yml`；带预发布后缀的 tag
   自动标为 GitHub prerelease（ARCHITECTURE §8）。
-- **文档语言**：现有文档以中文为主（`docs/testing/` 中有一篇英文）；是否强制统一语言，待人工确认。
+- **文档语言**：项目文档与任务记录使用中文；代码标识符、命令、路径、日志原文保持原样。
+  早于本约定的英文记录（`docs/testing/ideas-preview-0.2.6-beta.2.tdd.md`）作为历史保留，不翻译。

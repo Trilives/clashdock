@@ -37,16 +37,19 @@
 
 ## 包边界
 
-现有边界保持如下：
+各包的完整职责清单以 [ARCHITECTURE.md §9](ARCHITECTURE.md#9-包结构) 为准；此处只列带约束的边界：
 
 - `cmd/clashdock`：只做 CLI 分发、版本输出、顶层子命令入口。
 - `internal/flows`：交互流程编排，允许调用领域包，但不直接承载复杂转换或下载实现。
 - `internal/subscription`：订阅拉取、识别、转换、非破坏性 DNS patch、overlay、active 切换。
 - `internal/kernel`：mihomo/UI/geo 下载、系统包种子接管、资源更新策略。
-- `internal/sysd`：systemd unit、运行时暂存、服务/面板/自愈/定时器管理。
+- `internal/sysd`：systemd unit、运行时暂存、服务/自愈/定时器管理（Web UI 走内置控制器路径，无独立面板单元）。
 - `internal/config`：`customize.json` 默认值、字段元数据、读写兼容性。
 - `internal/txn`：事务和回滚原语，不知道业务语义。
 - `internal/tui`：通用交互组件，不依赖业务包。
+- `internal/usermode`：用户模式领域包（模式判定、XDG 布局、运行时、用户级服务），不依赖 `flows` / `sysd`。
+- `internal/runtimesvc`：按运行模式把服务操作分发到 `sysd` 或 `usermode`，被 `flows` 与 `subscription` 调用。
+- `internal/i18n`：界面文案翻译表，不依赖业务包；地区 / 分组匹配关键词等数据不翻译。
 
 依赖方向：
 
@@ -54,6 +57,7 @@
 - 领域包不得依赖 `flows`。
 - `tui`、`txn`、`paths`、`errs` 应保持底层工具属性，避免反向依赖业务。
 - `sysd` 可以依赖 `paths/config/execx/jsonx`，不得依赖 `flows`。
+- `usermode` 不得依赖 `flows` / `sysd`；只有 `runtimesvc` 同时依赖 `sysd` 与 `usermode`。
 - 订阅嵌套字段采用 copy-on-write：追加列表规则时返回新切片，保留订阅项在前并稳定去重，
   不得原地修改解析后的订阅 map、订阅切片或定制层输入。
 
@@ -64,13 +68,13 @@
 推荐模式：
 
 - `initflow.go`：初始化主流程和少量只读步骤 glue。
-- `init_resources.go`：初始化资源判定、种子使用、下载兜底。
+- `initform.go`：初始化单屏表单的字段定义与动态显隐。
 - `service.go`：主 systemd 服务。
 - `resilience.go`：NetworkManager/watchdog 安装卸载。
 - `healthcheck.go`：watchdog 探针实现。
 - `selfupdate.go`：clashdock 自更新（版本化目录 + 原子符号链接切换）。
 
-测试文件跟随被测职责命名，例如 `init_resources_test.go`，不要把所有流程测试堆进
+测试文件跟随被测职责命名，例如 `initform_test.go`，不要把所有流程测试堆进
 `initflow_test.go`。
 
 ## 修改流程

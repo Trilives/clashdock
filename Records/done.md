@@ -14,6 +14,10 @@
   ARCHITECTURE 增加新增模块流程，ideas.md 登记已知任务，各 Markdown 顶部声明行数上限。
 - 经人工同意确定各类文件行数上限（README 200、其它 Markdown 300、Shell 200、YAML 300、模板与
   Makefile 100，golden 数据 / go.sum / 法律文本豁免，接近 = 90%）；ARCHITECTURE §6.5 拆到 `docs/USERMODE.md`；README 的数据目录与目录结构改为摘要 + 链接（降到 90% 阈值以下）。
+- T-001：确定清理周期（稳定版发布前 / 任务清空时 / 满 30 天）、文档语言（中文）与各任务优先级；新增 T-008（测试 CI）。
+- T-007：首次清理——MODULARITY 包边界与命名示例更新、COMMANDS 用户模式条目精简、`.gitignore` 去除 Python 条目、
+  删除一次性迁移脚本 `scripts/migrate-runtime-dir.sh`（可从 tag `v0.3.0` 取回）、更正「四类提示」等过时注释。
+- 记录：[2026-10-18-project-management-docs.md](tasks/2026-10-18-project-management-docs.md)
 
 ## 2026-09-30
 
