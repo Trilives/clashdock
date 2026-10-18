@@ -27,6 +27,9 @@
 | 内容 / 位置 | 问题 | 理由 / 证据 | 建议处理 |
 |---|---|---|---|
 
+v0.3.1 发布前复查（2026-10-18，任务列表清空时）：无新的重复或过时候选；各类文件均在声明上限内，
+Markdown 链接有效；贴近上限的文件与函数见第 3 节。
+
 ### 2.1 最近一次清理结果（2026-10-18，人工已批准）
 
 | 候选 | 结论 | 处理 |
@@ -51,7 +54,7 @@
 |---|---|---|
 | 测试覆盖率 | 全仓约 30%（`docs/testing/` 记录 29.9%–30.7%），目标 80%；2026-10-18 `kernel` 0% → 56.7%、`selfupdate` 44.7% → 51.5% | `firewall`、`proxyenv`、`jsonx`、`configfile` 仍无测试文件；`flows` 约 20%、`usermode` 71.5%（2026-10-18）。每个任务至少为改动部分补测试 |
 | CI 运行测试 | `.github/workflows/test.yml`（push 到 `main` / PR 时跑 gofmt、vet、race 测试），2026-10-18 首次运行通过 | Actions 提示 Node 20 弃用，`actions/checkout` / `setup-go` 有新大版本时升级 |
-| 超过软上限的文件 | 无（2026-10-18 T-002 ~ T-004 已拆分 `kernel.go`、`nodeselect.go`、`selfupdate.go`） | 每次清理时用 MODULARITY.md「修改流程」的 `wc -l` 复查 |
-| 超过 80 行软上限的函数（均未超 120 行硬上限） | `flows.Init` 112、`subscription.Apply` 91、`sysd.Install` 88、`flows.editList` 86、`subscription.ApplyOverlay` 85（`Update`、`pickNode`、`extract` 已于 T-002 ~ T-004 拆短） | 修改这些函数时顺带拆分；`i18n/strings_flows_usermode.go` 的 `init`（97 行）是翻译表，属 MODULARITY 允许的集中表例外 |
+| 超过软上限的文件 | 无（2026-10-18 T-002 ~ T-004 已拆分 `kernel.go`、`nodeselect.go`、`selfupdate.go`）；贴近软上限：`config/config.go` 499 / 500、`flows/modify.go` 384 / 400（v0.3.1 发布前复查） | 每次清理时用 MODULARITY.md「修改流程」的 `wc -l` 复查；再往这两个文件加内容前先拆分 |
+| 超过 80 行软上限的函数（均未超 120 行硬上限） | `flows.Init` 111、`subscription.Apply` 91、`sysd.Install` 86、`flows.editList` 86、`subscription.ApplyOverlay` 85（`Update`、`pickNode`、`extract` 已于 T-002 ~ T-004 拆短） | 修改这些函数时顺带拆分；`i18n/strings_flows_usermode.go` 的 `init`（116 行）是翻译表，属 MODULARITY 允许的集中表例外 |
 | 文档长度 | ARCHITECTURE.md 约 266 行，接近 270 行阈值 | 再扩写前先按章节继续拆分（候选：§4 交互契约、§8 自更新） |
 | 实机验证 | 2026-10-18 用户模式（T-005 / T-006）、完整模式（T-010）、用户模式按需 TUN（T-009）均已实机验证 | 改动服务 / 提权 / 网络路径时按对应记录的场景复验 |

@@ -9,6 +9,8 @@
 
 ## 2026-10-18
 
+- 发布 v0.3.1：用户模式按需 TUN（T-009）、完整模式不再静默删除 sing-box（T-011）、初始化回退误报修复与内部重构；发布前按 MAINTENANCE 复查，无新清理候选。记录：[2026-10-18-release-v0.3.1.md](tasks/2026-10-18-release-v0.3.1.md)
+- T-011：完整模式安装不再静默删除 `sing-box.service`——初始化时先询问（默认否），同意才停止并禁用（保留单元文件）；拒绝且端口被占用时明确报错并回退；`clashdock update` 等非交互路径只提示。单元测试与测试机实机验证通过。记录：[2026-10-18-singbox-conflict.md](tasks/2026-10-18-singbox-conflict.md)
 - T-008：测试 CI 推送后首次运行通过（gofmt、vet、race 测试，47s）。
 - T-010：完整模式在测试机实机验证通过——固定节点经 `sysd.SyncAndRestart` 三处落盘并跨重启保持，`clashdock update` 下载后完整 `Install`、服务使用新内核；修复 sudo 授权失败时 init 回退误报「回退失败」。测试机已恢复原状。记录：[2026-10-18-full-mode-verification.md](tasks/2026-10-18-full-mode-verification.md)
 - T-009：用户模式可按需开启 TUN——主菜单确认后经 sudo `setcap` 给用户目录内核授予网络能力（可取消、不保存密码、失败回退并撤销能力），关闭无需 sudo，内核更新后询问重新授权；单元测试与真实 sudo 提示下的实机验证通过。新增 T-011（完整模式安装会删除 sing-box 服务）。记录：[2026-10-18-user-mode-tun.md](tasks/2026-10-18-user-mode-tun.md)

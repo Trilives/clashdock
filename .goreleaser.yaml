@@ -111,15 +111,14 @@ checksum:
 release:
   prerelease: auto
   header: |
-    Highlights of v0.3.0 (vs v0.2.6):
+    Highlights of v0.3.1 (vs v0.3.0):
 
-    - New **user mode** (replaces portable mode): a second mainstream way to run clashdock with no root at all. Extract the tar.gz and run `./clashdock`; it installs itself to `~/.local/bin`, keeps data in `~/.local/share/clashdock`, and runs mihomo as a `systemctl --user` service (falling back to a detached background process where no user systemd instance exists). No foreground process is needed: node switching, pinning, config changes, pause/resume, updates and uninstall all work against the user service, from the menu or via `clashdock pause|resume|update|uninstall`.
-    - User-mode setup checks whether the proxy/controller ports are already taken (common on shared machines) and walks you through picking free ones. The controller port is now configurable (`controller_port`, default 9090).
-    - Data from the old portable mode (`clashdock-data` next to the package) is detected and can be migrated in one step; the old directory is left untouched.
-    - The tar.gz no longer ships `tool/update.sh`; updates happen inside clashdock. `sudo ./install.sh` still installs the same package as the full system service, equivalent to the .deb.
-    - Fixes: ports changed in Deployment Settings were saved as strings and ignored by the running config; updating the Web UI now redeploys; piped (non-TTY) input is no longer swallowed; 20 missing English translations added, with a test that keeps coverage complete.
+    - **TUN in user mode, on demand**: the user-mode menu can now enable TUN without a full install. After a confirmation (default no), sudo grants the user's own mihomo binary the network capabilities it needs (`setcap`); mihomo keeps running as your user and the password is never stored. Cancelling or failing authorization changes nothing, any later failure rolls back and revokes the capabilities, disabling TUN needs no sudo, and after a core update clashdock asks to re-authorize (or turns TUN off).
+    - **Full mode no longer removes an existing `sing-box.service` silently**: `clashdock init` asks first (default no) and, if you agree, only stops and disables it, keeping its unit file. If you keep it and the ports mihomo needs are taken, init stops with a clear message instead of taking over. `clashdock update` and the weekly timer never touch it.
+    - Fix: a cancelled sudo prompt during init no longer reports a false "rollback failed".
+    - Internal: kernel, node-selection and self-update code split into smaller files with new tests; CI now runs gofmt, vet and race tests on every push and pull request.
 
-    Full-mode installs need no config migration.
+    No config migration is needed.
 
 changelog:
   sort: asc
