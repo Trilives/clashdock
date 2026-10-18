@@ -18,6 +18,7 @@
 - T-007：首次清理——MODULARITY 包边界与命名示例更新、COMMANDS 用户模式条目精简、`.gitignore` 去除 Python 条目、
   删除一次性迁移脚本 `scripts/migrate-runtime-dir.sh`（可从 tag `v0.3.0` 取回）、更正「四类提示」等过时注释。
 - 记录：[2026-10-18-project-management-docs.md](tasks/2026-10-18-project-management-docs.md)
+- T-002：`internal/kernel/kernel.go`（657 行）按职责拆为 kernel / release / download / update / archive / seed 六个文件（均 ≤ 170 行），`extract` 拆出 tar.gz / zip 两个 helper，内核解压抽为 `installGzipBinary`；新增该包首批单元测试，覆盖率 0% → 56.7%。
 
 ## 2026-09-30
 
