@@ -56,7 +56,7 @@ func UserModeRun(p paths.Paths, info usermode.Info, version string) error {
 func prepareFromPackage(p paths.Paths, info usermode.Info, version string) (bool, error) {
 	execx.Header(i18n.T("用户模式（免 root，用户级服务）"))
 	execx.Info(i18n.T("用户模式不需要 root：mihomo 以当前用户身份在后台运行，关闭 clashdock 不影响代理。"))
-	execx.Info(fmt.Sprintf(i18n.T("需要 TUN / 局域网代理等完整能力请改用系统安装：%s。"), "sudo ./install.sh"))
+	execx.Info(i18n.T("需要 TUN 时可在主菜单按需经 sudo 授权开启；局域网代理等完整能力请改用系统安装：") + "sudo ./install.sh")
 	if err := maybeMigrateLegacy(p, info); err != nil {
 		execx.Warn(i18n.T("迁移旧便携数据失败（继续）：") + err.Error())
 	}
@@ -234,15 +234,20 @@ func userSettingsForm(p paths.Paths, cfg map[string]any) (bool, error) {
 	return true, nil
 }
 
-// pureProxyOverrides 用户模式没有 root，无法开 TUN / 改防火墙，面板也只对本机开放。
+// pureProxyOverrides 用户模式不改防火墙，面板也只对本机开放；TUN 默认关闭，只有经
+// 「开启 TUN」授权过的内核（见 usermode_tun.go）才保留开启。
 var pureProxyOverrides = map[string]bool{"enable_tun": false, "lan_proxy": false, "lan_panel": false}
 
-// ensurePureProxy 把定制层收敛为纯本机代理；确有改动且存在生效订阅时，用本地原文
+// ensurePureProxy 把定制层收敛为本机代理；确有改动且存在生效订阅时，用本地原文
 // 重建订阅配置（避免沿用按 TUN / 局域网生成的旧配置）。
 func ensurePureProxy(p paths.Paths) error {
 	cfg := config.Load(p)
+	keepTun := config.Bool(cfg, "enable_tun") && usermode.HasTunCaps(p.MihomoBin)
 	changed := false
 	for key, want := range pureProxyOverrides {
+		if key == "enable_tun" && keepTun {
+			continue
+		}
 		if config.Bool(cfg, key) != want {
 			cfg[key] = want
 			changed = true

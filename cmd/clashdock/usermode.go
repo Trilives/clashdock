@@ -106,6 +106,7 @@ func runUserUpdate(p paths.Paths) int {
 		return 1
 	}
 	if svc.Installed() {
+		flows.ReconcileUserTun(p)
 		if err := svc.Redeploy(); err != nil {
 			execx.Error(err.Error())
 			return 1

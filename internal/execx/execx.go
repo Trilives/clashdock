@@ -125,6 +125,16 @@ var sudoOK bool
 // EnsureSudo 确保后续 root 操作可执行：已是 root 直接返回；
 // 否则用 `sudo -v` 交互式预热（会话内缓存），失败返回 ErrCancelled。
 func EnsureSudo(reason string) error {
+	return ensureSudo(reason, true)
+}
+
+// EnsureSudoNoHint 同 EnsureSudo，但不提示「直接用 sudo 启动」：用户模式以 root 启动会
+// 改用 root 的数据目录，这条提示在那里是误导。
+func EnsureSudoNoHint(reason string) error {
+	return ensureSudo(reason, false)
+}
+
+func ensureSudo(reason string, hint bool) error {
 	if IsRoot() || sudoOK {
 		return nil
 	}
@@ -132,7 +142,9 @@ func EnsureSudo(reason string) error {
 		return fmt.Errorf("%s", i18n.T("需要管理员权限，但未找到 sudo，请改用 root 运行"))
 	}
 	Info(reason + i18n.T("需要管理员权限。"))
-	Info(i18n.T("提示：也可以直接用 sudo 启动，避免中途输入密码。"))
+	if hint {
+		Info(i18n.T("提示：也可以直接用 sudo 启动，避免中途输入密码。"))
+	}
 	c := exec.Command("sudo", "-v")
 	c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
 	if err := c.Run(); err != nil {

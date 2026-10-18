@@ -157,8 +157,8 @@ TUN 开且服务在跑，会额外问是否临时暂停服务保证这次真正�
 
 ## 6.5 用户模式（`internal/usermode` + `internal/runtimesvc`）
 
-给拿不到 root 的用户的第二种主流运行方式：不提权、不碰系统路径，mihomo 由用户级服务
-（`systemctl --user`，无用户实例时退化为 detached 后台进程）常驻，只做本机纯代理。
+给拿不到 root 的用户的第二种主流运行方式：默认不提权、不碰系统路径，mihomo 由用户级服务
+（`systemctl --user`，无用户实例时退化为 detached 后台进程）常驻做本机代理；TUN 可按需经 sudo 授权开启。
 布局、安装交接、服务后端、模式判定等详细设计见 [USERMODE.md](USERMODE.md)。
 
 依赖方向：`usermode` 是领域包，不依赖 `flows` / `sysd`；`runtimesvc` 依赖 `sysd` 与

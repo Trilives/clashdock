@@ -9,6 +9,9 @@
 
 ## 2026-10-18
 
+- T-008：测试 CI 推送后首次运行通过（gofmt、vet、race 测试，47s）。
+- T-010：完整模式在测试机实机验证通过——固定节点经 `sysd.SyncAndRestart` 三处落盘并跨重启保持，`clashdock update` 下载后完整 `Install`、服务使用新内核；修复 sudo 授权失败时 init 回退误报「回退失败」。测试机已恢复原状。记录：[2026-10-18-full-mode-verification.md](tasks/2026-10-18-full-mode-verification.md)
+- T-009：用户模式可按需开启 TUN——主菜单确认后经 sudo `setcap` 给用户目录内核授予网络能力（可取消、不保存密码、失败回退并撤销能力），关闭无需 sudo，内核更新后询问重新授权；单元测试与真实 sudo 提示下的实机验证通过。新增 T-011（完整模式安装会删除 sing-box 服务）。记录：[2026-10-18-user-mode-tun.md](tasks/2026-10-18-user-mode-tun.md)
 - 新增项目管理文档：开发约束入口 `docs/CONSTRAINTS.md`、任务流程 `docs/WORKFLOW.md`、长期维护
   `docs/MAINTENANCE.md`、任务记录模板 `Records/tasks/TEMPLATE.md`，以及 AI 助手入口 `AGENTS.md`；
   ARCHITECTURE 增加新增模块流程，ideas.md 登记已知任务，各 Markdown 顶部声明行数上限。

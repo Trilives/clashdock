@@ -13,38 +13,15 @@
 
 ## 待办
 
-按优先级排列；T-001 ~ T-007 已完成，见 [done.md](./done.md) 2026-10-18。
+按优先级排列；T-001 ~ T-010 已完成，见 [done.md](./done.md) 2026-10-18。
 
-### T-008 为 push / PR 增加测试 CI
+### T-011 完整模式安装不再无条件删除 sing-box 服务
 
 - 优先级：P1
-- 状态：待验证（`.github/workflows/test.yml` 已提交并在本地按相同命令通过；需推送到 GitHub 后确认首次运行通过）
-- 来源：[MAINTENANCE.md §3](../docs/MAINTENANCE.md#3-长期改进方向)：`release.yml` 只在 `v*` tag 时打包，不跑测试
+- 状态：待开始（处理方式需先与人工确认：安装前询问，还是只删除由本工具创建的单元）
+- 来源：[2026-10-18-full-mode-verification.md](tasks/2026-10-18-full-mode-verification.md)「遗留问题」；`internal/sysd/service.go` 的 `Install` 调用 `removeUnit(conflictingName)`
 - 验收标准：
-  - 新工作流在推送到 `main` 与 PR 时运行 `gofmt -l cmd internal`（有输出即失败）、`go vet ./...`、`go test ./...`
-  - Go 版本取自 `go.mod`（与 `release.yml` 一致）
-  - 不改变现有 `release.yml` 的发布行为；在 GitHub 上首次运行通过
-- 记录：不需要
-
-### T-010 完整模式（系统服务）实机验证
-
-- 优先级：P2
-- 状态：阻塞（需要有可用 sudo、允许注册系统服务与改动路由 / 防火墙的测试机）
-- 来源：[2026-10-18-real-machine-verification.md](tasks/2026-10-18-real-machine-verification.md)「遗留问题」
-- 验收标准：
-  - 完整模式下固定节点走 `sysd.SyncAndRestart`：配置双写、运行时同步、`mihomo.service` 重启后保持所选节点
-  - 完整模式下 `clashdock update` 下载后走完整 `Install`，服务使用新内核
-  - 结果补写到 [main-group-node-selection.tdd.md](../docs/testing/main-group-node-selection.tdd.md)，测试机恢复原状
-- 记录：需要（实机验证）
-
-### T-009 用户模式按需 sudo 授权开启 TUN
-
-- 优先级：P3
-- 状态：待开始
-- 来源：用户需求（2026-10-18）：用户模式开启 TUN 无需完整安装，直接请求 sudo 授权，并允许误触时取消
-- 验收标准：
-  - 用户模式下开启 TUN 时，无需执行完整安装或切换为完整模式；按需提示用户输入 sudo 密码以取得所需权限
-  - 授权提示支持取消；取消或授权失败时不启用 TUN，不残留提权操作的部分改动，保持原有配置与代理服务可用
-  - 特权操作统一经 `internal/execx` 的 sudo 子进程执行，不保存或记录用户密码
-  - 覆盖授权成功、取消、授权失败的测试，并实机验证用户模式开启与关闭 TUN 的流程
-- 记录：需要（改变用户可见行为，涉及提权与实机验证；实现时建立任务记录）
+  - 机器上已有用户自行部署的 `sing-box.service` 时，完整模式安装不会在未经确认的情况下停止、禁用或删除它
+  - 端口冲突时给出明确提示，而不是静默接管
+  - 有覆盖「存在 / 不存在 sing-box 单元」两种情况的测试
+- 记录：需要（改变用户可见行为）

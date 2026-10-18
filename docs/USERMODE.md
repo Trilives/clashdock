@@ -5,10 +5,10 @@
 本文从 [ARCHITECTURE.md §6.5](ARCHITECTURE.md#65-用户模式internalusermode--internalruntimesvc) 拆出，是用户模式（`internal/usermode` + `internal/runtimesvc`）设计的权威说明。
 
 **设计目的**：给**拿不到 root** 的用户（实验室/机房/受管终端/多人共用服务器）一条与完整模式
-并列的主流运行方式——全程不提权、不碰系统路径，但同样由服务在后台常驻，clashdock 只做管理、
-不需要前台驻留。凡是需要 root 的能力（TUN、防火墙、局域网放行）在用户模式一律关闭，只做本机
-纯代理（`enable_tun` / `lan_proxy` / `lan_panel` 每次进入用户模式都强制为 false，确有改动时用
-本地原文重建生效订阅）。
+并列的主流运行方式——默认不提权、不碰系统路径，但同样由服务在后台常驻，clashdock 只做管理、
+不需要前台驻留。防火墙、局域网放行在用户模式一律关闭（`lan_proxy` / `lan_panel` 每次进入用户模式
+都强制为 false）；TUN 默认关闭，只在用户主动开启并经 sudo 授权后打开（见下文「按需 TUN」）。
+确有改动时用本地原文重建生效订阅。
 
 - **布局**（`usermode/layout.go`，遵循 XDG）：本体 `~/.local/bin/clashdock`；数据
   `$XDG_DATA_HOME/clashdock`（默认 `~/.local/share/clashdock`，经 `CLASHDOCK_HOME` 传给
@@ -52,6 +52,15 @@
   用户模式 > 可执行文件就是 `~/.local/bin/clashdock` 或其自更新托管版本 → 用户模式 > 兜底
   完整模式。显式入口 `clashdock user`（旧名 `run` / `--portable`）无条件走用户模式；
   `init` / `healthcheck` 只属于完整模式，即使检测到用户模式也照常走系统服务。
+- **按需 TUN**（`flows/usermode_tun.go` + `usermode/tuncap.go`）：主菜单「开启 TUN 模式」先确认
+  （默认否，防误触）→ 内核文件缺能力时经 `execx` 的 sudo 子进程执行
+  `setcap cap_net_admin,cap_net_bind_service,cap_net_raw+ep <state>/bin/mihomo`（不保存密码）→
+  写 `enable_tun` 并重建 / 重启 → 等待 `mihomo` TUN 设备出现。授权取消或失败时不做任何改动；
+  之后任一步失败都回退配置，并 `setcap -r` 撤销本次授予的能力（家目录 nosuid / NFS 时能力不生效，
+  靠设备检测发现）。关闭 TUN 不需要 sudo，能力保留在内核文件上，再次开启不再询问。能力直接读
+  `security.capability` 扩展属性判定；进入用户模式时 `enable_tun` 只在内核仍带能力时保留。内核
+  更新会换掉文件、能力随之丢失，重新部署前（`redeployIfInstalled` / `clashdock update`）询问
+  重新授权，拒绝或失败则关闭 TUN。卸载数据目录即删除带能力的内核文件。
 - **自更新**：`selfupdate` 首次接管可执行文件为 `current` 符号链接时，目录可写（如
   `~/.local/bin`）就直接原子替换，只有 `/usr/bin` 等系统路径才走 sudo。
 - 便携包 `tool/nettest.sh` 保留为不依赖 clashdock 的网络自测；原 `tool/update.sh`（只更新包

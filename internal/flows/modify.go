@@ -376,6 +376,8 @@ func updateUIOnly(p paths.Paths) error {
 // 二进制/geo 文件——之前这里错用它，导致下载"成功"但服务其实还在用旧文件）。
 func redeployIfInstalled(p paths.Paths) error {
 	if svc := runtimesvc.For(p); fileExists(p.ConfigFile) && svc.Installed() {
+		// 用户模式：新内核文件不带 TUN 能力，重新部署前先处理授权（重新授权或关闭 TUN）。
+		ReconcileUserTun(p)
 		return svc.Redeploy()
 	}
 	return nil

@@ -1,4 +1,4 @@
-// 用户模式管理菜单：节点 / 配置 / 服务开关 / 工具 / 卸载，全部围绕用户服务开展。
+// 用户模式管理菜单：节点 / 配置 / 服务开关 / TUN / 工具 / 卸载，全部围绕用户服务开展。
 package flows
 
 import (
@@ -37,6 +37,7 @@ func userModeMenu(p paths.Paths, version string) error {
 			i18n.T("配置变更"),
 			userToggleLabel(svc),
 			i18n.T("重启服务"),
+			userTunLabel(p),
 			i18n.T("工具"),
 			i18n.T("语言 / Language"),
 			i18n.T("卸载"),
@@ -61,10 +62,12 @@ func userModeMenu(p paths.Paths, version string) error {
 		case 4:
 			aerr = restartUserService(p)
 		case 5:
-			aerr = userToolsMenu(p, version)
+			aerr = UserTunToggle(p)
 		case 6:
-			aerr = PickLanguage(p)
+			aerr = userToolsMenu(p, version)
 		case 7:
+			aerr = PickLanguage(p)
+		case 8:
 			var removed bool
 			if removed, aerr = UserUninstall(p); removed && aerr == nil {
 				return nil
