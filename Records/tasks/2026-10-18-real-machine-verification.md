@@ -39,5 +39,5 @@
 
 ## 遗留问题
 
-- [ ] 完整模式（系统服务）的固定节点重启链路与 `clashdock update` 未实机验证（T-010，需要可用 sudo 的测试机）。
+- [x] 完整模式（系统服务）的固定节点重启链路与 `clashdock update` 已于 2026-10-18 在测试机验证（T-010，见 [2026-10-18-full-mode-verification.md](2026-10-18-full-mode-verification.md)）。
 - 未发现缺陷。

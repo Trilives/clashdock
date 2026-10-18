@@ -54,3 +54,15 @@ func writeTestFile(t *testing.T, path string) {
 		t.Fatal(err)
 	}
 }
+
+func TestUndoServiceInstallSkipsWhenNothingLeft(t *testing.T) {
+	removed := false
+	remove := func() error { removed = true; return nil }
+
+	if err := undoServiceInstall(func() bool { return false }, remove); err != nil || removed {
+		t.Fatalf("nothing deployed: err=%v removed=%v, want no removal", err, removed)
+	}
+	if err := undoServiceInstall(func() bool { return true }, remove); err != nil || !removed {
+		t.Fatalf("leftover present: err=%v removed=%v, want removal", err, removed)
+	}
+}

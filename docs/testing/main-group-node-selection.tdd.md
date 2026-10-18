@@ -51,3 +51,19 @@ socks5 占位。以非 TTY 回退喂答案驱动，结束后经 `clashdock unins
 | 固定节点 | PASS：API 实时切换；生效配置、运行时配置、订阅配置首成员均为所选节点；用户服务重启后 `now` 保持所选节点 |
 
 未覆盖：完整模式（系统服务，`sysd.SyncAndRestart`）的固定节点重启链路，已登记 T-010。
+
+## 完整模式实机验证（2026-10-18，T-010）
+
+环境：测试机 Ubuntu 24.04（systemd 255，ufw 启用），HEAD 构建的 clashdock 以普通用户运行、特权操作经
+sudo（测试期间临时免密，结束后已撤销）；mihomo v1.19.27 预置在状态目录，订阅为本地 YAML（主组
+`节点选择` 命中默认关键词，节点为不可达占位）。以非 TTY 回退经 FIFO 逐步喂答案，结束后经
+`clashdock uninstall` 全量卸载并恢复测试机原状。
+
+| 场景 | 结果 |
+|---|---|
+| `clashdock init`（TUN 关、局域网关、本地 YAML）注册并启动 `mihomo.service` | PASS：运行时配置校验通过，服务 active；网络自愈与每周更新定时器按选择安装 |
+| 固定节点（init 末尾「切换 / 固定节点」→ 新加坡 01） | PASS：经 `sysd.SyncAndRestart` 同步并重启；生效配置、订阅配置、`/var/lib/clashdock-runtime/mihomo.yaml` 首成员均为所选节点；API `now` 为所选节点，再次手动重启后仍保持 |
+| `clashdock update`（下载后完整 `Install`） | PASS：内核 v1.19.27 → v1.19.32、geo 与 Web UI 更新；服务主进程即运行时内核且为 v1.19.32，`/ui/` 返回 200，固定节点仍保持 |
+| `clashdock uninstall`（全选） | PASS：系统单元、伴生定时器、NM 钩子、运行时目录与状态目录全部移除 |
+
+顺带发现：sudo 授权失败时 init 回退会尝试卸载尚未注册的服务并误报「回退失败」，已修复（无残留时跳过卸载）。

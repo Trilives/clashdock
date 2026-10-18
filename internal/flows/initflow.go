@@ -100,7 +100,9 @@ func Init(p paths.Paths) error {
 			t.Commit()
 			return nil
 		}
-		t.AddUndo(i18n.T("卸载服务 mihomo"), func() error { return sysd.Remove(p, sysd.DefaultName, true) })
+		t.AddUndo(i18n.T("卸载服务 mihomo"), func() error {
+			return undoServiceInstall(serviceLeftover, func() error { return sysd.Remove(p, sysd.DefaultName, true) })
+		})
 		if err := sysd.Install(p, sysd.DefaultName, true); err != nil {
 			return err
 		}
@@ -133,6 +135,20 @@ func Init(p paths.Paths) error {
 		printAccessHint(p)
 		return nil
 	})
+}
+
+// serviceLeftover 系统侧是否已留下服务单元或运行时目录（Install 中途失败时需要回退）。
+func serviceLeftover() bool {
+	return sysd.IsInstalled(sysd.DefaultName) || fileExists(paths.RuntimeDir)
+}
+
+// undoServiceInstall Install 失败后的回退：系统侧什么都没留下（如 sudo 授权被取消）时无需
+// 卸载——卸载同样要 sudo，会再次失败并误报「回退失败」。
+func undoServiceInstall(leftover func() bool, remove func() error) error {
+	if !leftover() {
+		return nil
+	}
+	return remove()
 }
 
 // applyInitSettings 返回应用初始化表单值后的新配置，不修改调用方传入的原配置。
