@@ -100,10 +100,7 @@ func Init(p paths.Paths) error {
 			t.Commit()
 			return nil
 		}
-		t.AddUndo(i18n.T("卸载服务 mihomo"), func() error {
-			return undoServiceInstall(serviceLeftover, func() error { return sysd.Remove(p, sysd.DefaultName, true) })
-		})
-		if err := sysd.Install(p, sysd.DefaultName, true); err != nil {
+		if err := registerService(p, t); err != nil {
 			return err
 		}
 		// 主服务已运行就是持久边界；后续可选模块失败时不应反向卸载它。
@@ -135,6 +132,18 @@ func Init(p paths.Paths) error {
 		printAccessHint(p)
 		return nil
 	})
+}
+
+// registerService 注册并启动主服务：已有 sing-box 服务时先询问是否停用（不再由 Install
+// 静默删除），并登记失败回退。
+func registerService(p paths.Paths, t *txn.Transaction) error {
+	if err := resolveSingBoxConflict(p, defaultSingBoxDeps()); err != nil {
+		return err
+	}
+	t.AddUndo(i18n.T("卸载服务 mihomo"), func() error {
+		return undoServiceInstall(serviceLeftover, func() error { return sysd.Remove(p, sysd.DefaultName, true) })
+	})
+	return sysd.Install(p, sysd.DefaultName, true)
 }
 
 // serviceLeftover 系统侧是否已留下服务单元或运行时目录（Install 中途失败时需要回退）。

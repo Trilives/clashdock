@@ -37,4 +37,4 @@
 
 ## 遗留问题
 
-- [ ] `sysd.Install` 无条件删除名为 `sing-box` 的系统服务，可能误删用户自行部署的 sing-box，登记为 T-011。
+- [x] `sysd.Install` 无条件删除名为 `sing-box` 的系统服务，已由 T-011 改为初始化时先询问（见 [2026-10-18-singbox-conflict.md](2026-10-18-singbox-conflict.md)）。

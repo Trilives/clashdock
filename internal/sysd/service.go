@@ -31,10 +31,7 @@ import (
 //go:embed assets/mihomo.service.tmpl
 var mihomoUnitTmpl string
 
-const (
-	DefaultName     = "mihomo"
-	conflictingName = "sing-box"
-)
+const DefaultName = "mihomo"
 
 type runtimePaths struct {
 	Dir     string
@@ -114,7 +111,8 @@ func preflight(p paths.Paths) error {
 	return nil
 }
 
-// Install 注册并（可选）启动主服务。会先移除同名及冲突的 sing-box 服务。
+// Install 注册并（可选）启动主服务。会先移除同名旧服务；sing-box 等冲突服务不再自动
+// 停用（可能是用户自行部署的），仍在运行时只提示——是否停用由初始化流程询问用户。
 func Install(p paths.Paths, name string, start bool) error {
 	if name == "" {
 		name = DefaultName
@@ -170,11 +168,9 @@ func Install(p paths.Paths, name string, start bool) error {
 		return err
 	}
 
-	// 移除旧的同名 / 冲突服务
+	// 移除旧的同名服务；冲突服务只提示，不碰
 	removeUnit(name, true)
-	if name != conflictingName {
-		removeUnit(conflictingName, true)
-	}
+	warnIfConflictRunning(systemctlValue)
 
 	// 写 unit
 	unitText, err := renderUnit(name, rt)

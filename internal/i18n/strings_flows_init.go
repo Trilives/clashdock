@@ -64,5 +64,11 @@ func init() {
 		"卸载网络自愈":       "Uninstall network self-healing",
 		"安装每周自动更新定时器？": "Install weekly auto-update timer?",
 		"卸载每周更新":       "Uninstall weekly update",
+
+		// sing-box 冲突
+		"正在运行": "running",
+		"检测到已安装的 sing-box 服务（%s），它会与 mihomo 争用代理端口 / TUN。停止并禁用它？（不删除其文件，之后可用 sudo systemctl enable --now sing-box 恢复）": "An installed sing-box service was found (%s); it competes with mihomo for proxy ports / TUN. Stop and disable it? (Its files are kept; restore later with sudo systemctl enable --now sing-box)",
+		"已保留 sing-box 服务，但 mihomo 需要的端口 %v 已被占用；请停用 sing-box，或改用其它端口后重新初始化":                                            "Kept the sing-box service, but the ports mihomo needs (%v) are in use; disable sing-box, or choose other ports and run init again",
+		"已保留 sing-box 服务；两者同时开启 TUN 会争用路由，建议只在其中一个开启 TUN。":                                                             "Kept the sing-box service; running TUN in both would compete for routes, so enable TUN in only one of them.",
 	})
 }
