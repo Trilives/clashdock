@@ -1,5 +1,7 @@
 # clashdock
 
+> 行数上限：200（README 固定上限，见 docs/CONSTRAINTS.md）
+
 在 Linux 上交互式部署 / 管理 **mihomo（Clash.Meta）** 的终端应用。单个静态二进制，
 全流程交互完成：**初始化 / 更改配置 / 暂停启动 / 网络测试 / 卸载**。
 > 如果想体验 sing-box 内核，可以参考 [sboxkit](https://github.com/Trilives/sboxkit)
@@ -137,39 +139,28 @@ clashdock
 | 日志 | 可选写入 `<state>/clashdock.log`，超过体量上限自动裁剪保留最新内容 |
 | 中英双语 | 默认英文启动（部分终端无法正常显示中文），首次运行检测到服务未注册时会先选语言，主菜单「Language / 语言」也可切中文，持久化到 `customize.json`；`CLASHDOCK_LANG=en\|zh` 可覆盖 |
 
-## 数据目录
+## 数据目录与代码结构
 
-运行期所有数据使用**固定工作目录 `/var/lib/clashdock`**（不随用户 / HOME 变化，
-root 运行的定时器与用户会话看到同一份数据；首次使用自动经 sudo 创建并交回属主）。
-环境变量 `CLASHDOCK_HOME` 可覆盖（主要用于测试）。运行时自包含暂存于
-`/var/lib/clashdock-runtime`，systemd 单元名沿用 `mihomo.service` 等。用户模式的数据在
-`~/.local/share/clashdock`（遵循 `$XDG_DATA_HOME`），运行时为其下的 `runtime/`，用户级单元为
-`~/.config/systemd/user/clashdock-mihomo.service`。
+- 完整模式数据固定在 `/var/lib/clashdock`（`CLASHDOCK_HOME` 可覆盖），运行时暂存于
+  `/var/lib/clashdock-runtime`，详见 [ARCHITECTURE.md §3](docs/ARCHITECTURE.md#3-状态与运行时分离)；
+  用户模式数据在 `~/.local/share/clashdock`，详见 [USERMODE.md](docs/USERMODE.md)。
+- Go 包结构（`cmd/clashdock` + `internal/*`）见 [ARCHITECTURE.md §9](docs/ARCHITECTURE.md#9-包结构)。
+  其余：`scripts/`（打包预下载与便携包脚本）、`packaging/copyright`（第三方许可）、
+  `.goreleaser.yaml`（tar.gz 便携包 + .deb 发布流水线）。
 
-## 目录结构
+## 开发与项目管理
 
-```
-clashdock/
-├── cmd/clashdock/          # 入口：子命令分发 + TUI 主菜单
-├── internal/
-│   ├── tui/                # Bubble Tea 交互组件（select/multiselect/ask/confirm/form）
-│   ├── flows/              # 初始化 / 配置变更 / 运行时管理 / 工具 / 卸载 / 节点切换 等流程
-│   ├── i18n/               # 中英文界面文案（默认英文，源码中文原文即翻译表 key）
-│   ├── subscription/       # 订阅：拉取 / 识别 / 最小改写 / 分流叠加 / 地区聚合组
-│   ├── kernel/  fetchx/    # 内核·UI·geo 下载（直连优先→代理兜底）与 deb 种子接管
-│   ├── selfupdate/         # clashdock 自更新：版本化目录 + 原子符号链接切换
-│   ├── sysd/               # systemd 三组单元（服务/自愈/定时器，模板内嵌）
-│   ├── usermode/           # 用户模式：模式判定 + 用户目录布局 + 运行时 + 用户级服务（systemd --user / 后台进程）
-│   ├── runtimesvc/         # 服务目标分发：完整模式 → 系统服务，用户模式 → 用户服务
-│   ├── config/  txn/  …    # 定制层存取、事务回滚、路径、防火墙、代理环境变量
-├── scripts/fetch-deb-deps.sh   # 打包前预下载 mihomo 内核与规则种子
-├── scripts/portable/       # 便携包脚本：install.sh / uninstall.sh + tool/nettest.sh
-├── packaging/copyright     # 第三方资产许可与归属（.deb 与便携包共用）
-└── .goreleaser.yaml        # tar.gz 便携包 + .deb（amd64/arm64/armv7）发布流水线
-```
+参与开发（人类贡献者与 AI 助手）先读前三份文档，再到任务列表认领任务：
 
-架构与设计细节见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)；后续改动需遵守
-[docs/MODULARITY.md](docs/MODULARITY.md)，避免单个文件持续膨胀。
+| 文档 | 内容 |
+|---|---|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 架构与设计：模块职责、依赖方向、新增模块流程 |
+| [docs/CONSTRAINTS.md](docs/CONSTRAINTS.md) | 开发约束入口：所需工具、各类文件行数上限、项目约束 |
+| [docs/MODULARITY.md](docs/MODULARITY.md) | 模块化约束：文件 / 函数规模、拆分规则、包边界 |
+| [Records/ideas.md](Records/ideas.md) | **活动任务列表**（优先级 / 状态 / 验收标准） |
+| [docs/WORKFLOW.md](docs/WORKFLOW.md) | 任务流程、重大任务记录、新增模块提案 |
+| [docs/MAINTENANCE.md](docs/MAINTENANCE.md) | 周期性清理与长期改进方向 |
+| [Records/done.md](Records/done.md) | 按日期的改动记录 |
 
 ## 许可
 

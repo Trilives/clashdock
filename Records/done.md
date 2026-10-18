@@ -1,8 +1,19 @@
 # 改动记录
 
+> 行数上限：300
+
 ## 约定
 
 - 每次改动按日期记录。
+- 重大任务在当日条目后附记录链接（何时算重大任务见 [WORKFLOW.md §4](../docs/WORKFLOW.md#4-重大任务记录)）。
+
+## 2026-10-18
+
+- 新增项目管理文档：开发约束入口 `docs/CONSTRAINTS.md`、任务流程 `docs/WORKFLOW.md`、长期维护
+  `docs/MAINTENANCE.md`、任务记录模板 `Records/tasks/TEMPLATE.md`，以及 AI 助手入口 `AGENTS.md`；
+  ARCHITECTURE 增加新增模块流程，ideas.md 登记已知任务，各 Markdown 顶部声明行数上限。
+- 经人工同意确定各类文件行数上限（README 200、其它 Markdown 300、Shell 200、YAML 300、模板与
+  Makefile 100，golden 数据 / go.sum / 法律文本豁免，接近 = 90%）；ARCHITECTURE §6.5 拆到 `docs/USERMODE.md`；README 的数据目录与目录结构改为摘要 + 链接（降到 90% 阈值以下）。
 
 ## 2026-09-30
 
@@ -15,16 +26,19 @@
   更新」菜单指引；移除便携包里只更新包目录的 `tool/update.sh`。
 - README 安装方式精简为 .deb / 用户模式 / 源码构建；包内 `install.sh` 改为用户模式一节的附注。
 - 发布 v0.3.0。
+- 记录：[user-mode-service.tdd.md](../docs/testing/user-mode-service.tdd.md)
 
 ## 2026-08-22
 
 - 节点切换与固定仅摘要展示主选择组；识别失败时可补充并验证关键词，空输入安全取消。
+- 记录：[main-group-node-selection.tdd.md](../docs/testing/main-group-node-selection.tdd.md)
 
 ## 2026-08-21
 
 - 调整初始化表单的 Enter 行为，仅在提交按钮上执行初始化。
 - 统一配置保存、运行时同步、校验与服务重启链路，并显式返回同步错误。
 - 在节点菜单中区分当前运行节点与配置首选，支持 API 不可用时降级展示。
+- 记录：[ideas-preview-0.2.6-beta.2.tdd.md](../docs/testing/ideas-preview-0.2.6-beta.2.tdd.md)
 
 ## 之前改动
 

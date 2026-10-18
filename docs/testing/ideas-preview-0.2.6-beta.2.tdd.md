@@ -1,5 +1,7 @@
 # Ideas Preview TDD Evidence
 
+> 行数上限 / Line limit: 300
+
 ## Source
 
 - Plan: [Records/ideas.md](../../Records/ideas.md)
