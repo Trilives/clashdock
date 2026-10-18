@@ -10,13 +10,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
-	"sync"
-
-	"golang.org/x/term"
 
 	"github.com/Trilives/clashdock/internal/clashapi"
-	"github.com/Trilives/clashdock/internal/config"
 	"github.com/Trilives/clashdock/internal/configfile"
 	"github.com/Trilives/clashdock/internal/errs"
 	"github.com/Trilives/clashdock/internal/execx"
@@ -27,300 +22,6 @@ import (
 	"github.com/Trilives/clashdock/internal/subscription"
 	"github.com/Trilives/clashdock/internal/tui"
 )
-
-// mihomo 策略组类型（可作为「子组」展示）
-var groupTypes = map[string]bool{
-	"select": true, "url-test": true, "fallback": true, "load-balance": true, "relay": true,
-}
-
-var builtinNodes = map[string]bool{
-	"DIRECT": true, "REJECT": true, "REJECT-DROP": true,
-	"PASS": true, "COMPATIBLE": true, "GLOBAL": true,
-}
-
-var infoKeywords = []string{"Traffic:", "Expire:", "剩余流量", "过期时间", "剩余", "套餐", "官网", "订阅", "重置"}
-
-var errMainGroupUnrecognized = errors.New("main selector group unrecognized")
-
-type region struct {
-	key   string
-	label string
-	kws   []string
-}
-
-var regions = []region{
-	{"hk", "🇭🇰 香港", []string{"香港", "hong kong", "hongkong"}},
-	{"tw", "🇹🇼 台湾", []string{"台湾", "臺灣", "taiwan"}},
-	{"jp", "🇯🇵 日本", []string{"日本", "japan", "东京", "大阪"}},
-	{"kr", "🇰🇷 韩国", []string{"韩国", "韓國", "korea", "首尔"}},
-	{"sg", "🇸🇬 新加坡", []string{"新加坡", "singapore", "狮城", "獅城"}},
-	{"us", "🇺🇸 美国", []string{"美国", "united states", "america", "硅谷", "洛杉矶", "圣何塞"}},
-}
-
-const otherKey, otherLabel = "other", "🌐 其他地区"
-
-func groupsOf(cfg map[string]any) []map[string]any {
-	gs, ok := cfg["proxy-groups"].([]any)
-	if !ok {
-		return nil
-	}
-	out := make([]map[string]any, 0, len(gs))
-	for _, g := range gs {
-		if m, ok := g.(map[string]any); ok {
-			out = append(out, m)
-		}
-	}
-	return out
-}
-
-// pickGroup 定位目标 select 分组：forced 指定时精确匹配；否则按 keywords 顺序
-// 逐个尝试，第一个命中分组名的关键词即采用该分组（先到先得，顺序即优先级）。
-// 关键词全都不命中时不猜测，避免把节点切换错误地施加到其它 select 组。
-func pickGroup(cfg map[string]any, forced string, keywords []string) (map[string]any, error) {
-	var selects []map[string]any
-	for _, g := range groupsOf(cfg) {
-		if t, _ := g["type"].(string); t == "select" {
-			selects = append(selects, g)
-		}
-	}
-	if len(selects) == 0 {
-		return nil, fmt.Errorf("%s", i18n.T("配置里没有 select 策略组，无法切换节点"))
-	}
-	if forced != "" {
-		for _, g := range selects {
-			if g["name"] == forced {
-				return g, nil
-			}
-		}
-		return nil, fmt.Errorf(i18n.T("指定分组 '%s' 不存在"), forced)
-	}
-	// 逐关键词扫描（而非逐分组扫描）：关键词列表顺序即优先级，用户新增的关键词
-	// 插在最前，能在内置关键词之前抢先命中目标分组。
-	for _, kw := range keywords {
-		kw = strings.ToLower(kw)
-		if kw == "" {
-			continue
-		}
-		for _, g := range selects {
-			if strings.Contains(strings.ToLower(fmt.Sprint(g["name"])), kw) {
-				return g, nil
-			}
-		}
-	}
-	return nil, fmt.Errorf("%s: %w", i18n.T("未识别到主选择组，无法切换"), errMainGroupUnrecognized)
-}
-
-// resolveMainGroup 在自动识别失败时允许补充一个关键词。新关键词只有在本次配置中
-// 确实命中 select 组后才写盘，并插到列表首位，供当前与后续切换立即复用。
-func resolveMainGroup(
-	p paths.Paths,
-	cfg map[string]any,
-	forced string,
-	input func(string) (string, error),
-) (map[string]any, error) {
-	customize := config.Load(p)
-	keywords := config.StrList(customize, "main_group_keywords")
-	target, err := pickGroup(cfg, forced, keywords)
-	if err == nil || forced != "" || !errors.Is(err, errMainGroupUnrecognized) {
-		return target, err
-	}
-
-	entered, inputErr := input(i18n.T("未识别到主选择组，请输入组名或识别关键词（直接回车取消）"))
-	if inputErr != nil {
-		return nil, inputErr
-	}
-	entered = strings.TrimSpace(entered)
-	if entered == "" {
-		return nil, fmt.Errorf("%s", i18n.T("未识别到主选择组，无法切换"))
-	}
-
-	updatedKeywords := make([]string, 0, len(keywords)+1)
-	updatedKeywords = append(updatedKeywords, entered)
-	for _, keyword := range keywords {
-		if keyword != entered {
-			updatedKeywords = append(updatedKeywords, keyword)
-		}
-	}
-	target, err = pickGroup(cfg, "", updatedKeywords)
-	if err != nil {
-		if errors.Is(err, errMainGroupUnrecognized) {
-			return nil, fmt.Errorf(i18n.T("输入的主选择组识别关键词 %q 未匹配任何 select 分组"), entered)
-		}
-		return nil, err
-	}
-
-	updatedCustomize := make(map[string]any, len(customize))
-	for key, value := range customize {
-		updatedCustomize[key] = value
-	}
-	updatedCustomize["main_group_keywords"] = updatedKeywords
-	if err := config.Save(p, updatedCustomize); err != nil {
-		return nil, fmt.Errorf(i18n.T("保存主选择组识别关键词失败: %w"), err)
-	}
-	return target, nil
-}
-
-func classify(name string) string {
-	low := strings.ToLower(name)
-	for _, r := range regions {
-		for _, kw := range r.kws {
-			if strings.Contains(name, kw) || strings.Contains(low, kw) {
-				return r.key
-			}
-		}
-	}
-	return otherKey
-}
-
-func isInfo(name string) bool {
-	for _, kw := range infoKeywords {
-		if strings.Contains(name, kw) {
-			return true
-		}
-	}
-	return false
-}
-
-// collectMembers 把组成员分为「按地区分桶的真实节点」与「子组」。
-func collectMembers(cfg, group map[string]any) (map[string][]string, []string) {
-	typeByName := map[string]string{}
-	for _, g := range groupsOf(cfg) {
-		name, _ := g["name"].(string)
-		t, _ := g["type"].(string)
-		typeByName[name] = t
-	}
-	buckets := map[string][]string{}
-	var subgroups []string
-	members, _ := group["proxies"].([]any)
-	for _, m := range members {
-		name := fmt.Sprint(m)
-		switch {
-		case groupTypes[typeByName[name]]:
-			subgroups = append(subgroups, name)
-		case builtinNodes[name] || isInfo(name):
-		default:
-			buckets[classify(name)] = append(buckets[classify(name)], name)
-		}
-	}
-	return buckets, subgroups
-}
-
-// measure 并发实测延迟，带 TTY 进度。
-func measure(api *clashapi.Client, names []string) map[string]int {
-	if len(names) == 0 {
-		return nil
-	}
-	tty := term.IsTerminal(int(os.Stdout.Fd()))
-	if !tty {
-		execx.Info(fmt.Sprintf(i18n.T("测速中（%d 个节点）…"), len(names)))
-	}
-	results := make(map[string]int, len(names))
-	var mu sync.Mutex
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, min(16, len(names)))
-	done := 0
-	for _, name := range names {
-		wg.Add(1)
-		go func(n string) {
-			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
-			ms, ok := api.Delay(n)
-			mu.Lock()
-			if ok {
-				results[n] = ms
-			}
-			done++
-			if tty {
-				fmt.Printf(i18n.T("\r\033[K  测速中… %d/%d"), done, len(names))
-			}
-			mu.Unlock()
-		}(name)
-	}
-	wg.Wait()
-	if tty {
-		fmt.Print("\r\033[K")
-	}
-	execx.Ok(fmt.Sprintf(i18n.T("测速完成：%d/%d 可用"), len(results), len(names)))
-	return results
-}
-
-func fmtDelay(results map[string]int, name string) string {
-	if ms, ok := results[name]; ok {
-		return fmt.Sprintf("%dms", ms)
-	}
-	return i18n.T("超时")
-}
-
-func preferredNode(group map[string]any) string {
-	members, _ := group["proxies"].([]any)
-	if len(members) == 0 {
-		return ""
-	}
-	return fmt.Sprint(members[0])
-}
-
-// currentNodeLabels 同时展示运行时当前节点与配置中的固定首选。runtimeOK=false
-// 表示无法读取 API 状态，此时配置首选必须明确标成非运行时状态。
-func currentNodeLabels(names []string, delays map[string]int, runtimeCurrent, pinned string, runtimeOK bool) []string {
-	labels := make([]string, len(names))
-	for i, name := range names {
-		parts := []string{name}
-		if delays != nil {
-			parts = append(parts, fmtDelay(delays, name))
-		}
-		var states []string
-		if runtimeOK && name == runtimeCurrent {
-			states = append(states, i18n.T("当前运行"))
-		}
-		if name == pinned {
-			states = append(states, i18n.T("配置首选"))
-			if !runtimeOK {
-				states = append(states, i18n.T("非运行时状态"))
-			}
-		}
-		label := strings.Join(parts, "   ")
-		if len(states) > 0 {
-			label += "（" + strings.Join(states, "，") + "）"
-		}
-		labels[i] = label
-	}
-	return labels
-}
-
-func currentNodeSummary(cfg map[string]any, targetName string, selections map[string]string, runtimeOK bool) []string {
-	for _, group := range groupsOf(cfg) {
-		name := fmt.Sprint(group["name"])
-		if name != targetName {
-			continue
-		}
-		if runtimeOK {
-			if current := selections[name]; current != "" {
-				return []string{fmt.Sprintf("  • %s → %s（%s）", name, current, i18n.T("当前运行"))}
-			}
-			return nil
-		}
-		if group["type"] == "select" {
-			if pinned := preferredNode(group); pinned != "" {
-				return []string{fmt.Sprintf("  • %s → %s（%s，%s）", name, pinned,
-					i18n.T("配置首选"), i18n.T("非运行时状态"))}
-			}
-		}
-		return nil
-	}
-	return nil
-}
-
-func printCurrentNodeSummary(cfg map[string]any, targetName string, selections map[string]string, runtimeOK bool) {
-	lines := currentNodeSummary(cfg, targetName, selections, runtimeOK)
-	if len(lines) == 0 {
-		return
-	}
-	execx.Info(i18n.T("主选择组当前节点："))
-	for _, line := range lines {
-		fmt.Println(line)
-	}
-}
 
 // persistFirst 把选中节点提为目标组首成员，双写生效配置与订阅配置（跨重启兜底）。
 func persistFirst(cfg map[string]any, groupName, node string, files []string) error {
@@ -382,42 +83,11 @@ func pickNode(p paths.Paths, configPath, group string) (*pickResult, error) {
 		return nil, fmt.Errorf(i18n.T("分组 '%s' 下没有可选项"), groupName)
 	}
 
-	// 节点切换走 Clash API 热切换，直接连 API 实时测速/切换
-	api := clashapi.FromConfig(cfg)
-	apiOK := api != nil && api.Reachable()
-	runtimeSelections := map[string]string{}
-	runtimeOK := false
-	if apiOK {
-		execx.Info(i18n.T("已连上 Clash API，列表将实时测速。"))
-		if selections, serr := api.CurrentSelections(); serr != nil {
-			execx.Warn(fmt.Sprintf(i18n.T("读取 Clash API 当前节点失败：%v"), serr))
-		} else {
-			runtimeSelections = selections
-			runtimeOK = true
-		}
-	} else {
-		execx.Info(i18n.T("Clash API 不可达，跳过测速。"))
-	}
-	printCurrentNodeSummary(cfg, groupName, runtimeSelections, runtimeOK)
-	runtimeCurrent := runtimeSelections[groupName]
+	rt := connectRuntime(cfg)
+	printCurrentNodeSummary(cfg, groupName, rt.selections, rt.selectionsOK)
+	runtimeCurrent := rt.selections[groupName]
 	pinned := preferredNode(target)
-
-	type menuEntry struct {
-		label string
-		items []string
-	}
-	var firstMenu []menuEntry
-	for _, r := range regions {
-		if len(buckets[r.key]) > 0 {
-			firstMenu = append(firstMenu, menuEntry{i18n.T(r.label), buckets[r.key]})
-		}
-	}
-	if len(buckets[otherKey]) > 0 {
-		firstMenu = append(firstMenu, menuEntry{i18n.T(otherLabel), buckets[otherKey]})
-	}
-	if len(subgroups) > 0 {
-		firstMenu = append(firstMenu, menuEntry{i18n.T("🧭 子组（自动测速 / 故障转移）"), subgroups})
-	}
+	firstMenu := buildRegionMenu(buckets, subgroups)
 
 	// esc 在第二步只退回第一步；^R 才穿透放弃本次切换
 	var selected string
@@ -435,21 +105,11 @@ func pickNode(p paths.Paths, configPath, group string) (*pickResult, error) {
 		entry := firstMenu[i]
 
 		var delays map[string]int
-		if apiOK {
-			delays = measure(api, entry.items)
+		if rt.apiOK {
+			delays = measure(rt.api, entry.items)
 		}
-		nodeLabels := currentNodeLabels(entry.items, delays, runtimeCurrent, pinned, runtimeOK)
-		initial := 0
-		preferred := runtimeCurrent
-		if preferred == "" {
-			preferred = pinned
-		}
-		for j, name := range entry.items {
-			if name == preferred {
-				initial = j
-				break
-			}
-		}
+		nodeLabels := currentNodeLabels(entry.items, delays, runtimeCurrent, pinned, rt.selectionsOK)
+		initial := preferredIndex(entry.items, runtimeCurrent, pinned)
 		nidx, err := tui.Select(entry.label, nodeLabels, tui.SelectOpts{SaveLabel: i18n.T("返回地区/分组"), BackLabel: i18n.T("放弃并退出"), Initial: initial})
 		if err != nil {
 			if errors.Is(err, errs.ErrSaveExit) {
@@ -460,7 +120,71 @@ func pickNode(p paths.Paths, configPath, group string) (*pickResult, error) {
 		selected = entry.items[nidx]
 		break
 	}
-	return &pickResult{cfg: cfg, groupName: groupName, node: selected, api: api, apiOK: apiOK}, nil
+	return &pickResult{cfg: cfg, groupName: groupName, node: selected, api: rt.api, apiOK: rt.apiOK}, nil
+}
+
+// runtimeState Clash API 连接与当前各组选中节点；selectionsOK=false 表示读取失败或 API 不可达。
+type runtimeState struct {
+	api          *clashapi.Client
+	apiOK        bool
+	selections   map[string]string
+	selectionsOK bool
+}
+
+// connectRuntime 节点切换走 Clash API 热切换，直接连 API 实时测速/切换。
+func connectRuntime(cfg map[string]any) runtimeState {
+	rt := runtimeState{api: clashapi.FromConfig(cfg), selections: map[string]string{}}
+	rt.apiOK = rt.api != nil && rt.api.Reachable()
+	if !rt.apiOK {
+		execx.Info(i18n.T("Clash API 不可达，跳过测速。"))
+		return rt
+	}
+	execx.Info(i18n.T("已连上 Clash API，列表将实时测速。"))
+	selections, err := rt.api.CurrentSelections()
+	if err != nil {
+		execx.Warn(fmt.Sprintf(i18n.T("读取 Clash API 当前节点失败：%v"), err))
+		return rt
+	}
+	rt.selections = selections
+	rt.selectionsOK = true
+	return rt
+}
+
+// nodeMenuEntry 第一级菜单项：地区 / 子组标签及其下的候选项。
+type nodeMenuEntry struct {
+	label string
+	items []string
+}
+
+// buildRegionMenu 按 regions 顺序列出有节点的地区，其后是「其他地区」与子组。
+func buildRegionMenu(buckets map[string][]string, subgroups []string) []nodeMenuEntry {
+	var menu []nodeMenuEntry
+	for _, r := range regions {
+		if len(buckets[r.key]) > 0 {
+			menu = append(menu, nodeMenuEntry{i18n.T(r.label), buckets[r.key]})
+		}
+	}
+	if len(buckets[otherKey]) > 0 {
+		menu = append(menu, nodeMenuEntry{i18n.T(otherLabel), buckets[otherKey]})
+	}
+	if len(subgroups) > 0 {
+		menu = append(menu, nodeMenuEntry{i18n.T("🧭 子组（自动测速 / 故障转移）"), subgroups})
+	}
+	return menu
+}
+
+// preferredIndex 第二级菜单的初始光标：优先运行时当前节点，其次配置首选，都不在列表里时为 0。
+func preferredIndex(items []string, runtimeCurrent, pinned string) int {
+	preferred := runtimeCurrent
+	if preferred == "" {
+		preferred = pinned
+	}
+	for i, name := range items {
+		if name == preferred {
+			return i
+		}
+	}
+	return 0
 }
 
 // NodeSwitchLive 临时切换节点：仅经 Clash API 热切换，不写盘、不重启——
