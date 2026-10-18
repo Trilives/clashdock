@@ -9,7 +9,7 @@
 
 ## 2026-10-18
 
-- 发布 v0.3.1：用户模式按需 TUN（T-009）、完整模式不再静默删除 sing-box（T-011）、初始化回退误报修复与内部重构；发布前按 MAINTENANCE 复查，无新清理候选。记录：[2026-10-18-release-v0.3.1.md](tasks/2026-10-18-release-v0.3.1.md)
+- 发布 v0.3.1：用户模式按需 TUN（T-009）、完整模式不再静默删除 sing-box（T-011）、初始化回退误报修复与内部重构；发布前按 MAINTENANCE 复查，无新清理候选。release 工作流通过，产出 amd64 / arm64 / armv7 的 tar.gz 与 .deb 及 checksums.txt；`/releases/latest` 返回 v0.3.1，amd64 包校验和与 `clashdock version` 核对无误。记录：[2026-10-18-release-v0.3.1.md](tasks/2026-10-18-release-v0.3.1.md)
 - T-011：完整模式安装不再静默删除 `sing-box.service`——初始化时先询问（默认否），同意才停止并禁用（保留单元文件）；拒绝且端口被占用时明确报错并回退；`clashdock update` 等非交互路径只提示。单元测试与测试机实机验证通过。记录：[2026-10-18-singbox-conflict.md](tasks/2026-10-18-singbox-conflict.md)
 - T-008：测试 CI 推送后首次运行通过（gofmt、vet、race 测试，47s）。
 - T-010：完整模式在测试机实机验证通过——固定节点经 `sysd.SyncAndRestart` 三处落盘并跨重启保持，`clashdock update` 下载后完整 `Install`、服务使用新内核；修复 sudo 授权失败时 init 回退误报「回退失败」。测试机已恢复原状。记录：[2026-10-18-full-mode-verification.md](tasks/2026-10-18-full-mode-verification.md)
