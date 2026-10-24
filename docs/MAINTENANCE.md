@@ -27,10 +27,21 @@
 | 内容 / 位置 | 问题 | 理由 / 证据 | 建议处理 |
 |---|---|---|---|
 
-v0.3.1 发布前复查（2026-10-18，任务列表清空时）：无新的重复或过时候选；各类文件均在声明上限内，
+v0.4.0 发布前复查（2026-10-24，人工要求「清理无效文件」）：结果见 2.1；各类文件均在声明上限内，
 Markdown 链接有效；贴近上限的文件与函数见第 3 节。
 
-### 2.1 最近一次清理结果（2026-10-18，人工已批准）
+### 2.1 最近一次清理结果（2026-10-24，人工要求清理无效文件）
+
+| 候选 | 结论 | 处理 |
+|---|---|---|
+| `docs/Pictures/portable-mode.png`（v0.2.4 便携模式界面，与现行用户模式不符） | 已删除 | README 预览改用按现行代码渲染的 `user-mode.png`；旧图可从 tag `v0.3.1` 取回 |
+| i18n 中 17 条代码已不再引用的英文翻译（旧初始化问答、旧确认提示等） | 已删除 | `coverage_test` 仍通过 |
+| `config.EnsureExists`（无调用方，仅测试引用） | 已删除 | 连同其测试；`config.go` 降到 488 行 |
+| `subscription.FromClashYAML`、`txn.Transaction.TrackPath`、`tui.FormResult.Choice`（无生产调用方） | 保留 | 体量小且有测试或属于成组的 API；见第 3 节 |
+| ARCHITECTURE.md 285 行超过 270 行阈值 | 已拆分 | §8 自更新拆到 [SELFUPDATE.md](SELFUPDATE.md)，原位保留摘要 |
+| 本地未跟踪产物 `dist/`、`clashdock`、`state/`、空目录 `.agents/` `.claude/` `.codex/` | 不处理 | 同上次：不在 Git 中；`state/` 可能含订阅与密钥 |
+
+### 2.2 上一次清理结果（2026-10-18，人工已批准）
 
 | 候选 | 结论 | 处理 |
 |---|---|---|
@@ -52,9 +63,10 @@ Markdown 链接有效；贴近上限的文件与函数见第 3 节。
 
 | 方向 | 现状（证据） | 说明 |
 |---|---|---|
-| 测试覆盖率 | 全仓约 30%（`docs/testing/` 记录 29.9%–30.7%），目标 80%；2026-10-18 `kernel` 0% → 56.7%、`selfupdate` 44.7% → 51.5% | `firewall`、`proxyenv`、`jsonx`、`configfile` 仍无测试文件；`flows` 约 20%、`usermode` 71.5%（2026-10-18）。每个任务至少为改动部分补测试 |
+| 测试覆盖率 | 全仓 42.1%（2026-10-24，含真实内核用例），目标 80%；`paths` 74.3%、`usermode` 72.1%、`kernel` 61.7%、`selfupdate` 57.9% | `firewall`、`jsonx` 仍无测试文件；`fetchx` 9.0%、`cmd/clashdock` 12.8%、`flows` 21.8%、`sysd` 23.4% 最低。每个任务至少为改动部分补测试 |
 | CI 运行测试 | `.github/workflows/test.yml`（push 到 `main` / PR 时跑 gofmt、vet、race 测试），2026-10-18 首次运行通过 | Actions 提示 Node 20 弃用，`actions/checkout` / `setup-go` 有新大版本时升级 |
-| 超过软上限的文件 | 无（2026-10-18 T-002 ~ T-004 已拆分 `kernel.go`、`nodeselect.go`、`selfupdate.go`）；贴近软上限：`config/config.go` 499 / 500、`flows/modify.go` 384 / 400（v0.3.1 发布前复查） | 每次清理时用 MODULARITY.md「修改流程」的 `wc -l` 复查；再往这两个文件加内容前先拆分 |
-| 超过 80 行软上限的函数（均未超 120 行硬上限） | `flows.Init` 111、`subscription.Apply` 91、`sysd.Install` 86、`flows.editList` 86、`subscription.ApplyOverlay` 85（`Update`、`pickNode`、`extract` 已于 T-002 ~ T-004 拆短） | 修改这些函数时顺带拆分；`i18n/strings_flows_usermode.go` 的 `init`（116 行）是翻译表，属 MODULARITY 允许的集中表例外 |
-| 文档长度 | ARCHITECTURE.md 约 266 行，接近 270 行阈值 | 再扩写前先按章节继续拆分（候选：§4 交互契约、§8 自更新） |
-| 实机验证 | 2026-10-18 用户模式（T-005 / T-006）、完整模式（T-010）、用户模式按需 TUN（T-009）均已实机验证 | 改动服务 / 提权 / 网络路径时按对应记录的场景复验 |
+| 超过软上限的文件 | 无；贴近软上限：`flows/modify.go` 384 / 400、`config/config.go` 488 / 500（v0.4.0 发布前复查） | 每次清理时用 MODULARITY.md「修改流程」的 `wc -l` 复查；再往这两个文件加内容前先拆分 |
+| 超过 80 行软上限的函数（均未超 120 行硬上限） | `flows.Init` 111、`subscription.Apply` 91、`flows.editList` 86、`subscription.ApplyOverlay` 85（`sysd.Install` 已于 T-014 / T-016 抽出 `deployRuntime` 后降到 80 行以内） | 修改这些函数时顺带拆分；`i18n/strings_flows_usermode.go` 的 `init`（115 行）是翻译表，属 MODULARITY 允许的集中表例外 |
+| 无生产调用方的代码 | `subscription.FromClashYAML`、`txn.Transaction.TrackPath`、`tui.FormResult.Choice`（`deadcode` 2026-10-24） | 下次修改所在文件时评估删除（连同只为它们存在的测试） |
+| 文档长度 | ARCHITECTURE.md 257 行（2026-10-24 §8 拆到 SELFUPDATE.md） | 再扩写前先按章节继续拆分（候选：§4 交互契约，约 70 行） |
+| 实机验证 | 2026-10-18 用户模式（T-005 / T-006）、完整模式（T-010）、用户模式按需 TUN（T-009）；2026-10-24 起改在 mars 验证完整模式特权边界与非 root 内核（T-012 ~ T-016） | 改动服务 / 提权 / 网络路径时按对应记录的场景复验 |
