@@ -21,7 +21,6 @@ func init() {
 		"切换失败，继续使用当前程序：":    "Hand-off failed; continuing with the current program: ",
 		"按纯代理重建订阅配置失败（继续）：": "Failed to rebuild the subscription config as a pure proxy (continuing): ",
 		"写入定制层失败：%w":        "Failed to write customization layer: %w",
-		"写入定制层失败（继续）：":      "Failed to write customization layer (continuing): ",
 
 		// 部署
 		"部署用户服务":  "Deploy user service",

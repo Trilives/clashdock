@@ -13,8 +13,6 @@ func init() {
 		"使用代理拉取此订阅？默认否＝直连（优先本机代理端口，失败再回退下载代理）":                 "Use a proxy to fetch this subscription? Default no = direct (prefers the local proxy port, then falls back to the download proxy)",
 		"是否叠加自定义分流（AI / 流媒体 / 地区组）？默认否＝直接沿用机场订阅自带的策略组与规则（推荐）。": "Overlay custom routing (AI / streaming / region groups)? Default no = keep the subscription's own proxy groups and rules as-is (recommended).",
 
-		"创建数据目录 ": "Create data directory ",
-
 		"未配置 GitHub Token，匿名 API 限额较低（60 次/小时），高频操作易被限流。": "No GitHub token configured; the anonymous API rate limit is low (60 requests/hour) and frequent operations may get throttled.",
 		"现在添加 GitHub Token？":                "Add a GitHub token now?",
 		"Token 保存失败：":                       "Failed to save token: ",

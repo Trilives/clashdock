@@ -15,8 +15,7 @@ func init() {
 		"已从 %s 移除代理环境变量。":                          "Proxy environment variables removed from %s.",
 
 		// internal/fetchx
-		"直连可达，跳过代理。":           "Direct connection reachable, skipping proxy.",
-		"  %s 通道失败（%v），改直连重试…": "  %s channel failed (%v), retrying direct…",
+		"直连可达，跳过代理。": "Direct connection reachable, skipping proxy.",
 
 		// internal/configfile
 		"配置根节点不是映射":   "The config root node is not a mapping",

@@ -101,16 +101,6 @@ func TestSaveLoadRoundtripOrderAndUnicode(t *testing.T) {
 	}
 }
 
-func TestEnsureExistsWritesOnce(t *testing.T) {
-	p := testPaths(t)
-	if _, err := EnsureExists(p); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := os.Stat(p.CustomizeFile); err != nil {
-		t.Fatal("首次运行应落地默认 customize.json:", err)
-	}
-}
-
 func TestMaskSecret(t *testing.T) {
 	if got := MaskSecret("abcdef"); got != "已设置（***cdef）" {
 		t.Fatalf("MaskSecret 长值 = %q", got)

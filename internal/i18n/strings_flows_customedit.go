@@ -2,18 +2,15 @@ package i18n
 
 func init() {
 	register(map[string]string{
-		"编辑定制层":   "Edit Customization Layer",
-		"放弃修改并退出": "Discard changes and exit",
-		"返回上层":    "Back",
+		"编辑定制层": "Edit Customization Layer",
+		"返回上层":  "Back",
 
 		"部署设置（TUN / 面板 / 下载）":                  "Deployment Settings (TUN / Panel / Downloads)",
 		"自定义分流叠加（AI / 流媒体 / 地区组）":              "Custom Routing Overlay (AI / Streaming / Region Groups)",
 		"重新初始化（删除服务并重走初始化）":                    "Reinitialize (delete service and re-run setup)",
 		"确认重新初始化？将删除现有服务并重新执行初始化流程（本地订阅数据保留）。": "Reinitialize? This deletes the existing service and re-runs the initialization flow (local subscription data is kept).",
 
-		"未做修改。":         "No changes made.",
-		"定制层已保存。":       "Customization layer saved.",
-		"已放弃本次修改（未写盘）。": "Changes discarded (not written to disk).",
+		"定制层已保存。": "Customization layer saved.",
 
 		"已开启局域网代理，更新防火墙放行 7890 端口？": "LAN proxy enabled. Update firewall to allow port 7890?",
 		"已关闭局域网代理，撤销防火墙放行 7890 端口？": "LAN proxy disabled. Revoke firewall rule for port 7890?",

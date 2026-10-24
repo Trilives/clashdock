@@ -43,8 +43,6 @@ func init() {
 		"新名称":                  "New name",
 		"删除哪个订阅":               "Which subscription to delete",
 		"确认删除订阅「%s」？":          "Confirm deleting subscription \"%s\"?",
-		"更新 内核 / UI / geo 数据？": "Update core / UI / geo data?",
-		"同时下载 / 更新 Web UI？":    "Also download / update the Web UI?",
 		"服务同步失败：%v":            "Service sync failed: %v",
 	})
 }

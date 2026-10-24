@@ -6,12 +6,6 @@ func init() {
 		"初始化（首次部署）": "Initialize (first-time deployment)",
 		"种子接管失败（不影响后续下载）：": "Seed takeover failed (does not affect later downloads): ",
 
-		"订阅/资源下载代理 IP:端口（出海慢时走它，如 192.168.1.10:7890），留空=保留当前/无则直连": "Subscription/resource download proxy IP:port (used when overseas access is slow, e.g. 192.168.1.10:7890); empty = keep current, or direct if none",
-		"启用 TUN 模式？（整机流量自动走代理；否=纯代理，需各 App 手动设代理）":                 "Enable TUN mode? (all system traffic auto-routes through the proxy; no = pure proxy mode, each app must set its own proxy)",
-		"开启局域网代理？（让局域网其他主机可用本机作为代理，监听 0.0.0.0:7890）":               "Enable LAN proxy? (lets other hosts on the LAN use this machine as a proxy, listening on 0.0.0.0:7890)",
-		"把代理环境变量写入 ~/.bashrc？（新开终端自动走 127.0.0.1:7890）":             "Write proxy environment variables to ~/.bashrc? (new terminals will automatically use 127.0.0.1:7890)",
-		"更新防火墙放行 7890 端口？":      "Update firewall to allow port 7890?",
-		"撤销防火墙放行 7890":          "Revoke firewall rule for port 7890",
 		"撤销防火墙放行代理端口":           "Revoke firewall rule for the proxy port",
 		"本地代理端口（默认 7890，被占用可改）": "Local proxy port (default 7890, change if occupied)",
 
@@ -52,7 +46,6 @@ func init() {
 
 		"使用本地内核与基础规则启动服务（系统包种子或既有资源）。":                                               "Starting the service with the local core and basic rules (system package seed or existing resources).",
 		"未找到本地内核或基础规则：请通过安装包（deb 已内置，便携包运行 install.sh）安装内核，或在「工具 → 更新 → 内核」手动下载后重试。": "Local core or basic rules not found: install the core via the package (bundled in the .deb, or run install.sh from the portable archive), or download it manually via 'Tools → Update → Core', then retry.",
-		"缺少 mihomo 内核或基础规则，无法注册并启动服务":                                                "Missing mihomo core or basic rules; cannot register and start the service",
 
 		"本地内核缺失，本次暂不注册/启动服务：": "Local core missing; skipping service registration/startup this time: ",
 		"已保留本次配置与订阅；补齐内核（重装安装包或「工具 → 更新 → 内核」）后重新执行初始化即可完成服务注册。": "Your configuration and subscriptions are kept; install the core (reinstall the package, or 'Tools → Update → Core'), then re-run initialization to finish service registration.",

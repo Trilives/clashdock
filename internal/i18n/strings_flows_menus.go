@@ -27,10 +27,9 @@ func init() {
 		"暂停":        "pause",
 		"确认%s全部服务？": "Confirm %s all services?",
 
-		"服务设置":      "Service Settings",
-		"查看状态":      "View status",
-		"重启服务":      "Restart service",
-		"同步当前配置并重启": "Sync current config and restart",
+		"服务设置": "Service Settings",
+		"查看状态": "View status",
+		"重启服务": "Restart service",
 
 		"重载服务（删除并重建）": "Reload service (delete & rebuild)",
 		"将删除并重建服务（重新生成订阅配置、重装运行时并重启），确认继续？": "This will delete and rebuild the service (regenerate the subscription config, redeploy the runtime, and restart). Continue?",

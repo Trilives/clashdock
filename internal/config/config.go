@@ -199,17 +199,6 @@ func Save(p paths.Paths, cfg map[string]any) error {
 	return paths.WriteSecretFile(p.CustomizeFile, buf.Bytes()) // 含 GitHub Token 等凭据
 }
 
-// EnsureExists 首次运行时落地默认 customize.json。
-func EnsureExists(p paths.Paths) (map[string]any, error) {
-	cfg := Load(p)
-	if _, err := os.Stat(p.CustomizeFile); os.IsNotExist(err) {
-		if err := Save(p, cfg); err != nil {
-			return cfg, err
-		}
-	}
-	return cfg, nil
-}
-
 func marshalNoEscape(v any, prefix, indent string) ([]byte, error) {
 	var b bytes.Buffer
 	enc := json.NewEncoder(&b)

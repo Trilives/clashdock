@@ -19,17 +19,16 @@ func init() {
 
 		// ListFields
 		"TUN 排除网段":                   "TUN excluded CIDRs",
-		"TUN 排除 UID":                 "TUN excluded UIDs",
 		"TUN 直连 UID（防 SSH 断连）":       "TUN direct-connect UIDs (avoids SSH drop)",
 		"Fake-IP 过滤规则":               "Fake-IP filter rules",
 		"TUN 直连进程名（防 SSH 断连，如 sshd）": "TUN direct-connect processes (avoids SSH drop, e.g. sshd)",
-		"主选择组识别关键词（按顺序匹配，新增项插最前）": "Main-group identification keywords (matched in order; new entries are inserted at the front)",
-		"AI 域名后缀（叠加）":             "AI domain suffixes (overlay)",
-		"流媒体域名后缀（叠加）":             "Streaming domain suffixes (overlay)",
-		"直连域名后缀（叠加）":              "Direct domain suffixes (overlay)",
-		"强制直连端口（叠加，默认 22/SSH）":    "Ports forced direct (overlay, default 22/SSH)",
-		"新加坡关键词（叠加）":              "Singapore keywords (overlay)",
-		"香港关键词（叠加）":               "Hong Kong keywords (overlay)",
+		"主选择组识别关键词（按顺序匹配，新增项插最前）":    "Main-group identification keywords (matched in order; new entries are inserted at the front)",
+		"AI 域名后缀（叠加）":                "AI domain suffixes (overlay)",
+		"流媒体域名后缀（叠加）":                "Streaming domain suffixes (overlay)",
+		"直连域名后缀（叠加）":                 "Direct domain suffixes (overlay)",
+		"强制直连端口（叠加，默认 22/SSH）":       "Ports forced direct (overlay, default 22/SSH)",
+		"新加坡关键词（叠加）":                 "Singapore keywords (overlay)",
+		"香港关键词（叠加）":                  "Hong Kong keywords (overlay)",
 
 		// BoolFields
 		"TUN 模式（全局透明代理）":              "TUN mode (global transparent proxy)",
