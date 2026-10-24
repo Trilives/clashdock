@@ -17,10 +17,14 @@ func archName() string {
 }
 
 type release struct {
-	TagName string `json:"tag_name"`
-	Assets  []struct {
-		BrowserDownloadURL string `json:"browser_download_url"`
-	} `json:"assets"`
+	TagName string         `json:"tag_name"`
+	Assets  []releaseAsset `json:"assets"`
+}
+
+type releaseAsset struct {
+	BrowserDownloadURL string `json:"browser_download_url"`
+	// Digest GitHub 为发行资产计算的摘要（"sha256:<hex>"），较早的发行版可能没有。
+	Digest string `json:"digest"`
 }
 
 func latestRelease(f *fetchx.Fetcher, repo string) (release, error) {
@@ -35,6 +39,16 @@ func assetURLs(rel release) []string {
 		urls = append(urls, a.BrowserDownloadURL)
 	}
 	return urls
+}
+
+// assetDigest 返回 url 对应资产的摘要；没有记录时为空。
+func assetDigest(rel release, url string) string {
+	for _, a := range rel.Assets {
+		if a.BrowserDownloadURL == url {
+			return a.Digest
+		}
+	}
+	return ""
 }
 
 func pickAsset(urls []string, pattern string) string {

@@ -13,6 +13,19 @@
 
 ## 待办
 
-按优先级排列；T-001 ~ T-011 已完成，见 [done.md](./done.md) 2026-10-18。
+按优先级排列；T-001 ~ T-019 已完成，见 [done.md](./done.md) 2026-10-18 与 2026-10-24。
 
-暂无。
+### T-020 系统模式非 root mihomo 下 `PROCESS-NAME` 只能识别服务账户自己的进程
+
+- 优先级：待人工确认
+- 状态：待开始
+- 来源：T-016 实机验证（[记录](tasks/2026-10-24-nonroot-mihomo.md)）。非 root 进程读不到其他用户的
+  `/proc/<pid>/fd`，mihomo 无法把连接对应到进程：`tun_exclude_process` 生成的 `PROCESS-NAME,sshd,DIRECT`
+  等规则在系统模式下不再命中（本机实测：同 uid 的 curl 命中、root 的 curl 未命中）。mars 上 root 版本
+  同样从未记录到进程名，SSH 在 TUN 下正常，影响面待确认。
+- 可选方向（需人工取舍）：
+  - 保持现状，在初始化表单与文档中说明，并引导改用按 uid 排除（`tun_exclude_uids`，由内核按 uid 排除）；
+  - 给服务加 `CAP_SYS_PTRACE`（可识别进程，但该能力可调试任意进程，等同放回 root，抵消 T-016）；
+  - 增加「以 root 运行内核」的显式选项，默认非 root。
+- 验收标准：待人工确认
+- 记录：待定

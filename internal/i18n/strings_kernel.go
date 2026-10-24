@@ -25,5 +25,8 @@ func init() {
 
 		"下载代理（直连不可用时回退）: ":                "Download proxy (fallback when direct connection is unavailable): ",
 		"已从安装包接管 %d 个种子文件（离线可用；后续可在线更新）。": "Took over %d seed file(s) from the installation package (usable offline; can be updated online later).",
+
+		"发行版未提供 SHA-256 摘要，跳过完整性校验。": "The release provides no SHA-256 digest; skipping the integrity check.",
+		"不支持的摘要格式: %s":               "Unsupported digest format: %s",
 	})
 }

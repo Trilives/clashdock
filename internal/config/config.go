@@ -196,7 +196,7 @@ func Save(p paths.Paths, cfg map[string]any) error {
 		buf.Write(val)
 	}
 	buf.WriteString("\n}\n")
-	return os.WriteFile(p.CustomizeFile, buf.Bytes(), 0o644)
+	return paths.WriteSecretFile(p.CustomizeFile, buf.Bytes()) // 含 GitHub Token 等凭据
 }
 
 // EnsureExists 首次运行时落地默认 customize.json。

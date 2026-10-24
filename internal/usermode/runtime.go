@@ -91,7 +91,7 @@ func stageConfig(p paths.Paths, rt string, uiStaged bool) error {
 	if err != nil {
 		return fmt.Errorf("marshal config: %w", err)
 	}
-	if err := writeFileAtomic(filepath.Join(rt, "config.yaml"), out, 0o644); err != nil {
+	if err := writeFileAtomic(filepath.Join(rt, "config.yaml"), out, paths.SecretFileMode); err != nil {
 		return fmt.Errorf("write config: %w", err)
 	}
 	return nil

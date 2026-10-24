@@ -3,6 +3,7 @@ package execx
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -71,6 +72,7 @@ type Opt struct {
 	Capture bool              // 捕获 stdout/stderr（否则直通终端）
 	Env     map[string]string // 追加/覆盖环境变量
 	Dir     string
+	Stdin   io.Reader // 子进程标准输入（nil 时直通终端或为空）
 }
 
 // Result 子进程结果；Capture 时含输出。
@@ -100,6 +102,9 @@ func Run(cmd []string, opt *Opt) (Result, error) {
 	} else {
 		c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
 	}
+	if opt.Stdin != nil {
+		c.Stdin = opt.Stdin
+	}
 	err := c.Run()
 	res := Result{Stdout: stdout.String(), Stderr: stderr.String()}
 	if err != nil {
@@ -124,17 +129,9 @@ var sudoOK bool
 
 // EnsureSudo 确保后续 root 操作可执行：已是 root 直接返回；
 // 否则用 `sudo -v` 交互式预热（会话内缓存），失败返回 ErrCancelled。
+// 系统模式写状态的入口先经 flows.RequireRoot 整体提权（见 cmd/clashdock/privilege.go）；
+// 未提权时仍会提示的只有服务菜单这类逐条 sudo 的操作与用户模式按需授权（如 TUN 的 setcap）。
 func EnsureSudo(reason string) error {
-	return ensureSudo(reason, true)
-}
-
-// EnsureSudoNoHint 同 EnsureSudo，但不提示「直接用 sudo 启动」：用户模式以 root 启动会
-// 改用 root 的数据目录，这条提示在那里是误导。
-func EnsureSudoNoHint(reason string) error {
-	return ensureSudo(reason, false)
-}
-
-func ensureSudo(reason string, hint bool) error {
 	if IsRoot() || sudoOK {
 		return nil
 	}
@@ -142,9 +139,6 @@ func ensureSudo(reason string, hint bool) error {
 		return fmt.Errorf("%s", i18n.T("需要管理员权限，但未找到 sudo，请改用 root 运行"))
 	}
 	Info(reason + i18n.T("需要管理员权限。"))
-	if hint {
-		Info(i18n.T("提示：也可以直接用 sudo 启动，避免中途输入密码。"))
-	}
 	c := exec.Command("sudo", "-v")
 	c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
 	if err := c.Run(); err != nil {
@@ -168,24 +162,17 @@ func RunRoot(cmd []string, reason string, opt *Opt) (Result, error) {
 	return Run(append([]string{"sudo"}, cmd...), opt)
 }
 
-// WriteRoot 以 root 把 content 写到 path（经临时文件 + install，保证权限/原子）。
+// WriteRoot 以 root 把 content 写到 path（install 设定权限）。内容经标准输入交给 root
+// 进程：未提权时若先写到调用者的临时文件，同一用户的其他进程可在 sudo install 之前改掉
+// 它，借 root 单元的 ExecStart= 执行任意代码。
 func WriteRoot(path, content, mode, reason string) error {
-	tf, err := os.CreateTemp("", "clashdock-*")
-	if err != nil {
-		return err
-	}
-	tmp := tf.Name()
-	defer os.Remove(tmp)
-	if _, err := tf.WriteString(content); err != nil {
-		tf.Close()
-		return err
-	}
-	if err := tf.Close(); err != nil {
-		return err
-	}
 	if mode == "" {
 		mode = "0644"
 	}
-	_, err = RunRoot([]string{"install", "-m", mode, tmp, path}, reason, nil)
+	_, err := RunRoot(writeRootCmd(path, mode), reason, &Opt{Stdin: strings.NewReader(content)})
 	return err
+}
+
+func writeRootCmd(path, mode string) []string {
+	return []string{"install", "-m", mode, "/dev/stdin", path}
 }

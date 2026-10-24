@@ -54,7 +54,7 @@ func InstallTimer(onCalendar string) error {
 	if !execx.Have("systemctl") {
 		return fmt.Errorf("%s", i18n.T("未找到 systemctl，定时器需要 systemd"))
 	}
-	selfExe, err := os.Executable()
+	selfExe, err := execx.TrustedExecutablePath()
 	if err != nil {
 		return err
 	}

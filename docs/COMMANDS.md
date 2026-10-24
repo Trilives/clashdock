@@ -23,6 +23,11 @@ clashdock 的**推荐用法是直接运行 `clashdock` 进入交互式终端**�
 | `clashdock uninstall` | 勾选式卸载：服务 / 自愈 / 定时器 / 产物 / 全部状态 |
 | `clashdock version` | 显示版本 |
 
+**权限**（完整模式）：`init` / `modify` / `uninstall` / `update` / `pause` / `resume` 启动时经 sudo
+以 root 重新执行一次；`nettest`、`version` 与交互式主菜单不提权（管理员能直接读取设置），主菜单在进入
+「运行时管理 / 配置变更 / 工具 → 更新 / 语言 / 卸载」时才经 sudo 重启并直接回到该项。首次运行（数据目录或
+语言尚未就绪）或数据目录属组不是本人而读不到设置时，主菜单启动即提权。
+
 用户模式下（见 `user`；由启动上下文自动判定），`modify` / `nettest` / `pause` / `resume` /
 `update` / `uninstall` 作用于用户服务：`pause` / `resume` 停止 / 启动用户服务，`update` 更新内核 +
 geo + Web UI 后重铺运行时并重启用户服务，`uninstall` 勾选移除用户服务 / 已安装本体 / 全部数据，
@@ -56,13 +61,18 @@ printf '3\ny\n' | clashdock        # 例：进入主菜单第 3 项并确认
 | `MIHOMO_NO_PROXY=1` | 强制下载全部走直连，禁用代理兜底 |
 | `NO_COLOR` | 关闭彩色输出与 TUI 盒子（自动回退纯文本） |
 
+经 sudo 提权重新执行时，上表中已设置的 `CLASHDOCK_MODE` / `CLASHDOCK_LANG` /
+`DOWNLOAD_PROXY` / `GITHUB_TOKEN` / `GH_TOKEN` / `MIHOMO_NO_PROXY` / `NO_COLOR` 以 `--preserve-env`
+保留（只传变量名，值不出现在命令行；sudoers 须允许保留环境，默认 `ALL` 规则即可）。`CLASHDOCK_HOME`
+**不随提权传递**：root 只用固定数据目录（除非 root 自己设置），以免普通用户环境让 root 接管、执行别处的文件。
+
 ## systemd 单元一览
 
 由交互流程按需安装 / 卸载：
 
 | 单元 | 作用 |
 |---|---|
-| `mihomo.service` | 主服务（`/var/lib/clashdock-runtime` 自包含运行时）；Web UI 走其内置的 `:9090/ui/` 路径，不再有独立面板服务 |
+| `mihomo.service` | 主服务（`/var/lib/clashdock-runtime` 自包含运行时，以系统账户 `mihomo` + `CAP_NET_ADMIN` 等运行，工作目录 `home/`）；Web UI 走其内置的 `:9090/ui/` 路径，不再有独立面板服务 |
 | `mihomo-watchdog.timer/.service` | 网络自愈探针（有上行但代理不通才重启） |
 | `mihomo-update.timer/.service` | 每周自动更新（`clashdock update`） |
 

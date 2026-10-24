@@ -1,8 +1,10 @@
 // Package paths 统一路径常量。
 //
 // 运行期所有数据使用**固定工作目录** /var/lib/clashdock（不随用户/HOME 变化，
-// root 运行的定时器与用户会话看到同一份数据）；环境变量 CLASHDOCK_HOME 可覆盖
-// （主要用于测试）。首次使用由 flows.EnsureStateRoot 负责创建并交回调用者属主。
+// root 运行的定时器与管理会话看到同一份数据）；环境变量 CLASHDOCK_HOME 可覆盖
+// （主要用于测试）。系统模式下该目录只有 root 可写、属组为管理员的私有组：写状态的
+// 操作经 sudo 以 root 运行，由 flows.EnsureStateRoot 创建并把旧版本交给调用用户的
+// 目录收归 root；只读操作不提权。
 package paths
 
 import (
@@ -69,14 +71,41 @@ func Detect() Paths {
 	}
 }
 
-// EnsureStateDirs 创建所有运行期目录（幂等）。
+// EnsureStateDirs 创建所有运行期目录（幂等）。订阅目录含节点凭据，其他用户不可进入；
+// 用户模式的状态目录整体只归本人。旧版本留下的 0755 也在此收紧。
 func (p Paths) EnsureStateDirs() error {
-	for _, d := range []string{p.State, p.Bin, p.UI, p.Ruleset, p.Downloads, p.Subscriptions} {
+	for _, d := range []string{p.State, p.Bin, p.UI, p.Ruleset, p.Downloads} {
 		if err := os.MkdirAll(d, 0o755); err != nil {
 			return err
 		}
 	}
-	return nil
+	if p.UserMode {
+		if err := chmodDir(p.State, UserStateMode); err != nil {
+			return err
+		}
+	}
+	if err := os.MkdirAll(p.Subscriptions, SecretDirMode); err != nil {
+		return err
+	}
+	return chmodDir(p.Subscriptions, SecretDirMode)
+}
+
+// chmodDir 改目录权限位，保留 setgid：系统模式靠它让新文件继承状态目录属组（SecureTree）。
+func chmodDir(dir string, perm os.FileMode) error {
+	st, err := os.Stat(dir)
+	if err != nil {
+		return err
+	}
+	want := perm | st.Mode()&os.ModeSetgid
+	if st.Mode()&(os.ModePerm|os.ModeSetgid) == want {
+		return nil
+	}
+	return os.Chmod(dir, want)
+}
+
+// VersionsDir clashdock 自更新的版本目录（<version>/clashdock + current 符号链接）。
+func (p Paths) VersionsDir() string {
+	return filepath.Join(p.State, "clashdock-versions")
 }
 
 // SubscriptionDir 某订阅的存储目录。

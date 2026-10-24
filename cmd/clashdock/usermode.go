@@ -50,7 +50,7 @@ func userPaths() paths.Paths {
 func runUserMode(args []string, info usermode.Info) int {
 	p := userPaths()
 	setupLanguage(p)
-	setupLogging(p)
+	setupLogging(p, true)
 	if len(args) == 0 || userEntryArgs[args[0]] {
 		return flowExitCode(flows.UserModeRun(p, info, version))
 	}

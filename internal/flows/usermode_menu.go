@@ -159,7 +159,7 @@ func userToolsMenu(p paths.Paths, version string) error {
 			printUserLogs(usermode.NewService(p))
 			tui.Pause(i18n.T("按回车返回菜单… "))
 		case 2:
-			aerr = updateMenuFlow(p, version)
+			aerr = UpdateMenu(p, version)
 		case 3:
 			fmt.Println(userHowToUseText(p, usermode.NewService(p)))
 			tui.Pause(i18n.T("按回车返回菜单… "))

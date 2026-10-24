@@ -14,6 +14,7 @@
   `$XDG_DATA_HOME/clashdock`（默认 `~/.local/share/clashdock`，经 `CLASHDOCK_HOME` 传给
   `paths.Detect`，并置 `paths.Paths.UserMode=true`）；运行时 `<state>/runtime`（mihomo `-d`，
   geo 放根级、按需铺 `ui/`）；用户单元 `$XDG_CONFIG_HOME/systemd/user/clashdock-mihomo.service`。
+  数据目录整体 `0700`（含订阅凭据、Token 与日志，其他本地用户不可进入）。
   数据固定在用户主目录而非可执行文件旁，单元引用的路径因此不会随便携包目录移动/删除而失效。
 - **安装与交接**（`flows.UserModeRun`）：从解压便携包启动时，先把旧版便携模式留在包目录旁的
   `clashdock-data` 复制迁移（仅当新位置还没有订阅，旧目录原样保留）→ `kernel.SeedFrom` 从

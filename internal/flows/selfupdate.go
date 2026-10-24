@@ -8,6 +8,7 @@ import (
 	"github.com/Trilives/clashdock/internal/i18n"
 	"github.com/Trilives/clashdock/internal/paths"
 	"github.com/Trilives/clashdock/internal/selfupdate"
+	"github.com/Trilives/clashdock/internal/sysd"
 	"github.com/Trilives/clashdock/internal/tui"
 )
 
@@ -39,11 +40,15 @@ func doSelfUpdate(p paths.Paths, currentVersion string, channel selfupdate.Chann
 	if err != nil {
 		return err
 	}
+	prompt := fmt.Sprintf(i18n.T("发现新版本 %s（当前 %s），现在更新？"), latest, currentVersion)
 	if latest == currentVersion {
-		execx.Ok(fmt.Sprintf(i18n.T("已是最新版本（%s）。"), currentVersion))
-		return nil
+		if !selfupdate.NeedsDebRepair(p) {
+			execx.Ok(fmt.Sprintf(i18n.T("已是最新版本（%s）。"), currentVersion))
+			return nil
+		}
+		prompt = fmt.Sprintf(i18n.T("重新安装 %s 的 .deb，把可执行文件恢复为 dpkg 管理？"), latest)
 	}
-	ok, err := tui.Confirm(fmt.Sprintf(i18n.T("发现新版本 %s（当前 %s），现在更新？"), latest, currentVersion), true)
+	ok, err := tui.Confirm(prompt, true)
 	if err != nil || !ok {
 		return err
 	}
@@ -55,6 +60,7 @@ func doSelfUpdate(p paths.Paths, currentVersion string, channel selfupdate.Chann
 		execx.Ok(fmt.Sprintf(i18n.T("已是最新版本（%s）。"), version))
 		return nil
 	}
+	repairUnitsAfterSelfUpdate(p)
 	execx.Ok(fmt.Sprintf(i18n.T("clashdock 已更新到 %s，下次运行即生效。"), version))
 	return nil
 }
@@ -64,6 +70,18 @@ func doRollbackStable(p paths.Paths) error {
 	if err != nil {
 		return err
 	}
+	repairUnitsAfterSelfUpdate(p)
 	execx.Ok(fmt.Sprintf(i18n.T("已回退到稳定版 %s，下次运行即生效。"), version))
 	return nil
+}
+
+// repairUnitsAfterSelfUpdate dpkg 接管后旧版本目录被清理，指向其中的伴生单元入口随之
+// 失效，顺带改回稳定路径（用户模式没有系统伴生单元）。
+func repairUnitsAfterSelfUpdate(p paths.Paths) {
+	if p.UserMode {
+		return
+	}
+	if err := sysd.RepairCompanionUnits(p); err != nil {
+		execx.Warn(i18n.T("修复伴生单元入口失败：") + err.Error())
+	}
 }

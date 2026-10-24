@@ -7,6 +7,27 @@
 - 每次改动按日期记录。
 - 重大任务在当日条目后附记录链接（何时算重大任务见 [WORKFLOW.md §4](../docs/WORKFLOW.md#4-重大任务记录)）。
 
+## 2026-10-24
+
+- T-012 ~ T-019 来自对 sboxkit `Records/` 的借鉴（优先级经人工同意）。实机验证主机改为 mars（人工指定）。
+- T-012 / T-013 / T-015：系统模式特权边界——状态目录收归 `root:<管理员私有组>`（凭据 0640、订阅目录 0750，
+  首个 root 入口含 watchdog 自动收归旧部署）；主菜单按需提权（经人工要求不再每次打开都要密码，写状态的
+  菜单项才 sudo 并以 `--resume` 回到原处）；watchdog / 周更入口改用稳定调用路径并修复旧单元；dpkg 管理的
+  安装自更新改为校验后 `dpkg -i`。独立安全复审的 CRITICAL / HIGH / 两项 MEDIUM 已修复（`CLASHDOCK_HOME`
+  不随提权传递、`WriteRoot` 经标准输入、bashrc 经校验句柄读写、自更新以 API digest 为准、单元入口须整条
+  路径只有 root 可写）。mars 复现旧版漏洞并确认关闭，现场已按快照恢复设置。记录：[2026-10-24-privilege-boundary.md](tasks/2026-10-24-privilege-boundary.md)
+- T-014：部署前在状态目录的私有临时目录用即将部署的内核与 geo 执行 `mihomo -t`，通过后才覆盖运行时文件 /
+  重启；失败时运行时与服务不变并提示处于校验阶段。记录：[2026-10-24-precheck-before-deploy.md](tasks/2026-10-24-precheck-before-deploy.md)
+- T-016：系统模式 mihomo 以系统账户 `mihomo` + `AmbientCapabilities` 运行（不用命名空间加固，兼容无特权
+  LXC），运行时仍归 root，只给服务一个家目录；旧单元由主菜单询问重新部署。mars 实机验证 TUN、面板、缓存
+  迁移与探针正常。新增 T-020（非 root 下 `PROCESS-NAME` 只能识别服务账户进程，待人工取舍）。记录：[2026-10-24-nonroot-mihomo.md](tasks/2026-10-24-nonroot-mihomo.md)
+- T-017：内核下载按 GitHub API 资产 `digest` 校验 SHA-256（镜像只负责传输），缓存不符时重下一次，无摘要时提示后沿用原行为。
+- T-018：设置 `MIHOMO_BIN` 时，代表性生成配置（golden 补丁输入含 TUN 开 / 关，及其叠加 / 地区组变体，有 / 无 geo）经真实
+  内核 `-t` 校验，测试离线（`geox-url` 指向不可达地址）；测试 CI 下载 mihomo 与 geo 数据后运行。修复
+  `Precheck` 相对 geo 路径链接悬空。
+- T-019：WORKFLOW 增加实机验证（mars、验证前快照、验证后比对恢复）、发布前门禁与发布后核对清单、
+  「已归档（未验收）」状态及 done.md 写法；TEMPLATE「验证」表增加现场快照与现场恢复 / 比对两行。
+
 ## 2026-10-18
 
 - 发布 v0.3.1：用户模式按需 TUN（T-009）、完整模式不再静默删除 sing-box（T-011）、初始化回退误报修复与内部重构；发布前按 MAINTENANCE 复查，无新清理候选。release 工作流通过，产出 amd64 / arm64 / armv7 的 tar.gz 与 .deb 及 checksums.txt；`/releases/latest` 返回 v0.3.1，amd64 包校验和与 `clashdock version` 核对无误。记录：[2026-10-18-release-v0.3.1.md](tasks/2026-10-18-release-v0.3.1.md)

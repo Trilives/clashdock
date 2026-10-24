@@ -27,5 +27,12 @@ jobs:
           fi
       - name: go vet
         run: go vet ./...
+      - name: fetch mihomo and geo data
+        # 真实内核门禁：生成配置经 `mihomo -t` 校验（见 internal/subscription/realkernel_test.go）
+        env:
+          DEB_ARCHES: amd64
+        run: ./scripts/fetch-deb-deps.sh
       - name: go test
+        env:
+          MIHOMO_BIN: ${{ github.workspace }}/packaging/deps/amd64/mihomo
         run: go test -race ./...

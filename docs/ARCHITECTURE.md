@@ -32,11 +32,23 @@ url-test 聚合组）见 `overlay.go` / `regiongroups.go`，默认关闭，且�
 
 | 位置 | 内容 |
 |---|---|
-| `/var/lib/clashdock`（固定工作目录，`CLASHDOCK_HOME` 可覆盖） | 状态数据：内核、UI、规则、`subscriptions/<name>/{meta.json,raw.*,config.yaml}`、`active` 指针、`customize.json`。首次使用经 sudo 创建并交回调用者属主，root 定时器与用户会话共享同一份数据 |
-| `/var/lib/clashdock-runtime`（v0.2.0 前为 `/etc/mihomo`，不再兼容旧路径） | root 态自包含运行时：内核 + 配置 + geo + UI 的暂存副本（服务与用户目录解耦） |
+| `/var/lib/clashdock`（固定工作目录，`CLASHDOCK_HOME` 可覆盖） | 状态数据：内核、UI、规则、`subscriptions/<name>/{meta.json,raw.*,config.yaml}`、`active` 指针、`customize.json`。只有 root 可写，属组为管理员私有组；root 定时器与管理会话共享同一份数据 |
+| `/var/lib/clashdock-runtime`（v0.2.0 前为 `/etc/mihomo`，不再兼容旧路径） | 只归 root 的自包含运行时：内核 + 配置（`root:mihomo 0640`）+ geo + UI 的暂存副本；`home/` 归服务账户 `mihomo`，是 mihomo 的 `-d`（cache.db、provider 下载） |
 | `/etc/systemd/system` | `mihomo` / `mihomo-watchdog` / `mihomo-update` 三组单元（Web UI 走 mihomo 内置 `:9090/ui/` 路径，不再有独立面板单元） |
 
-普通用户运行，特权操作全部经 `sudo` 子进程（`internal/execx`），凭证会话内缓存。
+**权限模型**（系统模式）：root 只执行、只信任 root 属主的文件。状态目录归 root、属组为管理员的
+私有组（组名与用户名相同的主组；旧版本交给调用用户的目录由首个 root 入口——含每 2 分钟一次的
+watchdog——经 `paths.SecureTree` 收归：去组/其他写、重建外来属主或多硬链接的文件、删除指向树外的
+链接与 FIFO），目录带 setgid；凭据文件 `0640`、订阅目录 `0750`，管理员不经 sudo 即可读，其他本地
+用户读不到。只读操作（主菜单、信息、日志、网络测试）不提权；写状态的子命令启动时经 sudo 重新执行
+一次，交互式主菜单则在进入写状态的菜单项时才经 `flows.RequireRoot` 以 `--resume=<项>` 提权重启，
+**不会每次打开都要求密码**（首次运行或读不到设置时除外）。sudo 只经 `--preserve-env` 传变量名，
+Token 不出现在命令行，`CLASHDOCK_HOME` 不传。systemctl 等零散 root 操作仍走 `execx.RunRoot`，写 root
+文件的内容经标准输入交给 `install`（不落在调用者可改的临时文件）；写进 root 单元的入口须整条路径只有
+root 可写（`execx.TrustedExecutablePath`）。mihomo 以系统账户 `mihomo`
++ `AmbientCapabilities`（`CAP_NET_ADMIN` 等）运行，加固只用不依赖挂载命名空间的选项（兼容无特权
+LXC）；它读不到其他用户的进程，`PROCESS-NAME` 规则只能识别以 `mihomo` 运行的进程（T-020）；单元与当前版本不一致（如旧版 `User=root`）时主菜单询问重新部署。部署前先在状态目录的私有
+临时目录用即将部署的内核与 geo 执行 `mihomo -t`（`configfile.Precheck`），通过后才覆盖运行时文件。
 
 `sysd.SyncAndRestart`（订阅切换/刷新、节点固定等高频操作用）只重新同步
 `config.yaml`，**不会**重新拷贝内核/geo 二进制文件到运行时目录——这些文件只有
@@ -184,10 +196,17 @@ TUN 开且服务在跑，会额外问是否临时暂停服务保证这次真正�
 
 ## 8. clashdock 自更新
 
-`internal/selfupdate`：版本化目录 `<state>/clashdock-versions/<version>/clashdock` +
-`current` 符号链接方案，与 `internal/kernel` 更新 mihomo 内核/UI/geo 数据完全独立
-（更新的是 clashdock 自身这个程序）。流程：查询最新 GitHub release → 下载对应架构的
-`clashdock_<version>_linux_<arch>.tar.gz`（amd64 / arm64 / armv7）→ 按 `checksums.txt` 校验 SHA-256 → 解压到
+`internal/selfupdate`，与 `internal/kernel` 更新 mihomo 内核/UI/geo 数据完全独立。
+**dpkg 管理的系统模式安装**（`dpkg-query -S` 登记了可执行文件）：下载同一发行版的
+`clashdock_<version>_linux_<arch>.deb`、按 GitHub API 资产 `digest` 校验（取自 api.github.com，不经镜像；
+无摘要时才回退到直接从 GitHub 取的 `checksums.txt`）后交给 `dpkg -i`，试跑确认版本，
+可执行文件始终归 dpkg；稳定版回退同样下载对应 `.deb`，上一个稳定版号记在 `<state>/clashdock-last-stable`。
+早期自更新把 `/usr/bin/clashdock` 改成了指向版本目录的符号链接，主菜单提示可重装 `.deb` 恢复，
+恢复后版本目录随 root 入口清理。内核下载另按 GitHub API 资产的 `digest`（SHA-256）校验，镜像只负责传输。
+
+**非 dpkg 安装**（源码构建、便携包）沿用版本化目录 `<state>/clashdock-versions/<version>/clashdock` +
+`current` 符号链接方案。流程：查询最新 GitHub release → 下载对应架构的
+`clashdock_<version>_linux_<arch>.tar.gz`（amd64 / arm64 / armv7）→ 同上校验 SHA-256 → 解压到
 独立版本目录 → 归一化出 `<version>/clashdock` → 试跑新二进制（`clashdock version`）
 确认能执行 → 原子重写 `current` 符号链接 → 再次试跑确认成功；启动校验失败则回退
 `current` 指向。首次自更新时若正在

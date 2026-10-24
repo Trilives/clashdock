@@ -44,11 +44,7 @@ func persistFirst(cfg map[string]any, groupName, node string, files []string) er
 		return err
 	}
 	for _, f := range files {
-		tmp := f + ".tmp"
-		if err := os.WriteFile(tmp, payload, 0o644); err != nil {
-			return err
-		}
-		if err := os.Rename(tmp, f); err != nil {
+		if err := paths.WriteSecretFile(f, payload); err != nil {
 			return err
 		}
 	}

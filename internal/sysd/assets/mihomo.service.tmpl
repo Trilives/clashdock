@@ -6,14 +6,24 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=root
-WorkingDirectory={{.RuntimeDir}}
-ExecStart={{.Bin}} -d {{.RuntimeDir}} -f {{.Config}}
+User={{.User}}
+Group={{.User}}
+WorkingDirectory={{.Home}}
+Environment=SAFE_PATHS={{.RuntimeDir}}
+UMask=0077
+{{- if .Geo}}
+ExecStartPre={{.Ln}} -sf -t {{.Home}}{{range .Geo}} {{.}}{{end}}
+{{- end}}
+ExecStart={{.Bin}} -d {{.Home}} -f {{.Config}}
 Restart=on-failure
 RestartSec=3
 LimitNOFILE=1048576
 AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW
 CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW
+NoNewPrivileges=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
 
 [Install]
 WantedBy=multi-user.target

@@ -223,10 +223,10 @@ func buildWithFetchProxy(p paths.Paths, sub *Subscription, proxies []string, pau
 			execx.Warn(msg)
 		}
 	}
-	if err := os.MkdirAll(p.SubscriptionDir(sub.Name), 0o755); err != nil {
+	if err := os.MkdirAll(p.SubscriptionDir(sub.Name), paths.SecretDirMode); err != nil {
 		return err
 	}
-	if err := os.WriteFile(rawFile(p, sub), raw, 0o644); err != nil {
+	if err := paths.WriteSecretFile(rawFile(p, sub), raw); err != nil {
 		return err
 	}
 	return convertAndWrite(p, sub, raw, cfgWithDownloadProxy(cfg, primaryProxy(proxies)))
@@ -324,14 +324,14 @@ func convertAndWrite(p paths.Paths, sub *Subscription, raw []byte, cfg map[strin
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(configFile(p, sub.Name), cfgJSON, 0o644); err != nil {
+	if err := paths.WriteSecretFile(configFile(p, sub.Name), cfgJSON); err != nil {
 		return err
 	}
 	metaJSON, err := jsonx.MarshalPretty(sub)
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(metaFile(p, sub.Name), metaJSON, 0o644); err != nil {
+	if err := paths.WriteSecretFile(metaFile(p, sub.Name), metaJSON); err != nil {
 		return err
 	}
 	execx.Ok(fmt.Sprintf(i18n.T("订阅「%s」就绪：%v 节点 / %v 策略组 / %v 规则"),
@@ -371,7 +371,7 @@ func applyActiveWithSync(p paths.Paths, name string, syncRuntime func(paths.Path
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(p.ConfigFile, data, 0o644); err != nil {
+	if err := paths.WriteSecretFile(p.ConfigFile, data); err != nil {
 		return err
 	}
 	if err := os.WriteFile(p.ActiveFile, []byte(name+"\n"), 0o644); err != nil {
@@ -418,7 +418,7 @@ func Rename(p paths.Paths, oldName, newName string) error {
 		sub.Name = newName
 		sub.UpdatedAt = now()
 		if metaJSON, err := jsonx.MarshalPretty(sub); err == nil {
-			os.WriteFile(metaFile(p, newName), metaJSON, 0o644)
+			paths.WriteSecretFile(metaFile(p, newName), metaJSON) //nolint:errcheck // 改名已完成，meta 时间戳尽力而为
 		}
 	}
 	if active := GetActive(p); active == nil {

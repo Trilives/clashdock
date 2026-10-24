@@ -53,5 +53,9 @@ func init() {
 		"每周更新定时器已安装（%s）。":             "Weekly update timer installed (%s).",
 		"卸载每周更新定时器":                   "Uninstall weekly update timer",
 		"每周更新定时器已卸载。":                 "Weekly update timer uninstalled.",
+
+		"修复伴生单元入口":        "Repairing the companion unit entry point",
+		"已把 %s 的入口改为 %s。": "Changed the entry point of %s to %s.",
+		"创建服务账户 ":         "Creating service account ",
 	})
 }

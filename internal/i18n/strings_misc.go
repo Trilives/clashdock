@@ -36,11 +36,13 @@ func init() {
 		"已回退到操作前状态。":            "Rolled back to the state before the operation.",
 
 		// 此前遗漏的界面文案（由 coverage_test 发现）
-		"检测到本地内核/geo 数据已更新，但运行中的服务尚未使用最新版本，是否现在重启应用？": "Local core/geo data has been updated but the running service is not using it yet. Restart now to apply it?",
-		"已应用最新内核/geo 数据并重启服务。":                        "Applied the latest core/geo data and restarted the service.",
-		"日志启用失败：": "Failed to enable logging: ",
-		"直连":      "direct",
-		"  %s 失败（%v），改下一通道重试…": "  %s failed (%v); retrying via the next channel…",
+		"检测到本地内核/geo 数据已更新，但运行中的服务尚未使用最新版本，是否现在重启应用？":  "Local core/geo data has been updated but the running service is not using it yet. Restart now to apply it?",
+		"已应用最新内核/geo 数据并重启服务。":                         "Applied the latest core/geo data and restarted the service.",
+		"服务单元来自旧版本（例如 mihomo 仍以 root 运行），是否现在重新部署并重启？": "The service unit comes from an older version (for example, mihomo still runs as root). Redeploy and restart now?",
+		"已重新部署并重启服务。":                                  "Redeployed and restarted the service.",
+		"日志启用失败：":                                      "Failed to enable logging: ",
+		"直连":                                           "direct",
+		"  %s 失败（%v），改下一通道重试…":                         "  %s failed (%v); retrying via the next channel…",
 		"TUN 模式下直连可能仍被路由劫持；是否临时暂停服务以确保本次直连成功？（拉取完成后自动恢复）": "In TUN mode a direct fetch may still be hijacked by routing; temporarily pause the service to ensure this fetch is really direct? (resumes automatically afterwards)",
 		"回车返回主菜单… ":                    "Press Enter to return to the main menu… ",
 		"资源更新失败：":                      "Resource update failed: ",
@@ -52,5 +54,10 @@ func init() {
 		"恢复服务失败，请手动启动：":                "Failed to resume the service; please start it manually: ",
 		"未找到 Web UI，面板将不可用；可稍后执行更新补齐。": "Web UI not found; the panel will be unavailable. You can fetch it later via Update.",
 		"记录资源部署指纹失败（不影响服务本身）：":         "Failed to record the deployed-asset fingerprint (the service itself is unaffected): ",
+
+		"部署前校验未通过（运行中的服务与运行时文件未改动）：%s": "Pre-deployment check failed (the running service and runtime files were left unchanged): %s",
+		"无法解析用户 %s 的 uid/gid":          "Cannot resolve the uid/gid of user %s",
+		"拒绝写入 %s（不是普通文件或是符号链接）：%w":     "Refusing to write %s (not a regular file, or a symlink): %w",
+		"拒绝写入 %s：它不是该用户自己的普通文件":        "Refusing to write %s: it is not a regular file owned by that user",
 	})
 }

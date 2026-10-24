@@ -31,7 +31,7 @@ func UpdateCore(p paths.Paths, f *fetchx.Fetcher, s Settings, compatible, force 
 	}
 
 	archive := filepath.Join(p.Downloads, filepath.Base(u))
-	if err := downloadTo(f, Mirror(u, s.GithubMirror), archive, force); err != nil {
+	if err := fetchVerified(f, Mirror(u, s.GithubMirror), archive, assetDigest(rel, u), force); err != nil {
 		return "", err
 	}
 

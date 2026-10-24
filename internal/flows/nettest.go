@@ -6,6 +6,7 @@
 package flows
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -20,6 +21,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/Trilives/clashdock/internal/config"
+	"github.com/Trilives/clashdock/internal/errs"
 	"github.com/Trilives/clashdock/internal/execx"
 	"github.com/Trilives/clashdock/internal/i18n"
 	"github.com/Trilives/clashdock/internal/paths"
@@ -219,13 +221,16 @@ func ToolsMenu(p paths.Paths, currentVersion string) error {
 		case 1:
 			terr = LatestLogTool(p)
 		case 2:
-			terr = updateMenuFlow(p, currentVersion)
+			// 更新会写状态目录，系统模式下普通用户在此才提权；其余工具只读。
+			if terr = RequireRoot(p, ResumeUpdate); terr == nil {
+				terr = UpdateMenu(p, currentVersion)
+			}
 		case 3:
 			terr = FileLocationsTool(p)
 		case 4:
 			terr = InfoTool(p)
 		}
-		if terr != nil {
+		if terr != nil && !errors.Is(terr, errs.ErrCancelled) {
 			execx.Error(terr.Error())
 		}
 	}

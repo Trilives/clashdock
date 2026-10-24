@@ -34,7 +34,7 @@ type userTunDeps struct {
 func defaultUserTunDeps() userTunDeps {
 	return userTunDeps{
 		confirm:    tui.Confirm,
-		ensureSudo: execx.EnsureSudoNoHint,
+		ensureSudo: execx.EnsureSudo,
 		runRoot:    execx.RunRoot,
 		hasCaps:    usermode.HasTunCaps,
 		apply:      applyUserTun,

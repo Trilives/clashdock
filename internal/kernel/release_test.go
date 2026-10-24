@@ -53,15 +53,7 @@ func TestPickAssetIsCaseInsensitiveAndReturnsFirstMatch(t *testing.T) {
 }
 
 func TestAssetURLs(t *testing.T) {
-	var rel release
-	rel.Assets = append(rel.Assets,
-		struct {
-			BrowserDownloadURL string `json:"browser_download_url"`
-		}{"https://x/a"},
-		struct {
-			BrowserDownloadURL string `json:"browser_download_url"`
-		}{"https://x/b"},
-	)
+	rel := release{Assets: []releaseAsset{{BrowserDownloadURL: "https://x/a"}, {BrowserDownloadURL: "https://x/b"}}}
 
 	if got := assetURLs(rel); !reflect.DeepEqual(got, []string{"https://x/a", "https://x/b"}) {
 		t.Fatalf("assetURLs = %v", got)

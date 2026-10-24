@@ -23,11 +23,18 @@ func TestStageRuntimeConfigAcceptsYAMLAndRewritesExternalUI(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	staged, err := stageRuntimeConfig(p, runtimePaths{UI: "/var/lib/clashdock-runtime/ui"})
+	data, err := runtimeConfigData(p, runtimePaths{UI: "/var/lib/clashdock-runtime/ui"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	staged, err := stageRuntimeConfig(p, data)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.Remove(staged)
+	if st, err := os.Stat(staged); err != nil || st.Mode().Perm() != 0o600 {
+		t.Fatalf("staged config must be owner-only (node credentials), stat = %v, %v", st, err)
+	}
 
 	out, err := os.ReadFile(staged)
 	if err != nil {
@@ -62,11 +69,11 @@ func TestSyncStagedAndRestartInstallsLatestConfigBeforeValidateAndRestart(t *tes
 		switch cmd[0] {
 		case "install":
 			calls = append(calls, "install")
-			raw, err := os.ReadFile(cmd[3])
+			raw, err := os.ReadFile(cmd[len(cmd)-2])
 			if err != nil {
 				return execx.Result{}, err
 			}
-			return execx.Result{}, os.WriteFile(cmd[4], raw, 0o644)
+			return execx.Result{}, os.WriteFile(cmd[len(cmd)-1], raw, 0o644)
 		case rt.Bin:
 			calls = append(calls, "validate")
 		case "systemctl":
@@ -111,11 +118,11 @@ func TestSyncStagedAndRestartValidationErrorStopsRestart(t *testing.T) {
 		switch cmd[0] {
 		case "install":
 			calls = append(calls, "install")
-			raw, err := os.ReadFile(cmd[3])
+			raw, err := os.ReadFile(cmd[len(cmd)-2])
 			if err != nil {
 				return execx.Result{}, err
 			}
-			return execx.Result{}, os.WriteFile(cmd[4], raw, 0o644)
+			return execx.Result{}, os.WriteFile(cmd[len(cmd)-1], raw, 0o644)
 		case rt.Bin:
 			calls = append(calls, "validate")
 			return execx.Result{}, validationErr
@@ -132,4 +139,96 @@ func TestSyncStagedAndRestartValidationErrorStopsRestart(t *testing.T) {
 	if want := []string{"install", "validate"}; !reflect.DeepEqual(calls, want) {
 		t.Fatalf("commands after validation failure = %v; want %v", calls, want)
 	}
+}
+
+// fakeState 一套能通过 preflight 的状态目录（内容是假的，不会被执行）。
+func fakeState(t *testing.T) paths.Paths {
+	t.Helper()
+	t.Setenv("CLASHDOCK_HOME", t.TempDir())
+	p := paths.Detect()
+	if err := p.EnsureStateDirs(); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range []string{p.MihomoBin, p.GeositeDat, p.CountryMmdb} {
+		if err := os.WriteFile(f, []byte("x"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(p.ConfigFile, []byte(`{"mixed-port":7890,"external-ui":"ui"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+func TestInstallPrecheckFailureTouchesNothing(t *testing.T) {
+	if !execx.Have("systemctl") {
+		t.Skip("preflight needs systemctl")
+	}
+	p := fakeState(t)
+	checkErr := errors.New("kernel rejected config")
+	var checkedBin string
+	origCheck, origRun := precheckConfig, runRoot
+	t.Cleanup(func() { precheckConfig, runRoot = origCheck, origRun })
+	precheckConfig = func(bin, _ string, cfg map[string]any, assets map[string]string) error {
+		checkedBin = bin
+		if cfg["external-ui"] != rtPaths("mihomo").UI || assets["geosite.dat"] != p.GeositeDat {
+			t.Errorf("precheck got cfg=%v assets=%v, want the config and geo files about to be deployed", cfg, assets)
+		}
+		return checkErr
+	}
+	runRoot = func(cmd []string, _ string, _ *execx.Opt) (execx.Result, error) {
+		t.Fatalf("root command %v ran although the precheck failed", cmd)
+		return execx.Result{}, nil
+	}
+
+	err := Install(p, "mihomo", true)
+
+	if !errors.Is(err, checkErr) {
+		t.Fatalf("Install() = %v, want the precheck error", err)
+	}
+	if checkedBin != p.MihomoBin {
+		t.Fatalf("precheck used %q, want the state kernel about to be deployed", checkedBin)
+	}
+}
+
+func TestSyncRuntimePrecheckFailureKeepsRuntimeConfig(t *testing.T) {
+	p := fakeState(t)
+	rt := runtimePaths{Dir: t.TempDir(), UI: "/runtime/ui"}
+	rt.Bin, rt.Config, rt.Geosite = filepath.Join(rt.Dir, "mihomo"), filepath.Join(rt.Dir, "mihomo.yaml"), filepath.Join(rt.Dir, "geosite.dat")
+	checkErr := errors.New("kernel rejected config")
+	check := func(bin, _ string, _ map[string]any, assets map[string]string) error {
+		if bin != rt.Bin || assets["geosite.dat"] != rt.Geosite {
+			t.Errorf("precheck got bin=%q assets=%v, want the running kernel and its geo files", bin, assets)
+		}
+		return checkErr
+	}
+	run := func(cmd []string, _ string, _ *execx.Opt) (execx.Result, error) {
+		t.Fatalf("root command %v ran although the precheck failed", cmd)
+		return execx.Result{}, nil
+	}
+
+	if err := syncRuntime(p, rt, "mihomo", check, run); !errors.Is(err, checkErr) {
+		t.Fatalf("syncRuntime() = %v, want the precheck error", err)
+	}
+	if entries, _ := os.ReadDir(p.State); len(entries) == 0 {
+		t.Fatal("state dir unexpectedly empty")
+	}
+	for _, e := range mustReadDir(t, p.State) {
+		if strings.HasPrefix(e, ".runtime-config.") {
+			t.Errorf("staged config %s left behind", e)
+		}
+	}
+}
+
+func mustReadDir(t *testing.T, dir string) []string {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := make([]string, len(entries))
+	for i, e := range entries {
+		names[i] = e.Name()
+	}
+	return names
 }

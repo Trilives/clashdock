@@ -229,3 +229,41 @@ func TestDeployValidatesBeforeInstalling(t *testing.T) {
 		t.Fatalf("runtime config should be staged: %v", err)
 	}
 }
+
+func TestSyncPrecheckFailureKeepsRuntimeConfig(t *testing.T) {
+	p := userHome(t)
+	if err := p.EnsureStateDirs(); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, p.MihomoBin, "#!/bin/sh\nexit 0\n", 0o755)
+	writeFile(t, p.ConfigFile, `{"mixed-port":7890}`, 0o600)
+	writeFile(t, p.GeositeDat, "geosite", 0o644)
+	fr := &fakeRunner{}
+	svc := newTestSystemd(p, fr, true)
+	if err := Deploy(p, svc); err != nil {
+		t.Fatalf("Deploy: %v", err)
+	}
+	before, err := os.ReadFile(RuntimeConfig(p))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 新配置被内核拒绝：运行中的服务所用的运行时配置必须保持原样。
+	writeFile(t, p.ConfigFile, `{"mixed-port":7891}`, 0o600)
+	writeFile(t, p.MihomoBin, "#!/bin/sh\necho bad rule\nexit 1\n", 0o755)
+	calls := len(fr.calls)
+
+	if err := SyncAndRestart(p, svc); err == nil || !strings.Contains(err.Error(), "bad rule") {
+		t.Fatalf("expected precheck failure, got %v", err)
+	}
+	after, err := os.ReadFile(RuntimeConfig(p))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != string(before) {
+		t.Fatalf("runtime config changed after a failed precheck:\n%s\nwas\n%s", after, before)
+	}
+	if len(fr.calls) != calls {
+		t.Fatalf("service touched after a failed precheck: %q", fr.calls[calls:])
+	}
+}

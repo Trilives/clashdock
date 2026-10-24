@@ -9,12 +9,16 @@ import (
 )
 
 type ghRelease struct {
-	TagName    string `json:"tag_name"`
-	Prerelease bool   `json:"prerelease"`
-	Assets     []struct {
-		Name               string `json:"name"`
-		BrowserDownloadURL string `json:"browser_download_url"`
-	} `json:"assets"`
+	TagName    string    `json:"tag_name"`
+	Prerelease bool      `json:"prerelease"`
+	Assets     []ghAsset `json:"assets"`
+}
+
+type ghAsset struct {
+	Name               string `json:"name"`
+	BrowserDownloadURL string `json:"browser_download_url"`
+	// Digest GitHub 为资产计算的摘要（"sha256:<hex>"），取自 api.github.com，不经镜像。
+	Digest string `json:"digest"`
 }
 
 func fetchRelease(f *fetchx.Fetcher, channel Channel) (ghRelease, error) {
@@ -30,6 +34,13 @@ func fetchRelease(f *fetchx.Fetcher, channel Channel) (ghRelease, error) {
 	}
 	var rel ghRelease
 	err := f.ReadJSON("https://api.github.com/repos/"+Repo+"/releases/latest", &rel)
+	return rel, err
+}
+
+// fetchReleaseByTag 查询指定版本的发行版（回退到记录的稳定版时用）。
+func fetchReleaseByTag(f *fetchx.Fetcher, version string) (ghRelease, error) {
+	var rel ghRelease
+	err := f.ReadJSON("https://api.github.com/repos/"+Repo+"/releases/tags/v"+version, &rel)
 	return rel, err
 }
 
@@ -49,10 +60,15 @@ func releaseArchFor(goarch string) string {
 }
 
 func findAssetURL(rel ghRelease, name string) string {
+	a, _ := findAsset(rel, name)
+	return a.BrowserDownloadURL
+}
+
+func findAsset(rel ghRelease, name string) (ghAsset, bool) {
 	for _, a := range rel.Assets {
 		if a.Name == name {
-			return a.BrowserDownloadURL
+			return a, true
 		}
 	}
-	return ""
+	return ghAsset{}, false
 }

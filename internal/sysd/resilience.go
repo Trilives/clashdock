@@ -126,7 +126,7 @@ func InstallResilience(opts ResilienceOptions) error {
 		execx.Warn(dispatcherDir + i18n.T(" 不存在，跳过 NM 钩子（watchdog 仍兜底）。"))
 	}
 
-	exe, err := os.Executable()
+	exe, err := execx.TrustedExecutablePath()
 	if err != nil {
 		return fmt.Errorf(i18n.T("定位 clashdock 可执行文件: %w"), err)
 	}

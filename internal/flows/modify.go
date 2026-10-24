@@ -316,9 +316,9 @@ func editFieldGroupFlow(p paths.Paths, title string, fields []string) error {
 	return nil
 }
 
-// updateMenuFlow 聚合内核 / Web UI / geo 数据 / clashdock 自身四个独立更新入口，
-// 各自单独触发、互不牵连（不再像过去那样内核/geo/UI 捆绑一次问完）。
-func updateMenuFlow(p paths.Paths, currentVersion string) error {
+// UpdateMenu「工具 → 更新」：聚合内核 / Web UI / geo 数据 / clashdock 自身四个独立
+// 更新入口，各自单独触发、互不牵连（不再像过去那样内核/geo/UI 捆绑一次问完）。
+func UpdateMenu(p paths.Paths, currentVersion string) error {
 	options := []string{i18n.T("内核"), i18n.T("Web UI"), i18n.T("geo 数据"), i18n.T("clashdock 自身")}
 	handlers := []func() error{
 		func() error { return updateCoreOnly(p) },

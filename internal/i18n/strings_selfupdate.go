@@ -34,5 +34,9 @@ func init() {
 		"尚未记录过稳定版，无法回退":       "No stable version recorded yet; cannot roll back",
 		"记录的稳定版二进制无法正常运行：%w":  "The recorded stable binary failed to run: %w",
 		"回退后校验失败：%w":          "Post-rollback verification failed: %w",
+
+		"dpkg 安装后校验失败：%w":   "Post-install verification after dpkg failed: %w",
+		"版本号不符：期望 %s，实际 %q": "Version mismatch: expected %s, got %q",
+		"安装 clashdock 新版本":  "Installing the new clashdock version",
 	})
 }

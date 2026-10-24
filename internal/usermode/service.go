@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/Trilives/clashdock/internal/configfile"
 	"github.com/Trilives/clashdock/internal/i18n"
 	"github.com/Trilives/clashdock/internal/paths"
 )
@@ -87,6 +88,19 @@ func Validate(p paths.Paths) error {
 	return nil
 }
 
+// precheckState 用即将部署的内核与 geo 数据校验生效配置。
+func precheckState(p paths.Paths) error {
+	cfg, err := configfile.Read(p.ConfigFile)
+	if err != nil {
+		return err
+	}
+	return configfile.Precheck(p.MihomoBin, p.State, cfg, map[string]string{
+		"geoip.metadb": p.GeoipMetadb,
+		"country.mmdb": p.CountryMmdb,
+		"geosite.dat":  p.GeositeDat,
+	})
+}
+
 // preflight 部署前检查：内核与生效配置必须就位（geo 由 StageRuntime 检查）。
 func preflight(p paths.Paths) error {
 	if _, err := os.Stat(p.MihomoBin); err != nil {
@@ -99,8 +113,12 @@ func preflight(p paths.Paths) error {
 }
 
 // prepare 铺运行时并校验：重启 / 部署前的公共步骤，保证服务只会用通过校验的最新配置启动。
+// 铺之前先在私有目录校验，未通过时运行中的用户服务所用的运行时文件不动。
 func prepare(p paths.Paths) error {
 	if err := preflight(p); err != nil {
+		return err
+	}
+	if err := precheckState(p); err != nil {
 		return err
 	}
 	if err := StageRuntime(p); err != nil {

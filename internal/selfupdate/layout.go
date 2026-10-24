@@ -13,7 +13,7 @@ import (
 	"github.com/Trilives/clashdock/internal/paths"
 )
 
-func versionsDir(p paths.Paths) string    { return filepath.Join(p.State, "clashdock-versions") }
+func versionsDir(p paths.Paths) string    { return p.VersionsDir() }
 func currentLink(p paths.Paths) string    { return filepath.Join(versionsDir(p), "current") }
 func lastStableLink(p paths.Paths) string { return filepath.Join(versionsDir(p), "last-stable") }
 func versionBin(p paths.Paths, version string) string {

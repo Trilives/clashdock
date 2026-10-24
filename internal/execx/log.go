@@ -3,10 +3,12 @@ package execx
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -25,6 +27,16 @@ var (
 // 包，只接收字符串，避免给 execx 添加新的包内依赖）。
 func LogPath(state string) string { return filepath.Join(state, "clashdock.log") }
 
+// logFileMode 日志可能含订阅地址等凭据：与 paths.SecretFileMode 一致，属主与属组
+// （系统模式为管理员的私有组）可读，其他用户不可读。
+const logFileMode = 0o640
+
+// openLogFile 追加打开日志（可读，裁剪时从同一句柄读取）；不跟随符号链接：
+// root 写日志时，被换成链接的日志文件不能把写入引向别处。
+func openLogFile(path string) (*os.File, error) {
+	return os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_RDWR|syscall.O_NOFOLLOW, logFileMode)
+}
+
 // EnableLog 开启日志：Info/Ok/Warn/Error/Header 的输出额外追加写入 path
 // （去除 ANSI 颜色码、带时间戳）。maxBytes<=0 时用 DefaultLogMaxBytes。
 func EnableLog(path string, maxBytes int64) error {
@@ -34,7 +46,7 @@ func EnableLog(path string, maxBytes int64) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	f, err := openLogFile(path)
 	if err != nil {
 		return err
 	}
@@ -77,18 +89,48 @@ func trimIfOversize() {
 	if err != nil || st.Size() <= logMaxBytes {
 		return
 	}
-	data, err := os.ReadFile(logPath)
-	if err != nil || int64(len(data)) <= logMaxBytes {
+	// 从已打开的句柄读，而不是按路径重新打开。
+	data := make([]byte, st.Size())
+	n, err := logFile.ReadAt(data, 0)
+	if err != nil && err != io.EOF {
+		return
+	}
+	data = data[:n]
+	if int64(len(data)) <= logMaxBytes {
 		return
 	}
 	cut := int64(len(data)) - logMaxBytes
 	if idx := bytes.IndexByte(data[cut:], '\n'); idx >= 0 {
 		cut += int64(idx) + 1
 	}
-	tail := data[cut:]
-	logFile.Close()
-	os.WriteFile(logPath, tail, 0o644)
-	if f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
-		logFile = f
+	if err := replaceLog(data[cut:]); err != nil {
+		return
 	}
+	logFile.Close()
+	if f, err := openLogFile(logPath); err == nil {
+		logFile = f
+	} else {
+		logFile = nil
+	}
+}
+
+// replaceLog 以同目录临时文件 + 改名替换日志内容，不经路径写入现有文件。
+func replaceLog(tail []byte) error {
+	tmp, err := os.CreateTemp(filepath.Dir(logPath), ".clashdock.log.*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name())
+	if _, err := tmp.Write(tail); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Chmod(logFileMode); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmp.Name(), logPath)
 }

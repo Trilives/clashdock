@@ -27,5 +27,10 @@ func init() {
 		"读取本地文件: %w":               "Failed to read the local file: %w",
 		"请输入文件路径，而不是目录: %s":        "Please provide a file path, not a directory: %s",
 		"解析 YAML 配置文件: %w":         "Failed to parse the YAML config file: %w",
+
+		"重新安装 %s 的 .deb，把可执行文件恢复为 dpkg 管理？":   "Reinstall the %s .deb to put the executable back under dpkg management?",
+		"系统模式的数据目录 %s 只能由 root 管理，请用 sudo 运行": "The system-mode data directory %s can only be managed by root; please run with sudo",
+		"收归数据目录 %s 为 root 属主失败：%w":            "Failed to hand the data directory %s over to root: %w",
+		"修改系统模式的设置与服务":                        "Changing system-mode settings and services ",
 	})
 }

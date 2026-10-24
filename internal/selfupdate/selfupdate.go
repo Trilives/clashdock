@@ -7,10 +7,11 @@
 //	<state>/clashdock-versions/<version>/clashdock   —— 各版本二进制，各自独立
 //	<state>/clashdock-versions/current                —— 指向某个 <version>/clashdock 的符号链接
 //
-// 首次自更新时，若当前运行的可执行文件（os.Executable，一般是 apt 安装的
-// /usr/bin/clashdock）还是普通文件而非上述符号链接，会先把它原样迁移进版本
-// 目录（作为已知可回退的基线版本），再把该路径本身替换为指向 current 的符号
-// 链接——此后再更新只需要原子重写 current 指向，不用碰 /usr/bin 下的文件。
+// dpkg 管理的系统模式安装不用这套方案，改为下载 .deb 交给 dpkg（见 deb.go）。
+// 其余安装（用户模式、install.sh 装的系统路径）首次自更新时，若当前运行的可执行
+// 文件还是普通文件而非上述符号链接，会先把它原样迁移进版本目录（作为已知可回退的
+// 基线版本），再把该路径本身替换为指向 current 的符号链接——此后再更新只需要
+// 原子重写 current 指向。
 //
 // 更新流程：下载发行包 → 校验 SHA-256 → 解压到独立版本目录 → 试跑新二进制确认
 // 能正常执行 → 原子切换 current 符号链接 → 再次试跑确认成功；若启动校验失败，
@@ -63,7 +64,15 @@ func LatestVersion(p paths.Paths, channel Channel) (string, error) {
 
 // LastStableVersion 返回记录的"上一个稳定版"版本号（每次稳定渠道更新成功后都会
 // 刷新）；尚未记录过（从未在这台机器上完成过一次稳定渠道更新）则 ok=false。
+// 版本目录方案记在 last-stable 符号链接里，dpkg 管理时记在 stableRecordPath。
 func LastStableVersion(p paths.Paths) (string, bool) {
+	if v, ok := linkedStableVersion(p); ok {
+		return v, true
+	}
+	return recordedStableVersion(p)
+}
+
+func linkedStableVersion(p paths.Paths) (string, bool) {
 	target, err := os.Readlink(lastStableLink(p))
 	if err != nil {
 		return "", false
@@ -74,6 +83,9 @@ func LastStableVersion(p paths.Paths) (string, bool) {
 // RollbackToStable 把 current 切回 last-stable 记录的稳定版（试跑校验通过才
 // 切换），供切到预览版后想回退的用户使用。返回切回的版本号。
 func RollbackToStable(p paths.Paths) (string, error) {
+	if exe, ok := debManagedExe(p); ok {
+		return rollbackDebManaged(p, exe)
+	}
 	target, err := os.Readlink(lastStableLink(p))
 	if err != nil {
 		return "", fmt.Errorf("%s", i18n.T("尚未记录过稳定版，无法回退"))
@@ -101,6 +113,9 @@ func Update(p paths.Paths, currentVersion string, channel Channel) (string, bool
 	version := strings.TrimPrefix(rel.TagName, "v")
 	if version == "" {
 		return "", false, fmt.Errorf("%s", i18n.T("发行版没有有效的版本号"))
+	}
+	if exe, ok := debManagedExe(p); ok {
+		return updateDebManaged(p, f, s, rel, version, currentVersion, exe, channel)
 	}
 	if version == strings.TrimPrefix(currentVersion, "v") {
 		return version, true, nil
@@ -153,31 +168,40 @@ func Update(p paths.Paths, currentVersion string, channel Channel) (string, bool
 	return version, false, nil
 }
 
-// downloadVerified 下载本机架构的发行包与 checksums.txt 到给定路径，并校验 SHA-256。
+// downloadVerified 下载本机架构的发行包到 archivePath，并校验 SHA-256（见 verifyAsset）。
 func downloadVerified(f *fetchx.Fetcher, s kernel.Settings, rel ghRelease, name, archivePath, sumsPath string) error {
-	assetURL := findAssetURL(rel, name)
-	if assetURL == "" {
+	asset, ok := findAsset(rel, name)
+	if !ok || asset.BrowserDownloadURL == "" {
 		return fmt.Errorf(i18n.T("未找到本机架构的发行包: %s"), name)
 	}
-	sumsURL := findAssetURL(rel, "checksums.txt")
-	if sumsURL == "" {
+	if asset.Digest == "" && findAssetURL(rel, "checksums.txt") == "" {
 		return fmt.Errorf("%s", i18n.T("发行版缺少 checksums.txt，无法校验完整性"))
 	}
 	if err := os.MkdirAll(filepath.Dir(archivePath), 0o755); err != nil {
 		return err
 	}
-	execx.Info(i18n.T("下载 clashdock: ") + assetURL)
-	if err := f.FetchFile(kernel.Mirror(assetURL, s.GithubMirror), archivePath); err != nil {
+	execx.Info(i18n.T("下载 clashdock: ") + asset.BrowserDownloadURL)
+	if err := f.FetchFile(kernel.Mirror(asset.BrowserDownloadURL, s.GithubMirror), archivePath); err != nil {
 		return err
 	}
-	if err := f.FetchFile(kernel.Mirror(sumsURL, s.GithubMirror), sumsPath); err != nil {
-		return err
-	}
-	if err := verifySHA256(archivePath, sumsPath, name); err != nil {
+	if err := verifyAsset(f, rel, asset, archivePath, sumsPath); err != nil {
 		return err
 	}
 	execx.Ok(i18n.T("SHA-256 校验通过。"))
 	return nil
+}
+
+// verifyAsset 以 GitHub API 的资产摘要校验；发行版没有摘要时回退到 checksums.txt，且
+// 直接从 GitHub 取——经镜像取来的 checksums.txt 与包出自同一方，被篡改的镜像能给出
+// 一对相符的包与校验和，而校验通过的包会以 root 安装。镜像只负责传输大文件。
+func verifyAsset(f *fetchx.Fetcher, rel ghRelease, asset ghAsset, archivePath, sumsPath string) error {
+	if asset.Digest != "" {
+		return kernel.VerifyDigest(archivePath, asset.Digest)
+	}
+	if err := f.FetchFile(findAssetURL(rel, "checksums.txt"), sumsPath); err != nil {
+		return err
+	}
+	return verifySHA256(archivePath, sumsPath, asset.Name)
 }
 
 // installVersion 把已校验的发行包解压到独立版本目录、归一化出 <version>/clashdock 并试跑；

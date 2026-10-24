@@ -19,7 +19,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"text/template"
 
 	"github.com/Trilives/clashdock/internal/configfile"
 	"github.com/Trilives/clashdock/internal/execx"
@@ -35,6 +34,7 @@ const DefaultName = "mihomo"
 
 type runtimePaths struct {
 	Dir     string
+	Home    string // 服务账户可写的 mihomo 工作目录（-d），见 service_user.go
 	Bin     string
 	Config  string
 	UI      string
@@ -48,6 +48,7 @@ func rtPaths(name string) runtimePaths {
 	d := paths.RuntimeDir
 	return runtimePaths{
 		Dir:     d,
+		Home:    filepath.Join(d, "home"),
 		Bin:     filepath.Join(d, "mihomo"),
 		Config:  filepath.Join(d, name+".yaml"),
 		UI:      filepath.Join(d, "ui"),
@@ -58,20 +59,25 @@ func rtPaths(name string) runtimePaths {
 	}
 }
 
-// stageRuntimeConfig 读 state/config.yaml（JSON 内容），把 external-ui 改写为
-// 运行时绝对路径，写临时文件返回。输出仍为 JSON 内容、.yaml 后缀。
-func stageRuntimeConfig(p paths.Paths, rt runtimePaths) (string, error) {
+// runtimeConfigData 读 state/config.yaml（JSON 内容），把 external-ui 改写为运行时绝对路径。
+func runtimeConfigData(p paths.Paths, rt runtimePaths) (map[string]any, error) {
 	raw, err := os.ReadFile(p.ConfigFile)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	data, err := configfile.Parse(raw)
 	if err != nil {
-		return "", fmt.Errorf(i18n.T("解析 state/config.yaml: %w"), err)
+		return nil, fmt.Errorf(i18n.T("解析 state/config.yaml: %w"), err)
 	}
 	if v, ok := data["external-ui"]; ok && v != nil && v != "" {
 		data["external-ui"] = rt.UI
 	}
+	return data, nil
+}
+
+// stageRuntimeConfig 把 data 写成临时文件返回（仅属主可读：含节点凭据）。输出为 JSON
+// 内容、.yaml 后缀。
+func stageRuntimeConfig(p paths.Paths, data map[string]any) (string, error) {
 	out, err := jsonx.MarshalPretty(data)
 	if err != nil {
 		return "", err
@@ -90,6 +96,24 @@ func stageRuntimeConfig(p paths.Paths, rt runtimePaths) (string, error) {
 		return "", err
 	}
 	return tmp.Name(), nil
+}
+
+// stateAssets 即将部署的 geo 数据（校验目录内的文件名 → state 源文件）。
+func stateAssets(p paths.Paths) map[string]string {
+	return map[string]string{
+		"geoip.metadb": p.GeoipMetadb,
+		"country.mmdb": p.CountryMmdb,
+		"geosite.dat":  p.GeositeDat,
+	}
+}
+
+// runtimeAssets 运行中的服务所用的 geo 数据。
+func runtimeAssets(rt runtimePaths) map[string]string {
+	return map[string]string{
+		"geoip.metadb": rt.Geoip,
+		"country.mmdb": rt.Country,
+		"geosite.dat":  rt.Geosite,
+	}
 }
 
 func preflight(p paths.Paths) error {
@@ -121,50 +145,26 @@ func Install(p paths.Paths, name string, start bool) error {
 		return err
 	}
 	rt := rtPaths(name)
+	data, err := runtimeConfigData(p, rt)
+	if err != nil {
+		return err
+	}
+	// 先用即将部署的内核与 geo 数据校验，通过后才提权、覆盖运行时文件、移除旧 unit。
+	if err := precheckConfig(p.MihomoBin, p.State, data, stateAssets(p)); err != nil {
+		return err
+	}
 	if err := execx.EnsureSudo(i18n.T("注册系统服务")); err != nil {
 		return err
 	}
-
-	staged, err := stageRuntimeConfig(p, rt)
+	if err := ensureServiceUser(); err != nil {
+		return err
+	}
+	staged, err := stageRuntimeConfig(p, data)
 	if err != nil {
 		return err
 	}
 	defer os.Remove(staged)
-
-	steps := [][]string{
-		{"mkdir", "-p", rt.Dir},
-		{"chmod", "0755", rt.Dir},
-		// 二进制：临时名 + 原子改名，避免运行中替换报 ETXTBSY
-		{"install", "-m", "0755", p.MihomoBin, rt.Bin + ".new"},
-		{"mv", "-f", rt.Bin + ".new", rt.Bin},
-	}
-	// geo 数据（mihomo 在工作目录根查找；metadb / country.mmdb 有哪个装哪个）
-	if _, err := os.Stat(p.GeoipMetadb); err == nil {
-		steps = append(steps, []string{"install", "-m", "0644", p.GeoipMetadb, rt.Geoip})
-	}
-	if _, err := os.Stat(p.CountryMmdb); err == nil {
-		steps = append(steps, []string{"install", "-m", "0644", p.CountryMmdb, rt.Country})
-	}
-	steps = append(steps, []string{"install", "-m", "0644", p.GeositeDat, rt.Geosite})
-	for _, cmd := range steps {
-		if _, err := execx.RunRoot(cmd, i18n.T("部署运行时"), nil); err != nil {
-			return err
-		}
-	}
-	// UI
-	if _, err := os.Stat(p.UI); err == nil {
-		execx.RunRoot([]string{"rm", "-rf", rt.UI}, "", nil)
-		if _, err := execx.RunRoot([]string{"cp", "-a", p.UI, rt.UI}, "", nil); err != nil {
-			return err
-		}
-	} else {
-		execx.Warn(i18n.T("未找到 Web UI，面板将不可用；可稍后执行更新补齐。"))
-	}
-	// 配置 + 运行时校验
-	if _, err := execx.RunRoot([]string{"install", "-m", "0644", staged, rt.Config}, "", nil); err != nil {
-		return err
-	}
-	if _, err := execx.RunRoot([]string{rt.Bin, "-t", "-d", rt.Dir, "-f", rt.Config}, i18n.T("校验配置"), nil); err != nil {
+	if err := deployRuntime(p, rt, staged); err != nil {
 		return err
 	}
 
@@ -180,14 +180,14 @@ func Install(p paths.Paths, name string, start bool) error {
 	if err := execx.WriteRoot(rt.Unit, unitText, "0644", i18n.T("写服务单元")); err != nil {
 		return err
 	}
-	if _, err := execx.RunRoot([]string{"systemctl", "daemon-reload"}, "", nil); err != nil {
+	if _, err := runRoot([]string{"systemctl", "daemon-reload"}, "", nil); err != nil {
 		return err
 	}
-	if _, err := execx.RunRoot([]string{"systemctl", "enable", name + ".service"}, "", nil); err != nil {
+	if _, err := runRoot([]string{"systemctl", "enable", name + ".service"}, "", nil); err != nil {
 		return err
 	}
 	if start {
-		if _, err := execx.RunRoot([]string{"systemctl", "restart", name + ".service"}, "", nil); err != nil {
+		if _, err := runRoot([]string{"systemctl", "restart", name + ".service"}, "", nil); err != nil {
 			return err
 		}
 		execx.Ok(i18n.T("服务已启动: ") + name + ".service")
@@ -200,14 +200,41 @@ func Install(p paths.Paths, name string, start bool) error {
 	return nil
 }
 
-func renderUnit(name string, rt runtimePaths) (string, error) {
-	t, err := template.New("unit").Parse(mihomoUnitTmpl)
-	if err != nil {
-		return "", err
+// deployRuntime 把内核、geo 数据、UI 与已暂存的配置铺进运行时目录，再用运行时文件校验一次。
+func deployRuntime(p paths.Paths, rt runtimePaths, staged string) error {
+	steps := append(runtimeLayoutSteps(rt),
+		// 二进制：临时名 + 原子改名，避免运行中替换报 ETXTBSY
+		[]string{"install", "-m", "0755", p.MihomoBin, rt.Bin + ".new"},
+		[]string{"mv", "-f", rt.Bin + ".new", rt.Bin},
+	)
+	// geo 数据（mihomo 在工作目录根查找；metadb / country.mmdb 有哪个装哪个）
+	if _, err := os.Stat(p.GeoipMetadb); err == nil {
+		steps = append(steps, []string{"install", "-m", "0644", p.GeoipMetadb, rt.Geoip})
 	}
-	var sb strings.Builder
-	err = t.Execute(&sb, struct{ Name, RuntimeDir, Bin, Config string }{name, rt.Dir, rt.Bin, rt.Config})
-	return sb.String(), err
+	if _, err := os.Stat(p.CountryMmdb); err == nil {
+		steps = append(steps, []string{"install", "-m", "0644", p.CountryMmdb, rt.Country})
+	}
+	steps = append(steps, []string{"install", "-m", "0644", p.GeositeDat, rt.Geosite})
+	for _, cmd := range steps {
+		if _, err := runRoot(cmd, i18n.T("部署运行时"), nil); err != nil {
+			return err
+		}
+	}
+	// UI：不沿用状态目录的属组与 setgid（管理员私有组），运行时只归 root，权限按 umask
+	if _, err := os.Stat(p.UI); err == nil {
+		runRoot([]string{"rm", "-rf", rt.UI}, "", nil)
+		if _, err := runRoot([]string{"cp", "-R", "--preserve=timestamps", p.UI, rt.UI}, "", nil); err != nil {
+			return err
+		}
+	} else {
+		execx.Warn(i18n.T("未找到 Web UI，面板将不可用；可稍后执行更新补齐。"))
+	}
+	// 配置 + 运行时校验
+	if _, err := runRoot(installConfigCmd(staged, rt), "", nil); err != nil {
+		return err
+	}
+	_, err := runRoot([]string{rt.Bin, "-t", "-d", rt.Dir, "-f", rt.Config}, i18n.T("校验配置"), nil)
+	return err
 }
 
 // SyncAndRestart 把当前 state/config.yaml 同步到运行时并重启服务。
@@ -226,12 +253,7 @@ func SyncAndRestart(p paths.Paths, name string) error {
 	if err := execx.EnsureSudo(i18n.T("更新服务配置")); err != nil {
 		return err
 	}
-	staged, err := stageRuntimeConfig(p, rt)
-	if err != nil {
-		return err
-	}
-	defer os.Remove(staged)
-	if err := syncStagedAndRestart(staged, rt, name, execx.RunRoot); err != nil {
+	if err := syncRuntime(p, rt, name, precheckConfig, runRoot); err != nil {
 		return err
 	}
 	execx.Ok(i18n.T("已同步配置并重启: ") + name + ".service")
@@ -240,9 +262,35 @@ func SyncAndRestart(p paths.Paths, name string) error {
 
 type rootCommandRunner func([]string, string, *execx.Opt) (execx.Result, error)
 
+type precheckFunc func(bin, parent string, cfg map[string]any, assets map[string]string) error
+
+// 可在测试中替换：root 命令与部署前校验。
+var (
+	runRoot        rootCommandRunner = execx.RunRoot
+	precheckConfig precheckFunc      = configfile.Precheck
+)
+
+// syncRuntime 用运行中的内核与 geo 数据先校验，未通过时运行时配置与服务都不动；
+// 通过后才安装配置并重启。
+func syncRuntime(p paths.Paths, rt runtimePaths, name string, check precheckFunc, run rootCommandRunner) error {
+	data, err := runtimeConfigData(p, rt)
+	if err != nil {
+		return err
+	}
+	if err := check(rt.Bin, p.State, data, runtimeAssets(rt)); err != nil {
+		return err
+	}
+	staged, err := stageRuntimeConfig(p, data)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(staged)
+	return syncStagedAndRestart(staged, rt, name, run)
+}
+
 // syncStagedAndRestart 保证重启只能发生在最新配置已安装且通过校验之后。
 func syncStagedAndRestart(staged string, rt runtimePaths, name string, run rootCommandRunner) error {
-	if _, err := run([]string{"install", "-m", "0644", staged, rt.Config}, "", nil); err != nil {
+	if _, err := run(installConfigCmd(staged, rt), "", nil); err != nil {
 		return fmt.Errorf(i18n.T("同步运行时配置: %w"), err)
 	}
 	if _, err := run([]string{rt.Bin, "-t", "-d", rt.Dir, "-f", rt.Config}, i18n.T("校验配置"), nil); err != nil {
@@ -265,12 +313,12 @@ func Remove(p paths.Paths, name string, purgeRuntime bool) error {
 	removeUnit(name, false)
 	if purgeRuntime {
 		rt := rtPaths(name)
-		execx.RunRoot([]string{"rm", "-f", rt.Config}, "", nil)
-		remaining, _ := execx.RunRoot(
+		runRoot([]string{"rm", "-f", rt.Config}, "", nil)
+		remaining, _ := runRoot(
 			[]string{"bash", "-c", fmt.Sprintf("ls %s/*.yaml 2>/dev/null | wc -l", paths.RuntimeDir)},
 			"", &execx.Opt{Capture: true})
 		if strings.TrimSpace(remaining.Stdout) == "0" {
-			execx.RunRoot([]string{"rm", "-rf", paths.RuntimeDir}, "", nil)
+			runRoot([]string{"rm", "-rf", paths.RuntimeDir}, "", nil)
 		}
 	}
 	execx.Ok(i18n.T("服务已删除: ") + name + ".service")
@@ -279,11 +327,11 @@ func Remove(p paths.Paths, name string, purgeRuntime bool) error {
 
 func removeUnit(name string, quiet bool) {
 	opt := &execx.Opt{Capture: quiet}
-	execx.RunRoot([]string{"systemctl", "stop", name + ".service"}, "", opt)
-	execx.RunRoot([]string{"systemctl", "disable", name + ".service"}, "", opt)
-	execx.RunRoot([]string{"rm", "-f", rtPaths(name).Unit}, "", nil)
-	execx.RunRoot([]string{"systemctl", "daemon-reload"}, "", opt)
-	execx.RunRoot([]string{"systemctl", "reset-failed", name + ".service"}, "", opt)
+	runRoot([]string{"systemctl", "stop", name + ".service"}, "", opt)
+	runRoot([]string{"systemctl", "disable", name + ".service"}, "", opt)
+	runRoot([]string{"rm", "-f", rtPaths(name).Unit}, "", nil)
+	runRoot([]string{"systemctl", "daemon-reload"}, "", opt)
+	runRoot([]string{"systemctl", "reset-failed", name + ".service"}, "", opt)
 }
 
 func IsInstalled(name string) bool {
@@ -341,9 +389,9 @@ func Pause(name string) error {
 	}
 	// 先停伴生 watchdog，否则刚停掉主服务它又会拉起来
 	for _, unit := range companions {
-		execx.RunRoot([]string{"systemctl", "stop", unit}, "", &execx.Opt{Capture: true})
+		runRoot([]string{"systemctl", "stop", unit}, "", &execx.Opt{Capture: true})
 	}
-	execx.RunRoot([]string{"systemctl", "stop", name + ".service"}, "", nil)
+	runRoot([]string{"systemctl", "stop", name + ".service"}, "", nil)
 	suffix := ""
 	if len(companions) > 0 {
 		suffix = fmt.Sprintf(i18n.T(" + %d 个伴生单元"), len(companions))
@@ -366,9 +414,9 @@ func Resume(name string) error {
 	if err := execx.EnsureSudo(i18n.T("启动服务")); err != nil {
 		return err
 	}
-	execx.RunRoot([]string{"systemctl", "start", name + ".service"}, "", nil)
+	runRoot([]string{"systemctl", "start", name + ".service"}, "", nil)
 	for _, unit := range companions {
-		execx.RunRoot([]string{"systemctl", "start", unit}, "", &execx.Opt{Capture: true})
+		runRoot([]string{"systemctl", "start", unit}, "", &execx.Opt{Capture: true})
 	}
 	suffix := ""
 	if len(companions) > 0 {
