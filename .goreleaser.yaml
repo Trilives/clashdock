@@ -111,14 +111,15 @@ checksum:
 release:
   prerelease: auto
   header: |
-    Highlights of v0.3.1 (vs v0.3.0):
+    Highlights of v0.4.0 (vs v0.3.1):
 
-    - **TUN in user mode, on demand**: the user-mode menu can now enable TUN without a full install. After a confirmation (default no), sudo grants the user's own mihomo binary the network capabilities it needs (`setcap`); mihomo keeps running as your user and the password is never stored. Cancelling or failing authorization changes nothing, any later failure rolls back and revokes the capabilities, disabling TUN needs no sudo, and after a core update clashdock asks to re-authorize (or turns TUN off).
-    - **Full mode no longer removes an existing `sing-box.service` silently**: `clashdock init` asks first (default no) and, if you agree, only stops and disables it, keeping its unit file. If you keep it and the ports mihomo needs are taken, init stops with a clear message instead of taking over. `clashdock update` and the weekly timer never touch it.
-    - Fix: a cancelled sudo prompt during init no longer reports a false "rollback failed".
-    - Internal: kernel, node-selection and self-update code split into smaller files with new tests; CI now runs gofmt, vet and race tests on every push and pull request.
+    - **System mode asks for your password only when it needs root**: opening the menu, Info, Logs and `clashdock nettest` run as your own user; choosing an item that changes settings or services asks for sudo once and reopens right where you were. `init` / `modify` / `uninstall` / `update` / `pause` / `resume` still elevate at start.
+    - **Root no longer trusts files your user can change**: `/var/lib/clashdock` is now root-owned and readable by your user's private group (credentials 0640, subscriptions 0750, unreadable by other local users). The watchdog and the weekly update timer run a root-owned `clashdock`, and logs refuse planted symlinks.
+    - **mihomo no longer runs as root**: the service runs as a dedicated `mihomo` system account with only the network capabilities it needs, using hardening that also works in unprivileged LXC containers. The runtime directory stays root-owned; mihomo only owns its cache/provider directory.
+    - **Safer deploys**: configs are checked with the exact kernel and geo data about to be deployed before anything in the runtime directory is replaced. A failed check leaves the running service untouched.
+    - **Verified downloads**: the mihomo kernel and clashdock self-updates are checked against the SHA-256 GitHub publishes for each asset, so a mirror only carries the bytes. `.deb` installs now self-update by installing the new `.deb` through dpkg instead of replacing `/usr/bin/clashdock`.
 
-    No config migration is needed.
+    Upgrading from v0.3.x: the state directory is converted automatically by the first root run (the watchdog does it within two minutes). The main menu then offers to redeploy the service so mihomo runs as `mihomo`; a brief reconnect is expected. If an earlier self-update turned `/usr/bin/clashdock` into a symlink, Tools → Update → clashdock itself reinstalls the `.deb`. Known limitation: as a non-root service, mihomo can only match `PROCESS-NAME` rules (including the TUN "direct process" setting) for its own processes.
 
 changelog:
   sort: asc

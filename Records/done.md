@@ -9,6 +9,10 @@
 
 ## 2026-10-24
 
+- 发布前清理（人工要求「清理无效文件」）：删除 17 条未引用的翻译、无调用方的 `config.EnsureExists`、过时的
+  `docs/Pictures/portable-mode.png`（README 用户模式预览改为按现行代码渲染的 `user-mode.png`）；ARCHITECTURE
+  §8 自更新拆到 `docs/SELFUPDATE.md`（285 → 257 行）；README 自更新说明同步 dpkg 升级与 SHA-256 来源。
+  详见 MAINTENANCE §2.1。记录：[2026-10-24-release-v0.4.0.md](tasks/2026-10-24-release-v0.4.0.md)
 - T-012 ~ T-019 来自对 sboxkit `Records/` 的借鉴（优先级经人工同意）。实机验证主机改为 mars（人工指定）。
 - T-012 / T-013 / T-015：系统模式特权边界——状态目录收归 `root:<管理员私有组>`（凭据 0640、订阅目录 0750，
   首个 root 入口含 watchdog 自动收归旧部署）；主菜单按需提权（经人工要求不再每次打开都要密码，写状态的
