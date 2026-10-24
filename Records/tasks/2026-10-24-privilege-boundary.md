@@ -84,5 +84,5 @@ mars 的 0.3.1 未做过自更新，`/usr/bin/clashdock` 仍归 dpkg，因此以
 
 ## 遗留问题
 
-- [ ] mars 仍运行快照包 `0.3.1~SNAPSHOT-5f66466`，下个正式版发布后按 WORKFLOW §8 升级核对；
-      回退方式：`/root/clashdock-backup-20261024/` 中的 0.3.1 `.deb` 与状态备份。
+- [x] mars 已从 v0.3.1 基线经旧版自更新升级到正式包 v0.4.0（见 [发布记录](2026-10-24-release-v0.4.0.md)）；
+      备份仍在 `/root/clashdock-backup-20261024/`。

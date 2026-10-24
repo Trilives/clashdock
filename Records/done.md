@@ -9,6 +9,11 @@
 
 ## 2026-10-24
 
+- 发布 v0.4.0：系统模式按需提权与 root 属主状态（T-012 / T-013 / T-015）、先校验后部署（T-014）、mihomo 非 root
+  运行（T-016）、下载 SHA-256 校验（T-017）、真实内核测试门禁（T-018）及发布前清理。测试 CI 与 release 工作流
+  通过，产出三种架构的 tar.gz / .deb 与 checksums.txt（均带 API digest）；`/releases/latest` 返回 v0.4.0，amd64 包
+  校验和与 `clashdock version` 核对无误。mars 从 v0.3.1 基线经旧版自更新升级到正式包，按需提权、目录收归、
+  重新部署与恢复 dpkg 管理均通过（共 2 次口令），设置与基线一致。记录：[2026-10-24-release-v0.4.0.md](tasks/2026-10-24-release-v0.4.0.md)
 - 发布前清理（人工要求「清理无效文件」）：删除 17 条未引用的翻译、无调用方的 `config.EnsureExists`、过时的
   `docs/Pictures/portable-mode.png`（README 用户模式预览改为按现行代码渲染的 `user-mode.png`）；ARCHITECTURE
   §8 自更新拆到 `docs/SELFUPDATE.md`（285 → 257 行）；README 自更新说明同步 dpkg 升级与 SHA-256 来源。
